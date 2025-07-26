@@ -619,13 +619,950 @@ demonstrate_gradient_comparison()</pre>
         <h2>C.2 分数函数的几何意义</h2>
         
         <h3>C.2.1 分数函数作为切向量</h3>
-        [内容待补充]
+        
+        <p>分数函数 $\nabla_x \log p(x)$ 不仅仅是一个梯度——从信息几何的角度看，它是概率分布流形上的切向量，指示着密度增长最快的方向。这种几何视角为理解扩散模型提供了深刻的洞察。</p>
+        
+        <h4>分数函数的几何定义</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">分数函数作为切向量</div>
+            <p>考虑概率密度函数的对数变换流形。在点 $p(x)$ 处，分数函数定义了一个切向量场：</p>
+            <div class="formula">
+                $$s(x) = \nabla_x \log p(x) = \frac{\nabla_x p(x)}{p(x)}$$
+            </div>
+            
+            <p>这个向量场具有特殊性质：</p>
+            <ul>
+                <li>在高概率区域指向密度增加的方向</li>
+                <li>在低概率区域具有大的模长</li>
+                <li>满足积分约束：$\mathbb{E}_{p(x)}[s(x)] = 0$</li>
+            </ul>
+        </div>
+        
+        <h4>切向量的积分性质</h4>
+        
+        <div class="note-box">
+            <h4>为什么期望为零？</h4>
+            <p>分数函数的零期望性质来自于概率密度的归一化约束：</p>
+            <div class="formula">
+                $$\int p(x) dx = 1 \Rightarrow \int \nabla_x p(x) dx = 0$$
+            </div>
+            
+            <p>因此：</p>
+            <div class="formula">
+                $$\mathbb{E}_{p(x)}[s(x)] = \int p(x) \cdot \frac{\nabla_x p(x)}{p(x)} dx = \int \nabla_x p(x) dx = 0$$
+            </div>
+            
+            <p>这意味着分数函数确实是概率分布流形切空间中的向量！</p>
+        </div>
+        
+        <h4>流形上的向量场</h4>
+        
+        <div class="example-box">
+            <div class="example-title">具体例子：高斯混合模型</div>
+            <p>对于二维高斯混合模型：</p>
+            <div class="formula">
+                $$p(x) = \pi_1 \mathcal{N}(x; \mu_1, \Sigma_1) + \pi_2 \mathcal{N}(x; \mu_2, \Sigma_2)$$
+            </div>
+            
+            <p>分数函数为：</p>
+            <div class="formula">
+                $$s(x) = \frac{\pi_1 \mathcal{N}_1(x) \cdot (-\Sigma_1^{-1}(x-\mu_1)) + \pi_2 \mathcal{N}_2(x) \cdot (-\Sigma_2^{-1}(x-\mu_2))}{\pi_1 \mathcal{N}_1(x) + \pi_2 \mathcal{N}_2(x)}$$
+            </div>
+            
+            <p>这是两个高斯分数的加权平均，权重随位置变化！</p>
+        </div>
+        
+        <div class="code-block">
+<pre># 可视化分数函数作为向量场
+import torch
+import numpy as np
+
+class ScoreVectorField:
+    """分数函数的向量场可视化和分析"""
+    
+    def __init__(self):
+        self.device = torch.device('cpu')
+    
+    def gaussian_mixture_score(self, x, weights, means, covs):
+        """计算高斯混合模型的分数函数"""
+        n_components = len(weights)
+        scores = []
+        densities = []
+        
+        for i in range(n_components):
+            # 计算每个分量的密度
+            diff = x - means[i]
+            inv_cov = torch.inverse(covs[i])
+            
+            # Mahalanobis距离
+            mahal = torch.sum(diff @ inv_cov * diff, dim=-1)
+            log_det = torch.logdet(covs[i])
+            
+            # 概率密度
+            log_density = -0.5 * (mahal + log_det + 2 * np.log(2 * np.pi))
+            density = torch.exp(log_density) * weights[i]
+            densities.append(density)
+            
+            # 该分量的分数
+            score_i = -inv_cov @ diff.T
+            scores.append(score_i.T * density.unsqueeze(-1))
+        
+        # 加权平均
+        total_density = sum(densities)
+        weighted_score = sum(scores) / (total_density.unsqueeze(-1) + 1e-8)
+        
+        return weighted_score, total_density
+    
+    def analyze_vector_field(self, score_fn, x_range=(-3, 3), n_points=20):
+        """分析分数向量场的性质"""
+        # 创建网格
+        x = torch.linspace(x_range[0], x_range[1], n_points)
+        y = torch.linspace(x_range[0], x_range[1], n_points)
+        X, Y = torch.meshgrid(x, y, indexing='xy')
+        
+        # 平展为点集
+        points = torch.stack([X.flatten(), Y.flatten()], dim=1)
+        
+        # 计算分数
+        scores = score_fn(points)
+        
+        # 分析性质
+        results = {
+            'points': points,
+            'scores': scores,
+            'magnitudes': torch.norm(scores, dim=1),
+            'divergence': self.compute_divergence(score_fn, points),
+            'curl': self.compute_curl_2d(score_fn, points)
+        }
+        
+        return results
+    
+    def compute_divergence(self, score_fn, points, h=1e-4):
+        """数值计算散度 div(s) = ∂s_x/∂x + ∂s_y/∂y"""
+        divergences = []
+        
+        for point in points:
+            # x方向
+            point_px = point.clone()
+            point_px[0] += h
+            score_px = score_fn(point_px.unsqueeze(0)).squeeze()
+            
+            point_mx = point.clone()
+            point_mx[0] -= h
+            score_mx = score_fn(point_mx.unsqueeze(0)).squeeze()
+            
+            ds_dx = (score_px[0] - score_mx[0]) / (2 * h)
+            
+            # y方向
+            point_py = point.clone()
+            point_py[1] += h
+            score_py = score_fn(point_py.unsqueeze(0)).squeeze()
+            
+            point_my = point.clone()
+            point_my[1] -= h
+            score_my = score_fn(point_my.unsqueeze(0)).squeeze()
+            
+            ds_dy = (score_py[1] - score_my[1]) / (2 * h)
+            
+            divergences.append(ds_dx + ds_dy)
+        
+        return torch.tensor(divergences)
+    
+    def compute_curl_2d(self, score_fn, points, h=1e-4):
+        """计算2D旋度 curl(s) = ∂s_y/∂x - ∂s_x/∂y"""
+        curls = []
+        
+        for point in points:
+            # ∂s_y/∂x
+            point_px = point.clone()
+            point_px[0] += h
+            score_px = score_fn(point_px.unsqueeze(0)).squeeze()
+            
+            point_mx = point.clone()
+            point_mx[0] -= h
+            score_mx = score_fn(point_mx.unsqueeze(0)).squeeze()
+            
+            dsy_dx = (score_px[1] - score_mx[1]) / (2 * h)
+            
+            # ∂s_x/∂y
+            point_py = point.clone()
+            point_py[1] += h
+            score_py = score_fn(point_py.unsqueeze(0)).squeeze()
+            
+            point_my = point.clone()
+            point_my[1] -= h
+            score_my = score_fn(point_my.unsqueeze(0)).squeeze()
+            
+            dsx_dy = (score_py[0] - score_my[0]) / (2 * h)
+            
+            curls.append(dsy_dx - dsx_dy)
+        
+        return torch.tensor(curls)
+
+# 演示分数函数的向量场性质
+def demonstrate_score_vector_field():
+    """演示分数函数作为切向量场的性质"""
+    field = ScoreVectorField()
+    
+    print("分数函数的向量场分析")
+    print("="*60)
+    
+    # 1. 单高斯分布
+    print("\n1. 单高斯分布的分数场")
+    print("-"*40)
+    
+    mean = torch.tensor([0.0, 0.0])
+    cov = torch.eye(2)
+    
+    def single_gaussian_score(x):
+        diff = x - mean
+        return -diff  # 对于标准高斯，分数就是 -(x-μ)
+    
+    results = field.analyze_vector_field(single_gaussian_score, n_points=10)
+    
+    print(f"平均散度: {results['divergence'].mean():.4f}")
+    print(f"散度标准差: {results['divergence'].std():.4f}")
+    print(f"平均旋度: {results['curl'].mean():.4f}")
+    print(f"旋度标准差: {results['curl'].std():.4f}")
+    print("\n观察：对于高斯分布，散度为常数-2（维度），旋度为0（无旋场）")
+    
+    # 2. 高斯混合模型
+    print("\n\n2. 高斯混合模型的分数场")
+    print("-"*40)
+    
+    weights = torch.tensor([0.4, 0.6])
+    means = [torch.tensor([-1.5, 0.0]), torch.tensor([1.5, 0.0])]
+    covs = [0.5 * torch.eye(2), 0.5 * torch.eye(2)]
+    
+    def gmm_score(x):
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        score, _ = field.gaussian_mixture_score(x, weights, means, covs)
+        return score.squeeze(0) if score.shape[0] == 1 else score
+    
+    results_gmm = field.analyze_vector_field(gmm_score, x_range=(-4, 4), n_points=15)
+    
+    print(f"平均散度: {results_gmm['divergence'].mean():.4f}")
+    print(f"散度标准差: {results_gmm['divergence'].std():.4f}")
+    print(f"最大分数模长: {results_gmm['magnitudes'].max():.4f}")
+    print(f"最小分数模长: {results_gmm['magnitudes'].min():.4f}")
+    
+    # 3. 分数函数的积分性质验证
+    print("\n\n3. 验证分数函数的积分性质")
+    print("-"*40)
+    
+    # 采样点
+    n_samples = 10000
+    
+    # 从高斯混合模型采样
+    samples = []
+    for _ in range(n_samples):
+        # 选择分量
+        component = torch.multinomial(weights, 1).item()
+        # 从该分量采样
+        sample = torch.randn(2) * torch.sqrt(torch.diag(covs[component])) + means[component]
+        samples.append(sample)
+    
+    samples = torch.stack(samples)
+    
+    # 计算分数的期望
+    scores_at_samples = gmm_score(samples)
+    mean_score = scores_at_samples.mean(dim=0)
+    
+    print(f"E[s(x)] = {mean_score.numpy()}")
+    print(f"||E[s(x)]|| = {torch.norm(mean_score):.6f}")
+    print("\n验证：分数函数的期望确实接近零！")
+    
+    # 4. 切空间性质
+    print("\n\n4. 切空间的正交性")
+    print("-"*40)
+    
+    # 在某个点计算
+    x0 = torch.tensor([0.5, 0.5])
+    score_at_x0 = gmm_score(x0.unsqueeze(0)).squeeze()
+    
+    # 密度梯度
+    h = 1e-4
+    density_grad = []
+    
+    for i in range(2):
+        x_plus = x0.clone()
+        x_plus[i] += h
+        x_minus = x0.clone()
+        x_minus[i] -= h
+        
+        _, density_plus = field.gaussian_mixture_score(x_plus.unsqueeze(0), weights, means, covs)
+        _, density_minus = field.gaussian_mixture_score(x_minus.unsqueeze(0), weights, means, covs)
+        
+        grad_i = (density_plus - density_minus) / (2 * h)
+        density_grad.append(grad_i)
+    
+    density_grad = torch.tensor(density_grad)
+    
+    # 验证关系 s = ∇p / p
+    _, density_at_x0 = field.gaussian_mixture_score(x0.unsqueeze(0), weights, means, covs)
+    predicted_score = density_grad / (density_at_x0 + 1e-8)
+    
+    print(f"点 {x0.numpy()} 处：")
+    print(f"实际分数: {score_at_x0.numpy()}")
+    print(f"预测分数 (∇p/p): {predicted_score.numpy()}")
+    print(f"误差: {torch.norm(score_at_x0 - predicted_score):.6f}")
+
+demonstrate_score_vector_field()</pre>
+        </div>
+        
+        <h4>切向量场的动力学意义</h4>
+        
+        <div class="note-box">
+            <h4>分数流（Score Flow）</h4>
+            <p>将分数函数视为速度场，我们可以定义分数流：</p>
+            <div class="formula">
+                $$\frac{dx}{dt} = s(x, t) = \nabla_x \log p_t(x)$$
+            </div>
+            
+            <p>这个ODE描述了粒子沿着概率密度增加最快的方向移动。关键性质：</p>
+            <ul>
+                <li><strong>模式寻找</strong>：粒子最终会收敛到概率分布的模式（局部最大值）</li>
+                <li><strong>去噪效果</strong>：从任意初始点出发，粒子会移向高概率区域</li>
+                <li><strong>流形结构保持</strong>：流动保持在数据流形上</li>
+            </ul>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">与梯度流的类比</div>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <tr style="background-color: #f0f0f0;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">性质</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">梯度流 $\dot{x} = -\nabla f(x)$</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">分数流 $\dot{x} = \nabla \log p(x)$</th>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">目标</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">最小化能量 $f(x)$</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">最大化概率 $p(x)$</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">平衡点</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$\nabla f(x^*) = 0$</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">$\nabla \log p(x^*) = 0$</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">稳定性</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">取决于Hessian</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">取决于分数的Jacobian</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">应用</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">优化、物理系统</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">采样、去噪</td>
+                </tr>
+            </table>
+        </div>
         
         <h3>C.2.2 Stein恒等式与无穷小生成元</h3>
-        [内容待补充]
+        
+        <p>Stein恒等式是连接分数函数与概率分布的核心桥梁。它不仅提供了分数匹配的理论基础，也揭示了分数函数作为无穷小生成元的深刻意义。</p>
+        
+        <h4>Stein恒等式</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Stein恒等式</div>
+            <p>对于光滑函数 $f: \mathbb{R}^d \to \mathbb{R}^d$ 和概率密度 $p(x)$，如果 $\lim_{||x|| \to \infty} p(x)f(x) = 0$，则：</p>
+            <div class="formula">
+                $$\mathbb{E}_{p(x)}[\text{trace}(\nabla_x f(x)) + f(x)^T \nabla_x \log p(x)] = 0$$
+            </div>
+            
+            <p>这可以写成算子形式：</p>
+            <div class="formula">
+                $$\mathbb{E}_{p(x)}[\mathcal{A}_p f(x)] = 0$$
+            </div>
+            
+            <p>其中 $\mathcal{A}_p$ 是Stein算子：$\mathcal{A}_p f = \nabla \cdot f + s^T f$，$s = \nabla \log p$。</p>
+        </div>
+        
+        <h4>证明与直观</h4>
+        
+        <div class="note-box">
+            <h4>简单证明</h4>
+            <p>使用分部积分：</p>
+            <div class="formula">
+                $$\int p(x) \nabla \cdot f(x) dx = -\int f(x) \cdot \nabla p(x) dx$$
+            </div>
+            
+            <p>由于 $\nabla p(x) = p(x) \nabla \log p(x)$：</p>
+            <div class="formula">
+                $$= -\int f(x) \cdot p(x) \nabla \log p(x) dx = -\mathbb{E}_{p(x)}[f(x)^T \nabla \log p(x)]$$
+            </div>
+            
+            <p>移项得到Stein恒等式。</p>
+        </div>
+        
+        <h4>Stein算子作为无穷小生成元</h4>
+        
+        <div class="example-box">
+            <div class="example-title">从随机过程的角度</div>
+            <p>考虑以下随机微分方程：</p>
+            <div class="formula">
+                $$dX_t = \nabla \log p(X_t) dt + \sqrt{2} dW_t$$
+            </div>
+            
+            <p>这个Langevin SDE的无穷小生成元正是Stein算子：</p>
+            <div class="formula">
+                $$\mathcal{L}f = \Delta f + \nabla \log p \cdot \nabla f$$
+            </div>
+            
+            <p>它描述了函数 $f$ 沿着过程的期望变化率。</p>
+        </div>
+        
+        <div class="code-block">
+<pre># Stein恒等式的验证和应用
+import torch
+import numpy as np
+
+class SteinOperator:
+    """实现Stein算子和相关计算"""
+    
+    def __init__(self, score_fn):
+        """
+        Args:
+            score_fn: 分数函数 s(x) = ∇ log p(x)
+        """
+        self.score_fn = score_fn
+    
+    def apply(self, f, x, create_graph=True):
+        """应用Stein算子 A_p f = div(f) + s^T f
+        
+        Args:
+            f: 向量值函数 f(x) -> R^d
+            x: 输入点
+        """
+        # 计算f(x)
+        fx = f(x)
+        
+        # 计算散度 div(f) = trace(Jacobian)
+        div_f = 0
+        for i in range(fx.shape[-1]):
+            # 对第i个输出分量求导
+            grad_fi = torch.autograd.grad(
+                fx[..., i].sum(), x, 
+                create_graph=create_graph,
+                retain_graph=True
+            )[0]
+            div_f = div_f + grad_fi[..., i]
+        
+        # 计算分数
+        score = self.score_fn(x)
+        
+        # Stein算子的结果
+        stein_result = div_f + (score * fx).sum(dim=-1)
+        
+        return stein_result
+    
+    def verify_stein_identity(self, test_fn, n_samples=10000):
+        """验证Stein恒等式 E[A_p f] = 0"""
+        # 假设我们有一个采样器（这里用简单的高斯分布）
+        samples = torch.randn(n_samples, 2, requires_grad=True)
+        
+        # 在每个样本点计算Stein算子
+        stein_values = []
+        
+        for i in range(min(1000, n_samples)):  # 限制计算量
+            x = samples[i:i+1]
+            stein_val = self.apply(test_fn, x)
+            stein_values.append(stein_val.detach())
+        
+        stein_values = torch.stack(stein_values)
+        
+        # 计算期望
+        expectation = stein_values.mean()
+        std_error = stein_values.std() / np.sqrt(len(stein_values))
+        
+        return expectation.item(), std_error.item()
+    
+    def stein_discrepancy(self, f, g, x):
+        """计算两个函数的Stein差异"""
+        # S(f, g) = E[f^T A_p g]
+        Ag = self.apply(g, x)
+        fx = f(x)
+        
+        return (fx * Ag.unsqueeze(-1)).sum()
+
+# 示例：验证Stein恒等式
+def demonstrate_stein_identity():
+    print("Stein恒等式验证")
+    print("="*60)
+    
+    # 定义一个简单的分数函数（标准高斯）
+    def gaussian_score(x):
+        return -x  # 对于 N(0, I)，score = -x
+    
+    stein_op = SteinOperator(gaussian_score)
+    
+    # 测试不同的函数
+    test_functions = [
+        ("Linear", lambda x: x),
+        ("Quadratic", lambda x: x**2),
+        ("Sine", lambda x: torch.stack([torch.sin(x[:, 0]), torch.cos(x[:, 1])], dim=1)),
+        ("Exponential", lambda x: torch.exp(-0.5 * torch.sum(x**2, dim=1, keepdim=True)) * x)
+    ]
+    
+    print("\n函数\t\t\tE[A_p f]\t\t标准误差")
+    print("-"*60)
+    
+    for name, f in test_functions:
+        expectation, std_err = stein_op.verify_stein_identity(f, n_samples=5000)
+        print(f"{name:15s}\t{expectation:12.6f}\t±{std_err:10.6f}")
+    
+    print("\n结论：所有期望值都接近零，验证了Stein恒等式！")
+
+demonstrate_stein_identity()
+
+# 展示Stein算子的应用
+def demonstrate_stein_applications():
+    print("\n\nStein算子的应用")
+    print("="*60)
+    
+    # 1. 分数匹配损失
+    print("\n1. 分数匹配中的应用")
+    print("-"*40)
+    
+    # 真实分数
+    def true_score(x):
+        return -x
+    
+    # 近似分数（有误差）
+    def approx_score(x, noise_level=0.1):
+        return -x + noise_level * torch.randn_like(x)
+    
+    # 使用Stein差异测量近似质量
+    x_test = torch.randn(100, 2, requires_grad=True)
+    
+    stein_op_true = SteinOperator(true_score)
+    stein_op_approx = SteinOperator(lambda x: approx_score(x, 0.2))
+    
+    # 计算差异
+    def identity_fn(x):
+        return x
+    
+    true_stein = stein_op_true.apply(identity_fn, x_test)
+    approx_stein = stein_op_approx.apply(identity_fn, x_test)
+    
+    diff = torch.mean((true_stein - approx_stein)**2)
+    print(f"Stein差异: {diff.item():.6f}")
+    
+    # 2. Stein变分梯度下降
+    print("\n\n2. Stein变分梯度下降 (SVGD)")
+    print("-"*40)
+    
+    # 目标分布：混合高斯
+    def target_score(x):
+        # 两个高斯的混合
+        mu1 = torch.tensor([-2.0, 0.0])
+        mu2 = torch.tensor([2.0, 0.0])
+        
+        p1 = torch.exp(-0.5 * torch.sum((x - mu1)**2, dim=-1))
+        p2 = torch.exp(-0.5 * torch.sum((x - mu2)**2, dim=-1))
+        
+        s1 = -(x - mu1)
+        s2 = -(x - mu2)
+        
+        w1 = p1 / (p1 + p2 + 1e-8)
+        w2 = p2 / (p1 + p2 + 1e-8)
+        
+        return w1.unsqueeze(-1) * s1 + w2.unsqueeze(-1) * s2
+    
+    # SVGD更新
+    def svgd_update(particles, score_fn, kernel_bandwidth=1.0, lr=0.1):
+        n_particles = particles.shape[0]
+        
+        # 计算核及其梯度
+        pairwise_dist = torch.cdist(particles, particles)
+        h = kernel_bandwidth
+        K = torch.exp(-pairwise_dist**2 / (2 * h**2))
+        
+        # 核梯度
+        grad_K = torch.zeros(n_particles, n_particles, 2)
+        for i in range(n_particles):
+            for j in range(n_particles):
+                if i != j:
+                    grad_K[i, j] = -K[i, j] * (particles[i] - particles[j]) / h**2
+        
+        # SVGD梯度
+        score = score_fn(particles)
+        phi = torch.zeros_like(particles)
+        
+        for i in range(n_particles):
+            phi[i] = (K[i, :].unsqueeze(-1) * score).mean(0) + grad_K[:, i].mean(0)
+        
+        # 更新粒子
+        return particles + lr * phi
+    
+    # 初始化粒子
+    n_particles = 50
+    particles = torch.randn(n_particles, 2) * 0.5
+    
+    print("正在运行SVGD...")
+    
+    # 迭代
+    for step in range(100):
+        particles = svgd_update(particles, target_score, kernel_bandwidth=1.0, lr=0.05)
+        
+        if step % 25 == 0:
+            mean_pos = particles.mean(0)
+            std_pos = particles.std(0)
+            print(f"Step {step}: 平均位置={mean_pos.numpy()}, 标准差={std_pos.numpy()}")
+    
+    # 检查最终分布
+    print("\n最终粒子分布：")
+    cluster1 = particles[particles[:, 0] < 0]
+    cluster2 = particles[particles[:, 0] > 0]
+    
+    if len(cluster1) > 0:
+        print(f"簇集1: 中心={cluster1.mean(0).numpy()}, 数量={len(cluster1)}")
+    if len(cluster2) > 0:
+        print(f"簇集2: 中心={cluster2.mean(0).numpy()}, 数量={len(cluster2)}")
+
+demonstrate_stein_applications()</pre>
+        </div>
+        
+        <h4>Stein恒等式在扩散模型中的意义</h4>
+        
+        <div class="note-box">
+            <h4>核心联系</h4>
+            <ol>
+                <li><strong>分数匹配的理论基础</strong>：Stein恒等式提供了一种不需要知道归一化常数的分数学习方法</li>
+                
+                <li><strong>损失函数设计</strong>：基于Stein差异可以设计新的损失函数：
+                    <div class="formula">
+                        $$\mathcal{L}_{\text{Stein}} = \mathbb{E}_{x \sim p_{data}}[||\mathcal{A}_p s_\theta(x)||^2]$$
+                    </div>
+                </li>
+                
+                <li><strong>采样算法</strong>：Stein变分梯度下降（SVGD）提供了一种基于粒子的采样方法</li>
+                
+                <li><strong>收敛性分析</strong>：通过Stein算子的谱分析可以研究扩散过程的收敛速度</li>
+            </ol>
+        </div>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">与拉普拉斯算子的联系</div>
+            <p>对于能量函数 $E(x) = -\log p(x)$，Stein算子可以写成：</p>
+            <div class="formula">
+                $$\mathcal{A}_p f = \nabla \cdot f - \nabla E \cdot f$$
+            </div>
+            
+            <p>这与Fokker-Planck算子和拉普拉斯算子密切相关，提供了从动力学系统到统计推断的桥梁。</p>
+        </div>
         
         <h3>C.2.3 分数匹配的几何解释</h3>
-        [内容待补充]
+        
+        <p>分数匹配不仅是一个统计学习问题，从信息几何的角度看，它是在学习概率分布流形上的切向量场。这种几何视角为理解和改进分数匹配算法提供了新的思路。</p>
+        
+        <h4>分数匹配作为投影问题</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">几何视角下的分数匹配</div>
+            <p>分数匹配可以理解为在函数空间中的投影问题：</p>
+            <div class="formula">
+                $$\min_{s_\theta} \mathbb{E}_{p_{data}}[||s_\theta(x) - \nabla_x \log p_{data}(x)||^2]$$
+            </div>
+            
+            <p>这是将参数化的分数函数 $s_\theta$ 投影到真实分数的切空间上。由于Fisher信息度量，最佳投影应该使用Fisher内积：</p>
+            <div class="formula">
+                $$\langle f, g \rangle_{Fisher} = \mathbb{E}_{p}[f(x)^T I(x) g(x)]$$
+            </div>
+        </div>
+        
+        <h4>隐式分数匹配</h4>
+        
+        <div class="note-box">
+            <h4>去噪分数匹配的几何解释</h4>
+            <p>在去噪分数匹配中，我们不直接学习分数，而是学习一个变换：</p>
+            <div class="formula">
+                $$x + \sigma^2 s_\theta(x, \sigma) \approx \mathbb{E}[x_0 | x_t = x]$$
+            </div>
+            
+            <p>几何上，这是学习一个将噪声数据映射回清晰数据流形的投影算子。分数提供了这个投影的方向。</p>
+        </div>
+        
+        <h4>流形上的最优传输</h4>
+        
+        <div class="example-box">
+            <div class="example-title">分数匹配与最优传输</div>
+            <p>从Wasserstein几何的角度，分数函数定义了最优传输映射的梯度：</p>
+            <ul>
+                <li><strong>Monge问题</strong>：找到从 $p_0$ 到 $p_T$ 的最优传输映射 $T$</li>
+                <li><strong>动态视角</strong>：通过速度场 $v_t$ 描述这个传输</li>
+                <li><strong>与分数的联系</strong>：在某些情况下，$v_t \propto \nabla \log p_t$</li>
+            </ul>
+        </div>
+        
+        <div class="code-block">
+<pre># 分数匹配的几何分析
+import torch
+import numpy as np
+
+class GeometricScoreMatching:
+    """从几何角度分析分数匹配"""
+    
+    def __init__(self, data_dim=2):
+        self.data_dim = data_dim
+    
+    def implicit_score_matching_loss(self, score_model, x):
+        """隐式分数匹配损失（无需真实分数）"""
+        # 计算分数
+        x.requires_grad_(True)
+        score = score_model(x)
+        
+        # 计算散度
+        div_score = 0
+        for i in range(self.data_dim):
+            grad_i = torch.autograd.grad(
+                score[:, i].sum(), x,
+                create_graph=True,
+                retain_graph=True
+            )[0]
+            div_score += grad_i[:, i]
+        
+        # 隐式分数匹配损失
+        loss = 0.5 * (score ** 2).sum(dim=1).mean() + div_score.mean()
+        
+        return loss
+    
+    def sliced_score_matching_loss(self, score_model, x, n_projections=10):
+        """切片分数匹配：通过随机投影降低计算复杂度"""
+        x.requires_grad_(True)
+        score = score_model(x)
+        
+        # 随机投影方向
+        projections = torch.randn(n_projections, self.data_dim)
+        projections = projections / torch.norm(projections, dim=1, keepdim=True)
+        
+        loss = 0
+        for v in projections:
+            # 投影分数
+            score_v = (score * v).sum(dim=1)
+            
+            # 计算方向导数
+            grad_v = torch.autograd.grad(
+                score_v.sum(), x,
+                create_graph=True,
+                retain_graph=True
+            )[0]
+            
+            # 方向导数的方向导数
+            tr_hess_v = (grad_v * v).sum(dim=1)
+            
+            # 累加损失
+            loss += 0.5 * score_v.pow(2).mean() + tr_hess_v.mean()
+        
+        return loss / n_projections
+    
+    def denoising_score_matching(self, score_model, x, noise_level=0.1):
+        """去噪分数匹配：通过噪声扰动学习分数"""
+        # 添加噪声
+        noise = torch.randn_like(x) * noise_level
+        x_noisy = x + noise
+        
+        # 预测分数
+        score_pred = score_model(x_noisy)
+        
+        # 真实分数（对于加性高斯噪声）
+        score_true = -noise / (noise_level ** 2)
+        
+        # MSE损失
+        loss = ((score_pred - score_true) ** 2).sum(dim=1).mean()
+        
+        return loss
+    
+    def analyze_score_field_geometry(self, score_fn, x_range=(-3, 3), n_points=20):
+        """分析分数场的几何性质"""
+        # 创建网格
+        x = torch.linspace(x_range[0], x_range[1], n_points)
+        y = torch.linspace(x_range[0], x_range[1], n_points)
+        X, Y = torch.meshgrid(x, y, indexing='xy')
+        points = torch.stack([X.flatten(), Y.flatten()], dim=1)
+        
+        # 计算分数
+        scores = score_fn(points)
+        
+        # 计算几何量
+        results = {
+            'curvature': self._compute_curvature(score_fn, points),
+            'geodesic_distance': self._compute_geodesic_distance(scores),
+            'jacobian_eigenvalues': self._compute_jacobian_spectrum(score_fn, points)
+        }
+        
+        return results
+    
+    def _compute_curvature(self, score_fn, points, h=1e-3):
+        """计算分数场的曲率"""
+        curvatures = []
+        
+        for point in points[:100]:  # 限制计算量
+            # 计算Hessian矩阵的近似
+            hessian_trace = 0
+            
+            for i in range(self.data_dim):
+                point_p = point.clone()
+                point_p[i] += h
+                score_p = score_fn(point_p.unsqueeze(0)).squeeze()
+                
+                point_m = point.clone()
+                point_m[i] -= h
+                score_m = score_fn(point_m.unsqueeze(0)).squeeze()
+                
+                # 二阶导数
+                d2s_di2 = (score_p[i] - 2*score_fn(point.unsqueeze(0)).squeeze()[i] + score_m[i]) / (h**2)
+                hessian_trace += d2s_di2
+            
+            curvatures.append(abs(hessian_trace.item()))
+        
+        return np.mean(curvatures)
+    
+    def _compute_geodesic_distance(self, score_field):
+        """计算分数场中的测地线距离"""
+        # 简化：使用分数范数的变化作为度量
+        score_norms = torch.norm(score_field, dim=1)
+        variation = torch.std(score_norms)
+        return variation.item()
+    
+    def _compute_jacobian_spectrum(self, score_fn, points, n_samples=50):
+        """计算分数函数Jacobian的谱"""
+        eigenvalues = []
+        
+        for i in range(min(n_samples, len(points))):
+            point = points[i].requires_grad_(True)
+            score = score_fn(point.unsqueeze(0)).squeeze()
+            
+            # 计算Jacobian
+            jacobian = []
+            for j in range(self.data_dim):
+                grad_j = torch.autograd.grad(
+                    score[j], point,
+                    create_graph=True,
+                    retain_graph=True
+                )[0]
+                jacobian.append(grad_j)
+            
+            jacobian = torch.stack(jacobian)
+            
+            # 计算特征值
+            eigvals = torch.linalg.eigvals(jacobian).real
+            eigenvalues.append(eigvals)
+        
+        eigenvalues = torch.stack(eigenvalues)
+        
+        return {
+            'mean_eigenvalue': eigenvalues.mean().item(),
+            'max_eigenvalue': eigenvalues.max().item(),
+            'min_eigenvalue': eigenvalues.min().item()
+        }
+
+# 演示分数匹配的几何性质
+def demonstrate_geometric_score_matching():
+    print("分数匹配的几何分析")
+    print("="*60)
+    
+    gsm = GeometricScoreMatching()
+    
+    # 1. 比较不同的分数匹配方法
+    print("\n1. 不同分数匹配方法的比较")
+    print("-"*40)
+    
+    # 简单的分数模型
+    class SimpleScoreModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.net = torch.nn.Sequential(
+                torch.nn.Linear(2, 64),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 64),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 2)
+            )
+        
+        def forward(self, x):
+            return self.net(x)
+    
+    model = SimpleScoreModel()
+    x_data = torch.randn(100, 2)
+    
+    # 计算不同损失
+    loss_implicit = gsm.implicit_score_matching_loss(model, x_data)
+    loss_sliced = gsm.sliced_score_matching_loss(model, x_data)
+    loss_denoising = gsm.denoising_score_matching(model, x_data)
+    
+    print(f"隐式分数匹配损失: {loss_implicit.item():.4f}")
+    print(f"切片分数匹配损失: {loss_sliced.item():.4f}")
+    print(f"去噪分数匹配损失: {loss_denoising.item():.4f}")
+    
+    # 2. 分析分数场的几何性质
+    print("\n\n2. 分数场的几何性质")
+    print("-"*40)
+    
+    # 使用一个已知的分数函数（高斯混合）
+    def gmm_score(x):
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+        
+        mu1 = torch.tensor([-1.0, 0.0])
+        mu2 = torch.tensor([1.0, 0.0])
+        
+        # 两个高斯分量
+        p1 = torch.exp(-0.5 * torch.sum((x - mu1)**2, dim=1))
+        p2 = torch.exp(-0.5 * torch.sum((x - mu2)**2, dim=1))
+        
+        # 分数
+        s1 = -(x - mu1)
+        s2 = -(x - mu2)
+        
+        # 加权平均
+        w1 = p1 / (p1 + p2 + 1e-8)
+        w2 = p2 / (p1 + p2 + 1e-8)
+        
+        score = w1.unsqueeze(1) * s1 + w2.unsqueeze(1) * s2
+        return score.squeeze(0) if score.shape[0] == 1 else score
+    
+    geometry = gsm.analyze_score_field_geometry(gmm_score, x_range=(-3, 3), n_points=15)
+    
+    print(f"平均曲率: {geometry['curvature']:.4f}")
+    print(f"测地线距离变化: {geometry['geodesic_distance']:.4f}")
+    print(f"\nJacobian谱分析:")
+    print(f"  平均特征值: {geometry['jacobian_eigenvalues']['mean_eigenvalue']:.4f}")
+    print(f"  最大特征值: {geometry['jacobian_eigenvalues']['max_eigenvalue']:.4f}")
+    print(f"  最小特征值: {geometry['jacobian_eigenvalues']['min_eigenvalue']:.4f}")
+    
+    # 3. 几何视角的意义
+    print("\n\n3. 几何解释的意义")
+    print("-"*40)
+    print("• 曲率高的区域表示分布变化剧烈（如模式之间）")
+    print("• 负特征值表示收缩方向（向模式聚集）")
+    print("• 正特征值表示扩张方向（远离低概率区域）")
+    print("• 切片分数匹配通过随机投影近似高维几何")
+
+demonstrate_geometric_score_matching()</pre>
+        </div>
+        
+        <h4>信息几何优化</h4>
+        
+        <div class="note-box">
+            <h4>利用几何结构改进分数匹配</h4>
+            <ol>
+                <li><strong>自适应度量</strong>：使用局部Fisher信息作为度量，在不同区域使用不同权重</li>
+                
+                <li><strong>流形正则化</strong>：添加几何约束，使学习到的分数场更光滑：
+                    <div class="formula">
+                        $$\mathcal{L}_{reg} = \lambda \mathbb{E}[||\nabla_x s_\theta(x)||_F^2]$$
+                    </div>
+                </li>
+                
+                <li><strong>曲率感知采样</strong>：在高曲率区域（如模式边界）增加采样密度</li>
+                
+                <li><strong>测地线损失</strong>：使用Wasserstein距离或其他几何距离作为损失函数</li>
+            </ol>
+        </div>
 
         <h2>C.3 分数函数的力学解释</h2>
         
