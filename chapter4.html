@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第4章：基于分数的生成模型 - 扩散模型教程</title>
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <script src="common.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>第4章：基于分数的生成模型</h1>
+        
+        <div class="intro-box">
+            <p>基于分数的生成模型（Score-based Generative Models）提供了理解扩散模型的另一个重要视角。通过直接学习数据分布的分数函数（score function，即对数概率密度的梯度），我们可以构建强大的生成模型。本章将深入探讨分数匹配、Langevin动力学以及它们与扩散模型的深层联系。</p>
+        </div>
+
+        <h2>4.1 分数函数的直觉与重要性</h2>
+        
+        <h3>4.1.1 什么是分数函数？</h3>
+        
+        <p>分数函数（score function）是概率论和统计学中的一个基本概念，它定义为对数概率密度函数关于数据的梯度：</p>
+        
+        <div class="formula">
+            $$\nabla_x \log p(x) = \frac{\nabla_x p(x)}{p(x)}$$
+        </div>
+        
+        <p>这个看似简单的定义蕴含着深刻的意义。让我们通过几个例子来理解它。</p>
+        
+        <div class="example-box">
+            <div class="example-title">例1：一维高斯分布</div>
+            <p>对于标准正态分布 $p(x) = \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2}}$：</p>
+            
+            <div class="formula">
+                $$\log p(x) = -\frac{x^2}{2} - \frac{1}{2}\log(2\pi)$$
+            </div>
+            
+            <p>分数函数为：</p>
+            <div class="formula">
+                $$\nabla_x \log p(x) = -x$$
+            </div>
+            
+            <p>注意这个结果的直观性：</p>
+            <ul>
+                <li>当 $x > 0$ 时，分数为负，指向原点（概率更高的方向）</li>
+                <li>当 $x < 0$ 时，分数为正，也指向原点</li>
+                <li>分数的大小与偏离原点的距离成正比</li>
+            </ul>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">例2：多峰分布</div>
+            <p>考虑高斯混合模型 $p(x) = \frac{1}{2} \mathcal{N}(x; -2, 1) + \frac{1}{2} \mathcal{N}(x; 2, 1)$</p>
+            
+            <p>分数函数为：</p>
+            <div class="formula">
+                $$\nabla_x \log p(x) = \frac{p_1(x)(x+2) + p_2(x)(x-2)}{p_1(x) + p_2(x)}$$
+            </div>
+            
+            <p>其中 $p_1(x) = \mathcal{N}(x; -2, 1)$，$p_2(x) = \mathcal{N}(x; 2, 1)$。</p>
+            
+            <p>这个分数函数的行为更复杂：</p>
+            <ul>
+                <li>在两个峰值附近，分数指向各自的峰值</li>
+                <li>在两峰之间存在一个"分水岭"，分数为零</li>
+                <li>远离两峰的地方，分数指向最近的峰</li>
+            </ul>
+        </div>
+        
+        <div class="note-box">
+            <h4>分数函数的关键性质</h4>
+            <ol>
+                <li><strong>无需归一化常数</strong>：计算 $\nabla_x \log p(x)$ 时，归一化常数的梯度为零，自动消失</li>
+                <li><strong>向量场解释</strong>：分数函数定义了一个向量场，指向概率增加最快的方向</li>
+                <li><strong>与能量的关系</strong>：如果定义能量函数 $E(x) = -\log p(x)$，则分数函数是负能量梯度</li>
+                <li><strong>积分为零</strong>：对于合理的分布，$\mathbb{E}_{x \sim p}[\nabla_x \log p(x)] = 0$</li>
+            </ol>
+        </div>
+        
+        <h4>分数函数与概率密度的关系</h4>
+        
+        <p>虽然从分数函数不能直接恢复概率密度（因为缺少归一化常数），但它包含了分布形状的完整信息：</p>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">分数函数的充分性</div>
+            <p>如果两个概率分布 $p$ 和 $q$ 在几乎处处有相同的分数函数：</p>
+            <div class="formula">
+                $$\nabla_x \log p(x) = \nabla_x \log q(x) \quad \text{a.e.}$$
+            </div>
+            <p>则 $p = q$（作为概率分布）。</p>
+        </div>
+        
+        <div class="code-block">
+<pre># 可视化分数函数
+import numpy as np
+import torch
+
+def visualize_score_function_1d():
+    """一维分布的分数函数可视化"""
+    x = torch.linspace(-5, 5, 1000)
+    
+    # 示例1：单峰高斯
+    gaussian_score = -x
+    
+    # 示例2：高斯混合
+    p1 = torch.exp(-0.5 * (x + 2)**2) / np.sqrt(2 * np.pi)
+    p2 = torch.exp(-0.5 * (x - 2)**2) / np.sqrt(2 * np.pi)
+    p_mixture = 0.5 * p1 + 0.5 * p2
+    
+    # 混合分布的分数（避免数值问题）
+    mixture_score = (0.5 * p1 * (-(x + 2)) + 0.5 * p2 * (-(x - 2))) / (p_mixture + 1e-8)
+    
+    return x, gaussian_score, mixture_score
+
+# 使用示例
+x, score_gaussian, score_mixture = visualize_score_function_1d()
+print(f"在x=0处：高斯分数={score_gaussian[500]:.3f}, 混合分数={score_mixture[500]:.3f}")
+print(f"在x=2处：高斯分数={score_gaussian[700]:.3f}, 混合分数={score_mixture[700]:.3f}")</pre>
+        </div>
+        
+        <h3>4.1.2 为什么分数函数重要？</h3>
+        
+        <p>分数函数在机器学习和统计学中扮演着核心角色，其重要性体现在多个方面：</p>
+        
+        <h4>1. 无需归一化常数</h4>
+        
+        <p>许多复杂的概率模型（如马尔可夫随机场、能量模型）的归一化常数难以计算：</p>
+        
+        <div class="formula">
+            $$p(x) = \frac{1}{Z} \exp(-E(x)), \quad Z = \int \exp(-E(x)) dx$$
+        </div>
+        
+        <p>但分数函数可以直接计算，无需知道 $Z$：</p>
+        
+        <div class="formula">
+            $$\nabla_x \log p(x) = -\nabla_x E(x)$$
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">实例：Ising模型</div>
+            <p>在统计物理中的Ising模型中，系统能量为：</p>
+            <div class="formula">
+                $$E(x) = -J \sum_{\langle i,j \rangle} x_i x_j - h \sum_i x_i$$
+            </div>
+            <p>其中 $x_i \in \{-1, +1\}$。配分函数 $Z$ 的计算是 #P-hard 问题，但能量的梯度（在连续松弛下）却很容易计算。</p>
+        </div>
+        
+        <h4>2. 采样算法的基础</h4>
+        
+        <p>分数函数是许多高效采样算法的核心，特别是基于梯度的马尔可夫链蒙特卡洛（MCMC）方法：</p>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Langevin动力学</div>
+            <p>给定目标分布 $p(x)$，以下随机微分方程的平稳分布是 $p(x)$：</p>
+            <div class="formula">
+                $$dx = \nabla_x \log p(x) dt + \sqrt{2} dW_t$$
+            </div>
+            <p>这表明只需要分数函数就可以从分布中采样！</p>
+        </div>
+        
+        <h4>3. 与优化的深刻联系</h4>
+        
+        <p>分数函数连接了概率建模和优化理论：</p>
+        
+        <ul>
+            <li><strong>梯度上升</strong>：沿着分数函数的方向移动，相当于在对数概率上做梯度上升</li>
+            <li><strong>模式寻找</strong>：分数函数为零的点对应分布的局部极值（峰或谷）</li>
+            <li><strong>能量最小化</strong>：最大化概率等价于最小化能量，分数函数给出下降方向</li>
+        </ul>
+        
+        <h4>4. 在生成模型中的应用</h4>
+        
+        <p>分数函数在现代生成模型中起着关键作用：</p>
+        
+        <div class="note-box">
+            <h4>扩散模型的两种视角</h4>
+            <ol>
+                <li><strong>去噪视角（DDPM）</strong>：学习在不同噪声水平下去除噪声</li>
+                <li><strong>分数匹配视角</strong>：学习不同时刻的分数函数 $\nabla_x \log p_t(x)$</li>
+            </ol>
+            <p>这两种视角在数学上是等价的！去噪函数和分数函数之间存在简单的线性关系。</p>
+        </div>
+        
+        <h4>5. 理论优势</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Fisher信息与分数函数</div>
+            <p>Fisher信息矩阵定义为：</p>
+            <div class="formula">
+                $$\mathcal{I} = \mathbb{E}_{x \sim p}[\nabla_x \log p(x) \nabla_x \log p(x)^T]$$
+            </div>
+            <p>它刻画了分布的"信息几何"，在：</p>
+            <ul>
+                <li>参数估计的Cramér-Rao下界</li>
+                <li>自然梯度下降</li>
+                <li>信息几何和流形优化</li>
+            </ul>
+            <p>中都起着核心作用。</p>
+        </div>
+        
+        <div class="code-block">
+<pre># 演示分数函数的各种应用
+import torch
+import torch.nn as nn
+
+class ScoreFunctionApplications:
+    """分数函数的应用演示"""
+    
+    @staticmethod
+    def langevin_sampling(score_fn, x_init, n_steps=1000, step_size=0.01):
+        """使用Langevin动力学采样
+        
+        Args:
+            score_fn: 分数函数 s(x) = ∇log p(x)
+            x_init: 初始点
+            n_steps: 采样步数
+            step_size: 步长
+        """
+        x = x_init.clone()
+        samples = [x.clone()]
+        
+        for _ in range(n_steps):
+            noise = torch.randn_like(x)
+            x = x + step_size * score_fn(x) + torch.sqrt(2 * step_size) * noise
+            samples.append(x.clone())
+            
+        return torch.stack(samples)
+    
+    @staticmethod
+    def mode_finding(score_fn, x_init, n_steps=100, step_size=0.1):
+        """使用分数函数寻找模式（局部最大值）
+        
+        通过梯度上升找到 ∇log p(x) = 0 的点
+        """
+        x = x_init.clone()
+        x.requires_grad_(True)
+        
+        for _ in range(n_steps):
+            score = score_fn(x)
+            x = x + step_size * score
+            
+            # 检查收敛
+            if torch.norm(score) < 1e-4:
+                break
+                
+        return x.detach()
+    
+    @staticmethod
+    def score_matching_loss(model, x, noise_level):
+        """分数匹配损失函数
+        
+        Args:
+            model: 神经网络，预测分数
+            x: 数据点
+            noise_level: 噪声水平 σ
+        """
+        # 添加噪声
+        noise = torch.randn_like(x)
+        x_noisy = x + noise_level * noise
+        
+        # 真实分数（对于高斯噪声）
+        true_score = -(x_noisy - x) / (noise_level ** 2)
+        
+        # 预测分数
+        pred_score = model(x_noisy, noise_level)
+        
+        # 分数匹配损失
+        loss = 0.5 * ((pred_score - true_score) ** 2).sum(dim=-1).mean()
+        
+        return loss
+
+# 使用示例
+score_app = ScoreFunctionApplications()
+
+# 定义一个简单的分数函数（标准高斯）
+def gaussian_score(x):
+    return -x
+
+# 从任意初始点采样
+x_init = torch.tensor([3.0, -2.0])
+samples = score_app.langevin_sampling(gaussian_score, x_init, n_steps=100)
+print(f"初始点: {x_init}")
+print(f"最终样本: {samples[-1]}")
+print(f"样本均值: {samples[-50:].mean(dim=0)}")  # 应接近 (0, 0)</pre>
+        </div>
+        
+        <h4>6. 计算效率</h4>
+        
+        <p>在高维空间中，分数函数的计算和学习往往比直接学习概率密度更高效：</p>
+        
+        <ul>
+            <li><strong>局部信息</strong>：分数函数只需要局部梯度信息，不需要全局积分</li>
+            <li><strong>可并行化</strong>：不同数据点的分数可以独立计算</li>
+            <li><strong>梯度友好</strong>：神经网络天然适合学习梯度形式的函数</li>
+        </ul>
+        
+        <h3>4.1.3 分数函数的几何意义</h3>
+        
+        <p>分数函数不仅是一个数学工具，它还有深刻的几何直觉。理解这些几何性质有助于我们更好地设计和分析基于分数的算法。</p>
+        
+        <h4>1. 分数函数作为向量场</h4>
+        
+        <p>分数函数 $\nabla_x \log p(x)$ 在每个点 $x$ 定义了一个向量，这些向量共同构成了一个向量场。这个向量场有特殊的性质：</p>
+        
+        <div class="note-box">
+            <h4>向量场的直观理解</h4>
+            <ul>
+                <li><strong>方向</strong>：指向概率密度增长最快的方向</li>
+                <li><strong>大小</strong>：反映概率密度的变化率</li>
+                <li><strong>流线</strong>：沿着向量场的积分曲线从低概率区域流向高概率区域</li>
+            </ul>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">二维高斯分布的分数场</div>
+            <p>对于二维高斯分布 $\mathcal{N}(\mu, \Sigma)$，分数函数为：</p>
+            <div class="formula">
+                $$\nabla_x \log p(x) = -\Sigma^{-1}(x - \mu)$$
+            </div>
+            
+            <p>几何特征：</p>
+            <ul>
+                <li>所有向量都指向均值 $\mu$</li>
+                <li>距离均值越远，向量越长</li>
+                <li>等概率线（椭圆）与分数向量正交</li>
+                <li>沿着主轴方向，收敛速度由特征值决定</li>
+            </ul>
+        </div>
+        
+        <h4>2. 分数函数与水平集</h4>
+        
+        <p>概率密度的水平集（等概率面）与分数函数有密切关系：</p>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">水平集的正交性</div>
+            <p>在任意点 $x$，分数函数 $\nabla_x \log p(x)$ 垂直于过该点的等概率面。</p>
+            
+            <p><strong>证明草图</strong>：设 $S_c = \{x : p(x) = c\}$ 是水平集。在 $S_c$ 上的任意切向量 $v$ 满足：</p>
+            <div class="formula">
+                $$v \cdot \nabla p(x) = 0$$
+            </div>
+            <p>因此：</p>
+            <div class="formula">
+                $$v \cdot \nabla \log p(x) = v \cdot \frac{\nabla p(x)}{p(x)} = 0$$
+            </div>
+        </div>
+        
+        <h4>3. 分数函数的散度与拉普拉斯算子</h4>
+        
+        <p>分数函数的散度揭示了分布的局部几何：</p>
+        
+        <div class="formula">
+            $$\nabla \cdot (\nabla \log p(x)) = \nabla^2 \log p(x) = \frac{\nabla^2 p(x)}{p(x)} - \frac{\|\nabla p(x)\|^2}{p(x)^2}$$
+        </div>
+        
+        <div class="note-box">
+            <h4>散度的几何含义</h4>
+            <ul>
+                <li><strong>正散度</strong>：该点是"源"，概率向外扩散（通常在分布的谷底）</li>
+                <li><strong>负散度</strong>：该点是"汇"，概率向内聚集（通常在分布的峰值附近）</li>
+                <li><strong>零散度</strong>：平衡点，可能是鞍点</li>
+            </ul>
+        </div>
+        
+        <h4>4. 动力系统视角</h4>
+        
+        <p>将分数函数视为动力系统 $\dot{x} = \nabla_x \log p(x)$ 的向量场，我们可以分析其稳定性：</p>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">平衡点与稳定性</div>
+            <ol>
+                <li><strong>平衡点</strong>：$\nabla_x \log p(x^*) = 0$ 对应概率密度的临界点</li>
+                <li><strong>稳定性</strong>：由Hessian矩阵 $H = \nabla^2 \log p(x^*)$ 决定
+                    <ul>
+                        <li>$H \prec 0$（负定）：稳定吸引子，对应局部最大值</li>
+                        <li>$H \succ 0$（正定）：不稳定排斥点，对应局部最小值</li>
+                        <li>$H$ 不定：鞍点</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <div class="code-block">
+<pre># 可视化分数函数的几何性质
+import torch
+import numpy as np
+
+def analyze_score_geometry(score_fn, x):
+    """分析给定点的分数函数几何性质"""
+    x = x.requires_grad_(True)
+    
+    # 计算分数
+    score = score_fn(x)
+    
+    # 计算散度（Laplacian of log p）
+    divergence = 0
+    for i in range(len(x)):
+        grad_i = torch.autograd.grad(score[i], x, 
+                                    retain_graph=True, 
+                                    create_graph=True)[0]
+        divergence += grad_i[i]
+    
+    # 计算Hessian（用于稳定性分析）
+    hessian = torch.zeros(len(x), len(x))
+    for i in range(len(x)):
+        for j in range(len(x)):
+            if j >= i:  # 利用对称性
+                hess_ij = torch.autograd.grad(score[i], x, 
+                                            retain_graph=True, 
+                                            create_graph=True)[0][j]
+                hessian[i, j] = hess_ij
+                hessian[j, i] = hess_ij
+    
+    # 特征值分析
+    eigenvalues, eigenvectors = torch.linalg.eigh(hessian)
+    
+    return {
+        'score': score.detach(),
+        'divergence': divergence.detach(),
+        'hessian': hessian.detach(),
+        'eigenvalues': eigenvalues.detach(),
+        'eigenvectors': eigenvectors.detach()
+    }
+
+# 示例：分析二维高斯混合的几何性质
+def gmm_score(x, means, weights):
+    """高斯混合模型的分数函数"""
+    scores = []
+    probs = []
+    
+    for i, (mean, weight) in enumerate(zip(means, weights)):
+        diff = x - mean
+        prob = weight * torch.exp(-0.5 * torch.sum(diff**2))
+        score = -diff
+        scores.append(prob * score)
+        probs.append(prob)
+    
+    total_prob = sum(probs)
+    total_score = sum(scores) / (total_prob + 1e-8)
+    
+    return total_score
+
+# 分析不同位置的几何性质
+means = [torch.tensor([-2.0, 0.0]), torch.tensor([2.0, 0.0])]
+weights = [0.5, 0.5]
+
+# 在峰值处
+x_peak = torch.tensor([-2.0, 0.0])
+geometry_peak = analyze_score_geometry(
+    lambda x: gmm_score(x, means, weights), x_peak
+)
+print(f"峰值处：散度 = {geometry_peak['divergence']:.3f}")
+print(f"特征值：{geometry_peak['eigenvalues']}")
+
+# 在鞍点处（两峰之间）
+x_saddle = torch.tensor([0.0, 0.0])
+geometry_saddle = analyze_score_geometry(
+    lambda x: gmm_score(x, means, weights), x_saddle
+)
+print(f"\\n鞍点处：散度 = {geometry_saddle['divergence']:.3f}")
+print(f"特征值：{geometry_saddle['eigenvalues']}")</pre>
+        </div>
+        
+        <h4>5. 分数函数的流形结构</h4>
+        
+        <p>在高维空间中，数据往往集中在低维流形附近。分数函数能够捕捉这种流形结构：</p>
+        
+        <div class="note-box">
+            <h4>流形上的分数分解</h4>
+            <p>在数据流形 $\mathcal{M}$ 附近，分数函数可以分解为：</p>
+            <div class="formula">
+                $$\nabla_x \log p(x) = \nabla_{\mathcal{M}} \log p(x) + \nabla_{\perp} \log p(x)$$
+            </div>
+            <ul>
+                <li><strong>切向分量</strong> $\nabla_{\mathcal{M}} \log p(x)$：沿着流形移动，探索数据分布</li>
+                <li><strong>法向分量</strong> $\nabla_{\perp} \log p(x)$：将点拉回流形，去除噪声</li>
+            </ul>
+            <p>这解释了为什么分数模型能够有效地进行去噪和生成。</p>
+        </div>
+        
+        <h4>6. 与最优传输的联系</h4>
+        
+        <p>分数函数还与最优传输理论有深刻联系：</p>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Fokker-Planck方程</div>
+            <p>考虑概率流 $\partial_t p_t + \nabla \cdot (p_t v_t) = 0$，其中 $v_t$ 是速度场。如果选择：</p>
+            <div class="formula">
+                $$v_t(x) = \nabla_x \log p_t(x)$$
+            </div>
+            <p>则得到的是梯度流，它在某种意义下是"最优"的传输方式。</p>
+        </div>
+
+        <h2>4.2 分数匹配（Score Matching）</h2>
+        
+        <h3>4.2.1 朴素分数匹配的困难</h3>
+        [内容待补充]
+        
+        <h3>4.2.2 去噪分数匹配（Denoising Score Matching）</h3>
+        [内容待补充]
+        
+        <h3>4.2.3 切片分数匹配（Sliced Score Matching）</h3>
+        [内容待补充]
+
+        <h2>4.3 噪声条件分数网络（NCSN）</h2>
+        
+        <h3>4.3.1 多尺度噪声的动机</h3>
+        [内容待补充]
+        
+        <h3>4.3.2 NCSN架构设计</h3>
+        [内容待补充]
+        
+        <h3>4.3.3 退火Langevin动力学</h3>
+        [内容待补充]
+
+        <h2>4.4 Langevin动力学与采样</h2>
+        
+        <h3>4.4.1 Langevin方程的基础</h3>
+        [内容待补充]
+        
+        <h3>4.4.2 离散化与数值稳定性</h3>
+        [内容待补充]
+        
+        <h3>4.4.3 采样算法实现</h3>
+        [内容待补充]
+
+        <h2>4.5 分数模型与扩散模型的统一</h2>
+        
+        <h3>4.5.1 两种观点的等价性</h3>
+        [内容待补充]
+        
+        <h3>4.5.2 SDE框架下的统一</h3>
+        [内容待补充]
+        
+        <h3>4.5.3 实践中的差异与选择</h3>
+        [内容待补充]
+
+        <h2>4.6 实现：训练分数模型</h2>
+        
+        <h3>4.6.1 数据预处理与噪声调度</h3>
+        [内容待补充]
+        
+        <h3>4.6.2 损失函数与优化</h3>
+        [内容待补充]
+        
+        <h3>4.6.3 评估与可视化</h3>
+        [内容待补充]
+
+        <h2>4.7 高级主题</h2>
+        
+        <h3>4.7.1 分数模型的理论性质</h3>
+        [内容待补充]
+        
+        <h3>4.7.2 改进的采样技术</h3>
+        [内容待补充]
+        
+        <h3>4.7.3 条件分数模型</h3>
+        [内容待补充]
+
+        <h2>4.8 练习题</h2>
+        [练习题待补充]
+
+        <div class="summary-box">
+            <h2>本章小结</h2>
+            [小结待补充]
+        </div>
+    </div>
+</body>
+</html>
