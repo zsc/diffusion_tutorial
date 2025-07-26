@@ -1927,11 +1927,7 @@ diagnostics.run_full_diagnostics()</pre>
         </ul>
 
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>import torch
+<pre>import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
@@ -2022,11 +2018,7 @@ class AttentionBlock(nn.Module):
         <p>对于简单任务（如MNIST），可以使用更轻量的架构：</p>
 
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>class SimpleDDPMUNet(nn.Module):
+<pre>class SimpleDDPMUNet(nn.Module):
     """轻量级DDPM U-Net，适用于MNIST等简单数据集"""
     def __init__(self, image_channels=1, n_channels=32, ch_mults=(1, 2, 2, 4),
                  n_blocks=2):
@@ -2153,11 +2145,7 @@ def compare_model_sizes():
         <p>现在让我们实现完整的DDPM训练循环。这个实现包含了前面章节介绍的所有关键组件。</p>
 
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>import torch
+<pre>import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
@@ -2337,11 +2325,7 @@ def save_samples(samples, epoch, save_dir='./samples'):
 
         <h4>使用示例：在MNIST上训练DDPM</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre># 准备数据集
+<pre># 准备数据集
 transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize((0.5,), (0.5,))  # 归一化到[-1, 1]
@@ -2393,11 +2377,7 @@ print(f"  损失下降: {(losses[0] - losses[-1]) / losses[0] * 100:.1f}%")</pre
 
         <h4>高级训练技术</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>class EMA:
+<pre>class EMA:
     """指数移动平均"""
     def __init__(self, model, decay=0.995):
         self.model = model
@@ -2539,11 +2519,7 @@ for epoch in range(num_epochs):
 
         <h4>FID计算实现</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>import torch
+<pre>import torch
 import numpy as np
 from scipy import linalg
 from torchvision.models import inception_v3
@@ -2636,11 +2612,7 @@ class FIDCalculator:
 
         <h4>Inception Score实现</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>class InceptionScore:
+<pre>class InceptionScore:
     """Inception Score计算器"""
     def __init__(self, device='cuda'):
         self.device = device
@@ -2692,11 +2664,7 @@ class FIDCalculator:
 
         <h4>综合评估工具</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>class DDPMEvaluator:
+<pre>class DDPMEvaluator:
     """DDPM模型综合评估工具"""
     def __init__(self, trainer, test_loader, device='cuda'):
         self.trainer = trainer
@@ -2791,11 +2759,7 @@ class FIDCalculator:
 
         <h4>使用示例</h4>
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre># 创建评估器
+<pre># 创建评估器
 evaluator = DDPMEvaluator(trainer, test_loader)
 
 # 运行完整评估
@@ -2934,11 +2898,7 @@ print(f"Precision: {precision:.3f}, Recall: {recall:.3f}")</pre>
         <h3>3.7.2 性能分析</h3>
         
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>def analyze_ddpm_performance(trainer, num_samples=100):
+<pre>def analyze_ddpm_performance(trainer, num_samples=100):
     """分析DDPM的性能瓶颈"""
     import time
     
@@ -3079,11 +3039,7 @@ def analyze_performance_results(results):
         <h3>3.7.4 实验：不同改进的效果</h3>
         
         <div class="code-block">
-            <div class="code-header">
-                <span>Python</span>
-                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
-            </div>
-            <pre>class ImprovedDDPMExperiments:
+<pre>class ImprovedDDPMExperiments:
     """实验不同的DDPM改进方法"""
     
     @staticmethod
