@@ -1567,50 +1567,1058 @@ demonstrate_geometric_score_matching()</pre>
         <h2>C.3 分数函数的力学解释</h2>
         
         <h3>C.3.1 从梯度流到力场</h3>
-        [内容待补充]
+        
+        <p>分数函数不仅是数学上的梯度，更可以理解为物理上的"力"。这种力学类比为扩散模型提供了深刻的物理直觉，并建立了与能量优化的自然联系。</p>
+        
+        <h4>分数作为保守力场</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">力场的定义</div>
+            <p>对于概率密度 $p(x)$，定义能量函数：</p>
+            <div class="formula">
+                $$E(x) = -\log p(x)$$
+            </div>
+            
+            <p>则分数函数定义了一个力场：</p>
+            <div class="formula">
+                $$F(x) = -\nabla E(x) = \nabla \log p(x)$$
+            </div>
+            
+            <p>这是一个保守力场，因为它可以表示为势能的负梯度。</p>
+        </div>
+        
+        <h4>动力学系统的视角</h4>
+        
+        <div class="note-box">
+            <h4>三种相关的动力学</h4>
+            <ol>
+                <li><strong>梯度流</strong>（过阻尼动力学）：
+                    <div class="formula">
+                        $$\frac{dx}{dt} = -\nabla E(x) = \nabla \log p(x)$$
+                    </div>
+                </li>
+                
+                <li><strong>Langevin动力学</strong>（有噪声的梯度流）：
+                    <div class="formula">
+                        $$dx = \nabla \log p(x) dt + \sqrt{2} dW_t$$
+                    </div>
+                </li>
+                
+                <li><strong>哈密顿动力学</strong>（保守系统）：
+                    <div class="formula">
+                        $$\frac{dx}{dt} = v, \quad \frac{dv}{dt} = -\nabla E(x)$$
+                    </div>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>力的物理解释</h4>
+        
+        <div class="example-box">
+            <div class="example-title">直观理解</div>
+            <ul>
+                <li><strong>高概率区域</strong>：能量低，粒子被"吸引"</li>
+                <li><strong>低概率区域</strong>：能量高，粒子被"排斥"</li>
+                <li><strong>力的方向</strong>：总是指向概率增加最快的方向</li>
+                <li><strong>平衡点</strong>：概率分布的模式（局部最大值）</li>
+            </ul>
+            
+            <p>这种力学图像解释了为什么扩散模型能够生成高质量样本：粒子在力场的引导下自然地移向高概率区域。</p>
+        </div>
         
         <h3>C.3.2 能量景观与势函数</h3>
-        [内容待补充]
+        
+        <p>能量景观提供了理解扩散模型的另一个强大视角。通过将概率分布转化为能量景观，我们可以直观地理解生成过程的动力学。</p>
+        
+        <h4>能量景观的构造</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">从概率到能量</div>
+            <p>给定概率分布 $p(x)$，能量景观定义为：</p>
+            <div class="formula">
+                $$E(x) = -\log p(x) + \text{const}$$
+            </div>
+            
+            <p>这个关系来自于Boltzmann分布：</p>
+            <div class="formula">
+                $$p(x) \propto \exp(-E(x)/T)$$
+            </div>
+            
+            <p>其中 $T$ 是"温度"参数（在扩散模型中通常设为1）。</p>
+        </div>
+        
+        <h4>能量景观的特征</h4>
+        
+        <div class="note-box">
+            <h4>关键特性</h4>
+            <ul>
+                <li><strong>局部最小值</strong>：对应于概率分布的模式（高概率区域）</li>
+                <li><strong>局部最大值</strong>：对应于低概率区域</li>
+                <li><strong>點点</strong>：连接不同模式的过渡区域</li>
+                <li><strong>能量屏障</strong>：决定了模式间转换的难度</li>
+            </ul>
+        </div>
+        
+        <h4>扩散过程的能量视角</h4>
+        
+        <div class="example-box">
+            <div class="example-title">动态能量景观</div>
+            <p>在扩散模型中，能量景观随时间变化：</p>
+            <ol>
+                <li><strong>初始状态</strong>：$E_0(x) = -\log p_{data}(x)$，复杂的多峰景观</li>
+                <li><strong>扩散过程</strong>：能量景观逐渐平滑化</li>
+                <li><strong>终止状态</strong>：$E_T(x) \approx \frac{||x||^2}{2}$，简单的二次势井</li>
+            </ol>
+            
+            <p>反向过程则是在时变能量景观中的"下坡"运动。</p>
+        </div>
+        
+        <h4>势函数与分数的关系</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">势能-分数对应</div>
+            <p>分数函数是势能的负梯度：</p>
+            <div class="formula">
+                $$s(x,t) = \nabla_x \log p_t(x) = -\nabla_x E_t(x)$$
+            </div>
+            
+            <p>这意味着：</p>
+            <ul>
+                <li>分数指向能量下降最快的方向</li>
+                <li>在能量最小值处，分数为零</li>
+                <li>分数的模长反映了能量景观的陡峭程度</li>
+            </ul>
+        </div>
         
         <h3>C.3.3 Langevin动力学的物理图像</h3>
-        [内容待补充]
+        
+        <p>Langevin动力学最初用于描述布朗运动，现在成为扩散模型中的核心采样方法。从物理角度理解这个过程，可以揭示噪声与分数之间的微妙平衡。</p>
+        
+        <h4>物理模型</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Langevin方程</div>
+            <p>考虑一个在势场 $E(x)$ 中运动的粒子，受到两种力：</p>
+            <ul>
+                <li>确定性力：$F = -\nabla E(x)$</li>
+                <li>随机力：来自环境的热扰动</li>
+            </ul>
+            
+            <p>Langevin方程描述了这个系统：</p>
+            <div class="formula">
+                $$m\ddot{x} = -\gamma \dot{x} - \nabla E(x) + \sqrt{2\gamma k_B T} \xi(t)$$
+            </div>
+            
+            <p>其中：$m$ 是质量，$\gamma$ 是摩擦系数，$k_B T$ 是热能，$\xi(t)$ 是白噪声。</p>
+        </div>
+        
+        <h4>过阻尼极限</h4>
+        
+        <div class="note-box">
+            <div class="note-title">从物理到数学</div>
+            <p>在过阻尼极限（$m \to 0$ 或 $\gamma$ 很大），惯性项可以忽略：</p>
+            <div class="formula">
+                $$\gamma \dot{x} = -\nabla E(x) + \sqrt{2\gamma k_B T} \xi(t)$$
+            </div>
+            
+            <p>整理得到：</p>
+            <div class="formula">
+                $$dx = -\frac{1}{\gamma}\nabla E(x) dt + \sqrt{\frac{2k_B T}{\gamma}} dW_t$$
+            </div>
+            
+            <p>设置 $\gamma = 1$，$k_B T = 1$，并使用 $E(x) = -\log p(x)$：</p>
+            <div class="formula">
+                $$dx = \nabla \log p(x) dt + \sqrt{2} dW_t$$
+            </div>
+        </div>
+        
+        <h4>涛落定理与平衡分布</h4>
+        
+        <div class="example-box">
+            <div class="example-title">物理直觉</div>
+            <p><strong>涛落定理</strong>：阻尼力和随机力之间存在精确的平衡关系。</p>
+            
+            <p>这个平衡保证了：</p>
+            <ul>
+                <li>系统最终达到热平衡（Boltzmann分布）</li>
+                <li>平衡分布正是 $p(x) \propto \exp(-E(x))$</li>
+                <li>噪声强度和温度成正比</li>
+            </ul>
+            
+            <p>在扩散模型中，这解释了为什么Langevin动力学能从目标分布采样。</p>
+        </div>
+        
+        <h4>退火动力学</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">模拟退火</div>
+            <p>在实际应用中，常使用变温度的Langevin动力学：</p>
+            <div class="formula">
+                $$dx = \nabla \log p(x) dt + \sqrt{2\beta(t)^{-1}} dW_t$$
+            </div>
+            
+            <p>其中 $\beta(t)$ 是逆温度，随时间增加（温度下降）。</p>
+            
+            <p>物理意义：</p>
+            <ul>
+                <li><strong>高温阶段</strong>：大噪声帮助探索全局</li>
+                <li><strong>降温过程</strong>：逐渐收敛到局部最优</li>
+                <li><strong>低温阶段</strong>：精细调整，找到模式</li>
+            </ul>
+        </div>
 
         <h2>C.4 能量模型与扩散模型的统一</h2>
         
         <h3>C.4.1 能量函数与概率密度</h3>
-        [内容待补充]
+        
+        <p>能量基模型（EBM）和扩散模型看似不同，但实际上它们通过能量函数这一概念紧密相连。理解这种联系有助于我们从更广阔的视角看待生成模型。</p>
+        
+        <h4>Boltzmann分布</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">基本关系</div>
+            <p>给定能量函数 $E_\theta(x)$，对应的概率分布为：</p>
+            <div class="formula">
+                $$p_\theta(x) = \frac{1}{Z(\theta)} \exp(-E_\theta(x))$$
+            </div>
+            
+            <p>其中归一化常数（配分函数）为：</p>
+            <div class="formula">
+                $$Z(\theta) = \int \exp(-E_\theta(x)) dx$$
+            </div>
+            
+            <p>这个积分通常难以计算，这是EBM的主要挑战。</p>
+        </div>
+        
+        <h4>能量模型的学习</h4>
+        
+        <div class="note-box">
+            <h4>两种视角</h4>
+            <ol>
+                <li><strong>显式能量学习</strong>：
+                    <ul>
+                        <li>直接参数化 $E_\theta(x)$</li>
+                        <li>通过对比散度等方法学习</li>
+                        <li>需要MCMC采样</li>
+                    </ul>
+                </li>
+                
+                <li><strong>隐式能量学习</strong>：
+                    <ul>
+                        <li>学习分数 $s_\theta(x) = -\nabla_x E_\theta(x)$</li>
+                        <li>无需归一化常数</li>
+                        <li>这正是扩散模型的方法！</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>从分数到能量</h4>
+        
+        <div class="example-box">
+            <div class="example-title">重建能量函数</div>
+            <p>给定分数函数 $s(x)$，可以通过积分重建能量：</p>
+            <div class="formula">
+                $$E(x) - E(x_0) = -\int_{x_0}^x s(\xi) \cdot d\xi$$
+            </div>
+            
+            <p>但这需要：</p>
+            <ul>
+                <li>分数场是保守的（旋度为零）</li>
+                <li>积分路径无关</li>
+                <li>在实践中可能存在数值误差</li>
+            </ul>
+        </div>
         
         <h3>C.4.2 对比散度与分数匹配</h3>
-        [内容待补充]
+        
+        <p>对比散度（Contrastive Divergence）和分数匹配代表了两种不同的学习能量模型的方法。理解它们的联系和差异有助于我们更深入地理解扩散模型的优势。</p>
+        
+        <h4>对比散度的原理</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">对比散度算法</div>
+            <p>对于能量模型 $E_\theta(x)$，最大似然梯度为：</p>
+            <div class="formula">
+                $$\nabla_\theta \log p_\theta(x) = -\nabla_\theta E_\theta(x) + \mathbb{E}_{p_\theta}[\nabla_\theta E_\theta(x')]$$
+            </div>
+            
+            <p>CD-k算法通过k步MCMC近似第二项：</p>
+            <ol>
+                <li>从数据 $x_0 \sim p_{data}$ 开始</li>
+                <li>运行k步MCMC得到 $x_k \sim p_\theta$</li>
+                <li>近似梯度：$\nabla_\theta E_\theta(x_k) - \nabla_\theta E_\theta(x_0)$</li>
+            </ol>
+        </div>
+        
+        <h4>分数匹配的优势</h4>
+        
+        <div class="note-box">
+            <h4>对比两种方法</h4>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <tr style="background-color: #f0f0f0;">
+                    <th style="border: 1px solid #ddd; padding: 8px;">方面</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">对比散度</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">分数匹配</th>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">学习目标</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">能量函数 $E_\theta(x)$</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">分数函数 $s_\theta(x)$</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">采样需求</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">需要MCMC</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">不需要（去噪版本）</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">混合速度</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">受MCMC混合速度限制</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">不受影响</td>
+                </tr>
+                <tr>
+                    <td style="border: 1px solid #ddd; padding: 8px;">稳定性</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">可能不稳定</td>
+                    <td style="border: 1px solid #ddd; padding: 8px;">更稳定</td>
+                </tr>
+            </table>
+        </div>
+        
+        <h4>统一视角</h4>
+        
+        <div class="example-box">
+            <div class="example-title">从变分推断的角度</div>
+            <p>两种方法都可以看作最小化某种散度：</p>
+            
+            <ol>
+                <li><strong>对比散度</strong>：最小化KL散度
+                    <div class="formula">
+                        $$KL(p_{data} || p_\theta) = \mathbb{E}_{p_{data}}[E_\theta(x)] + \log Z(\theta)$$
+                    </div>
+                </li>
+                
+                <li><strong>分数匹配</strong>：最小化Fisher散度
+                    <div class="formula">
+                        $$\mathcal{J}(\theta) = \frac{1}{2}\mathbb{E}_{p_{data}}[||s_\theta(x) - \nabla \log p_{data}(x)||^2]$$
+                    </div>
+                </li>
+            </ol>
+            
+            <p>Fisher散度可以看作是KL散度的二阶近似！</p>
+        </div>
+        
+        <h4>联系与转换</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">关键联系</div>
+            <p>如果我们有一个完美的分数模型 $s_\theta(x) = \nabla \log p_\theta(x)$，那么：</p>
+            
+            <ol>
+                <li>可以通过Langevin动力学从 $p_\theta$ 采样</li>
+                <li>可以通过积分重建能量函数（至少是差异）</li>
+                <li>可以计算任意两点间的能量差</li>
+            </ol>
+            
+            <p>这表明分数模型实际上隐式地学习了能量模型！</p>
+        </div>
         
         <h3>C.4.3 从EBM到扩散模型的桥梁</h3>
-        [内容待补充]
+        
+        <p>扩散模型可以看作是能量基模型的一种特殊形式，其中能量函数随时间变化。这种联系为我们理解和改进两类模型提供了统一的框架。</p>
+        
+        <h4>时变能量模型</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">扩散模型作为动态EBM</div>
+            <p>扩散模型定义了一系列时变的能量函数：</p>
+            <div class="formula">
+                $$E_t(x) = -\log p_t(x)$$
+            </div>
+            
+            <p>其中：</p>
+            <ul>
+                <li>$t = 0$: $E_0(x) = -\log p_{data}(x)$ （复杂的数据能量）</li>
+                <li>$t = T$: $E_T(x) \approx \frac{||x||^2}{2}$ （简单的高斯能量）</li>
+                <li>中间时刻：平滑过渡</li>
+            </ul>
+        </div>
+        
+        <h4>桥梁机制</h4>
+        
+        <div class="note-box">
+            <h4>关键创新</h4>
+            <p>扩散模型通过以下机制解决了EBM的难题：</p>
+            
+            <ol>
+                <li><strong>渐进式平滑</strong>：
+                    <ul>
+                        <li>EBM直接学习复杂的数据分布</li>
+                        <li>扩散模型通过噪声注入逐渐平滑化</li>
+                        <li>在每个噪声级别学习更简单</li>
+                    </ul>
+                </li>
+                
+                <li><strong>分数参数化</strong>：
+                    <ul>
+                        <li>EBM参数化能量 $E_\theta(x)$</li>
+                        <li>扩散模型参数化分数 $s_\theta(x,t)$</li>
+                        <li>避免了归一化常数问题</li>
+                    </ul>
+                </li>
+                
+                <li><strong>变分目标</strong>：
+                    <ul>
+                        <li>EBM最大化似然</li>
+                        <li>扩散模型最小化加权去噪误差</li>
+                        <li>后者更稳定、更易优化</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>统一框架</h4>
+        
+        <div class="example-box">
+            <div class="example-title">两类模型的统一</div>
+            <p>我们可以将两类模型统一在以下框架中：</p>
+            
+            <div class="formula">
+                $$\min_\theta \int_0^T \lambda(t) \mathbb{E}_{p_t(x)}\left[\left\|s_\theta(x,t) - \nabla_x \log p_t(x)\right\|^2\right] dt$$
+            </div>
+            
+            <p>其中：</p>
+            <ul>
+                <li>$\lambda(t)$ 是时间权重函数</li>
+                <li>$p_t(x)$ 是扩散过程在时刻 $t$ 的分布</li>
+                <li>$s_\theta(x,t)$ 是参数化的分数模型</li>
+            </ul>
+            
+            <p>特殊情况：</p>
+            <ul>
+                <li>$T = 0$: 退化为普通的分数匹配</li>
+                <li>$T > 0$: 完整的扩散模型</li>
+            </ul>
+        </div>
+        
+        <h4>实践意义</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">相互借鉴</div>
+            <p>两类模型可以相互借鉴技术：</p>
+            
+            <ol>
+                <li><strong>EBM → 扩散模型</strong>：
+                    <ul>
+                        <li>使用能量函数的架构设计</li>
+                        <li>借鉴采样技巧（如HMC）</li>
+                        <li>应用能量正则化方法</li>
+                    </ul>
+                </li>
+                
+                <li><strong>扩散模型 → EBM</strong>：
+                    <ul>
+                        <li>使用去噪训练策略</li>
+                        <li>应用多尺度思想</li>
+                        <li>利用连续时间框架</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
 
         <h2>C.5 信息几何在扩散模型中的应用</h2>
         
         <h3>C.5.1 最优传输视角</h3>
-        [内容待补充]
+        
+        <p>最优传输理论为扩散模型提供了另一个强大的理论框架。从这个视角看，扩散过程可以理解为在概率分布空间中的最优传输路径。</p>
+        
+        <h4>Wasserstein距离与最优传输</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">最优传输问题</div>
+            <p>给定两个概率分布 $\mu$ 和 $\nu$，最优传输问题寻找最小成本的传输方案：</p>
+            <div class="formula">
+                $$W_2^2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \int ||x - y||^2 d\pi(x,y)$$
+            </div>
+            
+            <p>其中 $\Pi(\mu, \nu)$ 是所有边缘分布为 $\mu$ 和 $\nu$ 的联合分布。</p>
+            
+            <p>在动态版本中，我们寻找连接 $\mu$ 到 $\nu$ 的最短路径。</p>
+        </div>
+        
+        <h4>扩散模型与最优传输</h4>
+        
+        <div class="note-box">
+            <h4>关键联系</h4>
+            <ol>
+                <li><strong>路径选择</strong>：
+                    <ul>
+                        <li>扩散模型定义了从 $p_{data}$ 到 $\mathcal{N}(0,I)$ 的路径</li>
+                        <li>这条路径不一定是最优传输路径</li>
+                        <li>但它有其他优点（如易于学习、稳定性好）</li>
+                    </ul>
+                </li>
+                
+                <li><strong>Schrödinger Bridge</strong>：
+                    <ul>
+                        <li>在给定边缘分布的情况下，找到最接近先验过程的路径</li>
+                        <li>可以看作带正则化的最优传输</li>
+                        <li>与扩散模型有深刻联系</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>速度场与传输映射</h4>
+        
+        <div class="example-box">
+            <div class="example-title">两种描述</div>
+            <p>最优传输可以通过两种方式描述：</p>
+            
+            <ol>
+                <li><strong>静态映射</strong>：Monge映射 $T: \mathbb{R}^d \to \mathbb{R}^d$
+                    <div class="formula">
+                        $$T_\# \mu = \nu, \quad T = \nabla \phi$$
+                    </div>
+                    其中 $\phi$ 是Kantorovich势函数。
+                </li>
+                
+                <li><strong>动态速度场</strong>：Benamou-Brenier公式
+                    <div class="formula">
+                        $$\frac{\partial \rho_t}{\partial t} + \nabla \cdot (\rho_t v_t) = 0$$
+                    </div>
+                    最小化动能：$\int_0^1 \int \frac{1}{2}\rho_t(x) ||v_t(x)||^2 dx dt$
+                </li>
+            </ol>
+            
+            <p>分数函数在某些情况下与最优速度场相关！</p>
+        </div>
         
         <h3>C.5.2 Wasserstein梯度流</h3>
-        [内容待补充]
+        
+        <p>Wasserstein梯度流提供了一种在概率分布空间中进行梯度下降的自然方法。这种方法考虑了分布空间的几何结构，为理解和设计扩散模型提供了新的思路。</p>
+        
+        <h4>Wasserstein空间中的梯度流</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Otto计算</div>
+            <p>在Wasserstein空间 $(\mathcal{P}_2(\mathbb{R}^d), W_2)$ 中，泛函 $\mathcal{F}[\rho]$ 的梯度流为：</p>
+            <div class="formula">
+                $$\frac{\partial \rho}{\partial t} = \nabla \cdot \left(\rho \nabla \frac{\delta \mathcal{F}}{\delta \rho}\right)$$
+            </div>
+            
+            <p>其中 $\frac{\delta \mathcal{F}}{\delta \rho}$ 是泛函导数。这个方程描述了在Wasserstein度量下的最陡下降。</p>
+        </div>
+        
+        <h4>特殊情况：Fokker-Planck方程</h4>
+        
+        <div class="note-box">
+            <h4>重要例子</h4>
+            <p>对于熵泛函 $\mathcal{F}[\rho] = \int \rho \log \rho dx$：</p>
+            <div class="formula">
+                $$\frac{\delta \mathcal{F}}{\delta \rho} = \log \rho + 1$$
+            </div>
+            
+            <p>Wasserstein梯度流变为：</p>
+            <div class="formula">
+                $$\frac{\partial \rho}{\partial t} = \nabla \cdot (\rho \nabla \log \rho) = \Delta \rho$$
+            </div>
+            
+            <p>这正是热方程！说明热扩散是熵的Wasserstein梯度流。</p>
+        </div>
+        
+        <h4>与扩散模型的联系</h4>
+        
+        <div class="example-box">
+            <div class="example-title">扩散作为梯度流</div>
+            <p>前向扩散过程可以理解为某种能量泛函的Wasserstein梯度流：</p>
+            
+            <ol>
+                <li><strong>能量泛函</strong>：
+                    <div class="formula">
+                        $$\mathcal{E}[\rho] = \int \rho \log \rho dx + \int V(x) \rho(x) dx$$
+                    </div>
+                    其中 $V(x) = \frac{||x||^2}{2}$ 是二次势。
+                </li>
+                
+                <li><strong>对应的梯度流</strong>：
+                    <div class="formula">
+                        $$\frac{\partial \rho}{\partial t} = \Delta \rho + \nabla \cdot (\rho \nabla V)$$
+                    </div>
+                    这与VP-SDE的Fokker-Planck方程一致！
+                </li>
+            </ol>
+        </div>
+        
+        <h4>JKO迭代格式</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Jordan-Kinderlehrer-Otto格式</div>
+            <p>Wasserstein梯度流可以通过迭代最小化问题离散化：</p>
+            <div class="formula">
+                $$\rho^{k+1} = \arg\min_{\rho} \left\{\frac{W_2^2(\rho, \rho^k)}{2\tau} + \mathcal{F}[\rho]\right\}$$
+            </div>
+            
+            <p>这提供了：</p>
+            <ul>
+                <li>数值计算方法</li>
+                <li>变分解释</li>
+                <li>与近端梯度方法的联系</li>
+            </ul>
+        </div>
         
         <h3>C.5.3 扩散过程的测地线</h3>
-        [内容待补充]
+        
+        <p>从信息几何的角度看，扩散过程定义了在概率分布流形上的一条路径。这条路径的几何性质决定了模型的性能和效率。</p>
+        
+        <h4>测地线的定义</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">不同度量下的测地线</div>
+            <p>在不同的度量下，连接两个分布的测地线不同：</p>
+            
+            <ol>
+                <li><strong>Fisher-Rao测地线</strong>：
+                    <div class="formula">
+                        $$\gamma_{FR}(t) = \frac{\sin((1-t)\theta)}{\sin \theta}\sqrt{p_0} + \frac{\sin(t\theta)}{\sin \theta}\sqrt{p_1}$$
+                    </div>
+                    其中 $\cos \theta = \int \sqrt{p_0 p_1} dx$。
+                </li>
+                
+                <li><strong>Wasserstein测地线</strong>：
+                    通过最优传输映射 $T$ 定义：
+                    <div class="formula">
+                        $$\gamma_W(t) = ((1-t)Id + tT)_\# p_0$$
+                    </div>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>扩散路径的几何性质</h4>
+        
+        <div class="note-box">
+            <h4>路径选择的权衡</h4>
+            <p>扩散模型选择的路径通常不是测地线，而是平衡以下因素：</p>
+            
+            <ul>
+                <li><strong>学习难度</strong>：路径上每一点的分数函数应该容易学习</li>
+                <li><strong>采样效率</strong>：反向过程应该快速收敛</li>
+                <li><strong>数值稳定性</strong>：避免数值问题</li>
+                <li><strong>理论保证</strong>：确保收敛到正确分布</li>
+            </ul>
+        </div>
+        
+        <h4>最优路径的探索</h4>
+        
+        <div class="example-box">
+            <div class="example-title">新的研究方向</div>
+            <p>最近的研究探索了更优的扩散路径：</p>
+            
+            <ol>
+                <li><strong>流匹配（Flow Matching）</strong>：
+                    <ul>
+                        <li>直接学习最优传输的速度场</li>
+                        <li>路径更直、更短</li>
+                        <li>采样效率更高</li>
+                    </ul>
+                </li>
+                
+                <li><strong>变分扩散模型</strong>：
+                    <ul>
+                        <li>学习最优的噪声调度</li>
+                        <li>适应不同的数据分布</li>
+                        <li>最小化某种损失泛函</li>
+                    </ul>
+                </li>
+                
+                <li><strong>Schrödinger Bridge</strong>：
+                    <ul>
+                        <li>在给定边界条件下的最优路径</li>
+                        <li>结合了最优传输和扩散的优点</li>
+                        <li>提供更灵活的框架</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>几何视角的启示</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">设计原则</div>
+            <p>信息几何为设计更好的扩散模型提供了以下原则：</p>
+            
+            <ol>
+                <li><strong>局部平坦性</strong>：路径应该在每个时刻保持局部平坦</li>
+                <li><strong>曲率最小化</strong>：减少不必要的弯曲</li>
+                <li><strong>信息保持</strong>：在扩散过程中保持尽可能多的信息</li>
+                <li><strong>可逆性</strong>：确保反向过程的数值稳定性</li>
+            </ol>
+        </div>
 
         <h2>C.6 计算考虑与实践意义</h2>
         
         <h3>C.6.1 自然参数化的优势</h3>
-        [内容待补充]
+        
+        <p>自然参数化在信息几何中占据特殊地位，因为它使得许多计算变得简单且高效。在扩散模型中利用这一点可以显著改善模型的性能。</p>
+        
+        <h4>什么是自然参数</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">自然参数的定义</div>
+            <p>对于指数族分布：</p>
+            <div class="formula">
+                $$p(x|\theta) = h(x) \exp(\theta^T T(x) - A(\theta))$$
+            </div>
+            
+            <p>$\theta$ 是自然参数，它具有以下优美性质：</p>
+            <ul>
+                <li>Fisher信息矩阵 = $\nabla^2 A(\theta)$ （对数配分函数的Hessian）</li>
+                <li>期望参数 $\eta = \mathbb{E}[T(x)] = \nabla A(\theta)$</li>
+                <li>参数空间是凸的</li>
+            </ul>
+        </div>
+        
+        <h4>计算优势</h4>
+        
+        <div class="note-box">
+            <h4>为什么自然参数化重要</h4>
+            <ol>
+                <li><strong>梯度计算简单</strong>：
+                    <ul>
+                        <li>对数似然的梯度 = $T(x) - \nabla A(\theta)$</li>
+                        <li>无需复杂的链式法则</li>
+                        <li>数值稳定</li>
+                    </ul>
+                </li>
+                
+                <li><strong>凸优化</strong>：
+                    <ul>
+                        <li>负对数似然在自然参数下是凸的</li>
+                        <li>保证全局最优</li>
+                        <li>收敛速度快</li>
+                    </ul>
+                </li>
+                
+                <li><strong>KL散度的简单形式</strong>：
+                    <div class="formula">
+                        $$KL(p||q) = A(\theta_q) - A(\theta_p) - (\theta_q - \theta_p)^T \nabla A(\theta_p)$$
+                    </div>
+                    这是Bregman散度的形式！
+                </li>
+            </ol>
+        </div>
+        
+        <h4>在扩散模型中的应用</h4>
+        
+        <div class="example-box">
+            <div class="example-title">利用自然参数化</div>
+            <p>虽然扩散模型中的分布通常不是指数族，但我们可以：</p>
+            
+            <ol>
+                <li><strong>局部近似</strong>：
+                    <ul>
+                        <li>在小噪声极限下，分布接近高斯</li>
+                        <li>可以使用高斯的自然参数化</li>
+                        <li>简化计算和分析</li>
+                    </ul>
+                </li>
+                
+                <li><strong>变分推断</strong>：
+                    <ul>
+                        <li>使用指数族作为变分家族</li>
+                        <li>利用自然参数化的优势</li>
+                        <li>获得更紧的下界</li>
+                    </ul>
+                </li>
+                
+                <li><strong>分数函数参数化</strong>：
+                    <ul>
+                        <li>设计网络输出自然参数梯度</li>
+                        <li>通过变换得到分数</li>
+                        <li>改善数值稳定性</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
         
         <h3>C.6.2 曲率与训练动力学</h3>
-        [内容待补充]
+        
+        <p>参数空间的曲率直接影响优化的难度和速度。理解和利用这种曲率信息可以显著改善扩散模型的训练效率。</p>
+        
+        <h4>曲率的来源</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">曲率与条件数</div>
+            <p>Fisher信息矩阵的条件数反映了参数空间的曲率：</p>
+            <div class="formula">
+                $$\kappa(I) = \frac{\lambda_{\max}(I)}{\lambda_{\min}(I)}$$
+            </div>
+            
+            <p>高条件数意味着：</p>
+            <ul>
+                <li>不同方向的学习速度差异很大</li>
+                <li>梯度下降可能震荡</li>
+                <li>需要小学习率以保证稳定性</li>
+            </ul>
+        </div>
+        
+        <h4>扩散模型中的曲率问题</h4>
+        
+        <div class="note-box">
+            <h4>特有的挑战</h4>
+            <ol>
+                <li><strong>时变曲率</strong>：
+                    <ul>
+                        <li>不同时刻 $t$ 的分布不同</li>
+                        <li>曲率随时间变化</li>
+                        <li>早期（高SNR）和晚期（低SNR）差异很大</li>
+                    </ul>
+                </li>
+                
+                <li><strong>空间不均匀性</strong>：
+                    <ul>
+                        <li>数据流形附近曲率大</li>
+                        <li>远离数据的区域曲率小</li>
+                        <li>模式之间的过渡区曲率极大</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>利用曲率信息改善训练</h4>
+        
+        <div class="example-box">
+            <div class="example-title">实用技术</div>
+            <ol>
+                <li><strong>自适应学习率</strong>：
+                    <ul>
+                        <li>根据时刻 $t$ 调整学习率</li>
+                        <li>高曲率区域使用小学习率</li>
+                        <li>低曲率区域可以加速</li>
+                    </ul>
+                </li>
+                
+                <li><strong>预条件化</strong>：
+                    <ul>
+                        <li>使用近似的Fisher信息</li>
+                        <li>自然梯度方法</li>
+                        <li>Adam等二阶方法</li>
+                    </ul>
+                </li>
+                
+                <li><strong>重要性采样</strong>：
+                    <ul>
+                        <li>在高曲率时刻增加采样</li>
+                        <li>平衡各时刻的学习</li>
+                        <li>减少方差</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>理论分析</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">收敛速度与曲率</div>
+            <p>对于梯度下降，收敛速度受曲率影响：</p>
+            <div class="formula">
+                $$||\theta_t - \theta^*|| \leq \left(1 - \frac{2\alpha}{\kappa + 1}\right)^t ||\theta_0 - \theta^*||$$
+            </div>
+            
+            <p>其中 $\alpha$ 是学习率，$\kappa$ 是条件数。这表明：</p>
+            <ul>
+                <li>条件数越大，收敛越慢</li>
+                <li>最优学习率 $\propto 1/\kappa$</li>
+                <li>预条件化可以改善 $\kappa$</li>
+            </ul>
+        </div>
         
         <h3>C.6.3 几何启发的算法设计</h3>
-        [内容待补充]
+        
+        <p>信息几何的洞察不仅加深了我们对扩散模型的理解，还启发了新的算法设计。这些几何启发的方法往往能带来显著的性能提升。</p>
+        
+        <h4>几何感知的采样算法</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">利用局部几何</div>
+            <p>基于分数函数的局部几何信息，可以设计更高效的采样算法：</p>
+            
+            <ol>
+                <li><strong>自适应步长</strong>：
+                    <div class="formula">
+                        $$h(x,t) = \frac{c}{||\nabla s(x,t)||_F + \epsilon}$$
+                    </div>
+                    在分数变化剧烈的区域使用小步长。
+                </li>
+                
+                <li><strong>曲率校正</strong>：
+                    <div class="formula">
+                        $$x_{t+1} = x_t + h \cdot (I + \lambda H)^{-1} s(x_t, t)$$
+                    </div>
+                    其中 $H$ 是分数的Hessian矩阵。
+                </li>
+            </ol>
+        </div>
+        
+        <h4>流形感知的网络设计</h4>
+        
+        <div class="note-box">
+            <h4>架构创新</h4>
+            <ol>
+                <li><strong>等变网络</strong>：
+                    <ul>
+                        <li>保持几何变换的等变性</li>
+                        <li>减少参数量</li>
+                        <li>提高泛化能力</li>
+                    </ul>
+                </li>
+                
+                <li><strong>流形注意力</strong>：
+                    <ul>
+                        <li>在流形上计算注意力</li>
+                        <li>考虑局部度量</li>
+                        <li>更好地捕捉数据结构</li>
+                    </ul>
+                </li>
+                
+                <li><strong>几何正则化</strong>：
+                    <ul>
+                        <li>惩罚过大的曲率</li>
+                        <li>鼓励平滑的分数场</li>
+                        <li>提高数值稳定性</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>最优传输启发的方法</h4>
+        
+        <div class="example-box">
+            <div class="example-title">新一代算法</div>
+            <ol>
+                <li><strong>流匹配（Flow Matching）</strong>：
+                    <ul>
+                        <li>直接学习最优传输映射</li>
+                        <li>更直的路径</li>
+                        <li>更快的采样</li>
+                    </ul>
+                </li>
+                
+                <li><strong>整流模型（Rectified Flow）</strong>：
+                    <ul>
+                        <li>学习直线路径</li>
+                        <li>最小化路径曲率</li>
+                        <li>允许一步采样</li>
+                    </ul>
+                </li>
+                
+                <li><strong>动态最优传输</strong>：
+                    <ul>
+                        <li>在训练过程中调整路径</li>
+                        <li>适应数据分布</li>
+                        <li>最小化总传输成本</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+        
+        <h4>未来方向</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">几何方法的前景</div>
+            <p>信息几何为扩散模型的发展指明了几个重要方向：</p>
+            
+            <ol>
+                <li><strong>非欧几何</strong>：
+                    <ul>
+                        <li>在更一般的流形上定义扩散</li>
+                        <li>处理结构化数据</li>
+                        <li>图、分子等非欧数据</li>
+                    </ul>
+                </li>
+                
+                <li><strong>多尺度几何</strong>：
+                    <ul>
+                        <li>不同尺度的几何结构</li>
+                        <li>分层次的学习和采样</li>
+                        <li>提高效率</li>
+                    </ul>
+                </li>
+                
+                <li><strong>动态几何</strong>：
+                    <ul>
+                        <li>学习和适应数据流形</li>
+                        <li>在线更新几何结构</li>
+                        <li>处理分布漂移</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
 
         <div class="chapter-summary">
             <h2>本章小结</h2>
-            [小结待补充]
+            <p>本附录从信息几何的角度深入探讨了扩散模型的数学基础，揭示了分数函数的多重意义——它既是流形上的切向量，也是物理上的力场，更是连接能量优化与概率建模的桥梁。</p>
+            
+            <h3>核心要点</h3>
+            <ol>
+                <li><strong>信息几何基础</strong>：
+                    <ul>
+                        <li>概率分布空间是一个弯曲的流形</li>
+                        <li>Fisher信息度量提供了自然的黎曼结构</li>
+                        <li>自然梯度考虑了流形的曲率</li>
+                    </ul>
+                </li>
+                
+                <li><strong>分数函数的几何意义</strong>：
+                    <ul>
+                        <li>分数是概率流形上的切向量场</li>
+                        <li>Stein恒等式提供了分数的刻画</li>
+                        <li>分数匹配是几何投影问题</li>
+                    </ul>
+                </li>
+                
+                <li><strong>力学解释</strong>：
+                    <ul>
+                        <li>分数函数定义了一个保守力场</li>
+                        <li>能量景观随时间演化</li>
+                        <li>Langevin动力学平衡噪声与漂移</li>
+                    </ul>
+                </li>
+                
+                <li><strong>与能量模型的统一</strong>：
+                    <ul>
+                        <li>扩散模型是时变的能量模型</li>
+                        <li>分数匹配避免了归一化难题</li>
+                        <li>两类方法可以相互借鉴</li>
+                    </ul>
+                </li>
+                
+                <li><strong>最优传输视角</strong>：
+                    <ul>
+                        <li>扩散定义了分布空间中的路径</li>
+                        <li>Wasserstein梯度流提供了新视角</li>
+                        <li>启发了流匹配等新方法</li>
+                    </ul>
+                </li>
+                
+                <li><strong>实践意义</strong>：
+                    <ul>
+                        <li>自然参数化简化计算</li>
+                        <li>曲率信息指导优化</li>
+                        <li>几何启发的算法设计</li>
+                    </ul>
+                </li>
+            </ol>
+            
+            <h3>展望</h3>
+            <p>信息几何为理解和改进扩散模型提供了丰富的理论工具。未来的研究方向包括：</p>
+            <ul>
+                <li>在非欧流形上定义扩散过程</li>
+                <li>利用曲率信息设计更高效的采样算法</li>
+                <li>探索最优传输与扩散的更深联系</li>
+                <li>开发几何感知的神经网络架构</li>
+            </ul>
+            
+            <p>这些理论洞察不仅加深了我们对扩散模型的理解，也为设计下一代生成模型指明了方向。通过融合信息几何、物理直觉和机器学习技术，我们有望开发出更加强大和高效的生成模型。</p>
         </div>
     </div>
 </body>
