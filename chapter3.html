@@ -861,18 +861,1368 @@ plt.show()</pre>
         </div>
         
         <h2>3.5 采样算法：从理论到实践</h2>
+        
+        <p>训练好DDPM后，如何生成新的样本？这一节我们将详细介绍DDPM的采样算法，从标准的1000步采样到各种实用技巧。</p>
+        
         <h3>3.5.1 标准DDPM采样</h3>
-        <p>[待完成：1000步采样的实现]</p>
+        
+        <p>DDPM的采样过程是从纯噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$ 开始，逐步去噪直到得到清晰的图像 $\mathbf{x}_0$。</p>
+        
+        <div class="definition">
+            <div class="definition-title">DDPM采样算法</div>
+            <p>对于每一步 $t = T, T-1, ..., 1$：</p>
+            <div class="math-block">
+                $$\mathbf{x}_{t-1} = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)\right) + \sigma_t \mathbf{z}$$
+            </div>
+            <p>其中：</p>
+            <ul>
+                <li>$\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$ 是训练好的噪声预测网络</li>
+                <li>$\mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$ 是采样噪声（当 $t > 1$ 时）</li>
+                <li>$\sigma_t$ 是方差，DDPM使用 $\sigma_t = \beta_t$</li>
+            </ul>
+        </div>
+        
+        <p>完整的实现代码：</p>
+        
+        <div class="code-block">
+<pre>@torch.no_grad()
+def ddpm_sample(model, shape, num_timesteps=1000, device='cuda'):
+    """
+    DDPM标准采样算法
+    
+    Args:
+        model: 训练好的噪声预测模型
+        shape: 生成图像的形状，如 (batch_size, 3, 32, 32)
+        num_timesteps: 总时间步数
+        device: 计算设备
+    
+    Returns:
+        生成的图像 x_0
+    """
+    # 预计算噪声调度
+    betas = linear_beta_schedule(num_timesteps).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    sqrt_alphas = torch.sqrt(alphas)
+    sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
+    
+    # 从纯噪声开始
+    x_t = torch.randn(shape, device=device)
+    
+    # 逐步去噪
+    for t in reversed(range(num_timesteps)):
+        # 创建时间步张量
+        t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.long)
+        
+        # 预测噪声
+        epsilon_pred = model(x_t, t_tensor)
+        
+        # 计算均值
+        mean = (x_t - betas[t] / sqrt_one_minus_alphas_bar[t] * epsilon_pred) / sqrt_alphas[t]
+        
+        # 添加噪声（除了最后一步）
+        if t > 0:
+            noise = torch.randn_like(x_t)
+            std = torch.sqrt(betas[t])  # DDPM使用β_t作为方差
+            x_t = mean + std * noise
+        else:
+            x_t = mean
+    
+    return x_t</pre>
+        </div>
+        
+        <h4>采样过程的可视化</h4>
+        
+        <p>为了更好地理解采样过程，让我们可视化不同时间步的中间结果：</p>
+        
+        <div class="code-block">
+<pre>def visualize_sampling_process(model, num_steps_to_show=10):
+    """可视化DDPM采样过程"""
+    import matplotlib.pyplot as plt
+    
+    # 采样并保存中间结果
+    shape = (1, 3, 32, 32)
+    T = 1000
+    
+    # 选择要展示的时间步
+    steps_to_show = torch.linspace(T-1, 0, num_steps_to_show, dtype=torch.long)
+    intermediate_images = []
+    
+    # 初始化
+    x_t = torch.randn(shape, device='cuda')
+    betas = linear_beta_schedule(T).to('cuda')
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    
+    # 采样过程
+    for t in reversed(range(T)):
+        t_tensor = torch.full((1,), t, device='cuda', dtype=torch.long)
+        
+        # 预测并更新
+        epsilon_pred = model(x_t, t_tensor)
+        # ... (采样步骤同上)
+        
+        # 保存中间结果
+        if t in steps_to_show:
+            # 将x_t映射到[0, 1]范围（用于可视化）
+            img = (x_t.clamp(-1, 1) + 1) / 2
+            intermediate_images.append(img.cpu())
+    
+    # 绘制结果
+    fig, axes = plt.subplots(1, len(intermediate_images), figsize=(20, 4))
+    for i, (img, t) in enumerate(zip(intermediate_images, steps_to_show)):
+        axes[i].imshow(img[0].permute(1, 2, 0))
+        axes[i].set_title(f't = {t.item()}')
+        axes[i].axis('off')
+    
+    plt.suptitle('DDPM Sampling Process: From Noise to Image')
+    plt.tight_layout()
+    plt.show()</pre>
+        </div>
+        
+        <div class="visualization" style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h4>采样过程的特点</h4>
+            <ul>
+                <li><strong>前期（t ≈ 1000）</strong>：主要恢复全局结构和大致形状</li>
+                <li><strong>中期（t ≈ 500）</strong>：细化对象轮廓和主要特征</li>
+                <li><strong>后期（t ≈ 0）</strong>：添加纹理细节和高频信息</li>
+            </ul>
+            <p>这个过程类似于艺术家作画：先勾勒轮廓，再填充颜色，最后添加细节。</p>
+        </div>
+        
+        <h4>计算效率分析</h4>
+        
+        <p>标准DDPM采样的主要问题是速度慢。让我们分析一下计算成本：</p>
+        
+        <div class="code-block">
+<pre>def analyze_sampling_cost(model, batch_size=16, image_size=256):
+    """分析DDPM采样的计算成本"""
+    import time
+    
+    shape = (batch_size, 3, image_size, image_size)
+    T = 1000
+    
+    # 测量单次前向传播时间
+    x = torch.randn(shape, device='cuda')
+    t = torch.randint(0, T, (batch_size,), device='cuda')
+    
+    # 预热GPU
+    for _ in range(10):
+        _ = model(x, t)
+    torch.cuda.synchronize()
+    
+    # 计时
+    start = time.time()
+    num_runs = 50
+    for _ in range(num_runs):
+        _ = model(x, t)
+    torch.cuda.synchronize()
+    end = time.time()
+    
+    time_per_forward = (end - start) / num_runs
+    total_time = time_per_forward * T
+    
+    print(f"图像尺寸: {image_size}×{image_size}")
+    print(f"批次大小: {batch_size}")
+    print(f"单次前向传播: {time_per_forward*1000:.2f} ms")
+    print(f"完整采样 (1000步): {total_time:.2f} 秒")
+    print(f"每秒生成图像数: {batch_size/total_time:.3f}")
+    
+    # 内存使用估计
+    model_params = sum(p.numel() for p in model.parameters()) * 4 / 1024**3  # GB
+    activation_memory = batch_size * 3 * image_size**2 * 4 * 50 / 1024**3  # 粗略估计
+    print(f"\n内存使用:")
+    print(f"模型参数: {model_params:.2f} GB")
+    print(f"激活值 (估计): {activation_memory:.2f} GB")</pre>
+        </div>
+        
+        <div class="definition">
+            <div class="definition-title">典型性能数据</div>
+            <table style="width: 100%; margin-top: 10px;">
+                <tr>
+                    <th style="padding: 10px; background-color: #f0f0f0;">配置</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">单步时间</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">总采样时间</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">吞吐量</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">32×32, batch=64</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">~5ms</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">5秒</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">12.8 图像/秒</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">256×256, batch=8</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">~50ms</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">50秒</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">0.16 图像/秒</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">512×512, batch=4</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">~200ms</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">200秒</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">0.02 图像/秒</td>
+                </tr>
+            </table>
+            <p><small>*基于RTX 3090，实际性能因模型架构而异</small></p>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.5.1：实现采样进度条</div>
+            <p>修改DDPM采样函数，添加：</p>
+            <ol>
+                <li>tqdm进度条显示采样进度</li>
+                <li>可选的中间结果保存</li>
+                <li>EMA（指数移动平均）模型支持</li>
+            </ol>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_5_1')">显示答案</button>
+            <div id="answer3_5_1" class="answer">
+                <pre>from tqdm import tqdm
+
+@torch.no_grad()
+def ddpm_sample_with_progress(
+    model, 
+    shape, 
+    num_timesteps=1000,
+    device='cuda',
+    use_ema=True,
+    ema_model=None,
+    save_intermediate=False,
+    save_steps=None
+):
+    """增强版DDPM采样"""
+    # 选择模型
+    if use_ema and ema_model is not None:
+        sample_model = ema_model
+    else:
+        sample_model = model
+    
+    sample_model.eval()
+    
+    # 预计算
+    betas = linear_beta_schedule(num_timesteps).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    sqrt_alphas = torch.sqrt(alphas)
+    sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
+    
+    # 初始化
+    x_t = torch.randn(shape, device=device)
+    intermediates = []
+    
+    # 采样循环
+    for t in tqdm(reversed(range(num_timesteps)), desc='Sampling', total=num_timesteps):
+        t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.long)
+        
+        # 预测噪声
+        epsilon_pred = sample_model(x_t, t_tensor)
+        
+        # 更新x_t
+        mean = (x_t - betas[t] / sqrt_one_minus_alphas_bar[t] * epsilon_pred) / sqrt_alphas[t]
+        
+        if t > 0:
+            noise = torch.randn_like(x_t)
+            std = torch.sqrt(betas[t])
+            x_t = mean + std * noise
+        else:
+            x_t = mean
+        
+        # 保存中间结果
+        if save_intermediate and save_steps is not None and t in save_steps:
+            intermediates.append({
+                't': t,
+                'x_t': x_t.cpu().clone(),
+                'pred_x_0': self._predict_x0_from_eps(x_t, t, epsilon_pred)
+            })
+    
+    if save_intermediate:
+        return x_t, intermediates
+    else:
+        return x_t
+
+def _predict_x0_from_eps(x_t, t, epsilon_pred):
+    """从噪声预测恢复x_0（用于可视化）"""
+    return (x_t - sqrt_one_minus_alphas_bar[t] * epsilon_pred) / sqrt_alphas_bar[t]</pre>
+                <p><strong>使用技巧</strong>：</p>
+                <ul>
+                    <li>EMA模型通常生成质量更好，训练时应同时维护</li>
+                    <li>保存中间结果有助于调试和理解模型行为</li>
+                    <li>对于批量生成，考虑使用DataLoader风格的生成器以节省内存</li>
+                </ul>
+            </div>
+        </div>
         
         <h3>3.5.2 采样的随机性控制</h3>
-        <p>[待完成：温度参数的作用]</p>
+        
+        <p>DDPM采样过程中的随机性来源于两个地方：初始噪声 $\mathbf{x}_T$ 和每步添加的噪声 $\mathbf{z}_t$。通过控制这些随机性，我们可以影响生成结果的多样性和质量。</p>
+        
+        <h4>温度参数的引入</h4>
+        
+        <p>类似于其他生成模型，我们可以引入温度参数来控制采样的随机性：</p>
+        
+        <div class="code-block">
+<pre>def ddpm_sample_with_temperature(
+    model, 
+    shape, 
+    temperature=1.0,
+    noise_temperature=1.0,
+    num_timesteps=1000,
+    device='cuda'
+):
+    """
+    带温度控制的DDPM采样
+    
+    Args:
+        temperature: 控制初始噪声的温度
+        noise_temperature: 控制每步噪声的温度
+    """
+    # 预计算（同前）
+    betas = linear_beta_schedule(num_timesteps).to(device)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    
+    # 温度调整的初始噪声
+    x_t = torch.randn(shape, device=device) * temperature
+    
+    for t in reversed(range(num_timesteps)):
+        t_tensor = torch.full((shape[0],), t, device=device, dtype=torch.long)
+        
+        # 预测噪声
+        epsilon_pred = model(x_t, t_tensor)
+        
+        # 计算均值
+        mean = (x_t - betas[t] / torch.sqrt(1 - alphas_bar[t]) * epsilon_pred) / torch.sqrt(alphas[t])
+        
+        if t > 0:
+            # 温度调整的步进噪声
+            noise = torch.randn_like(x_t) * noise_temperature
+            std = torch.sqrt(betas[t])
+            x_t = mean + std * noise
+        else:
+            x_t = mean
+    
+    return x_t</pre>
+        </div>
+        
+        <div class="definition">
+            <div class="definition-title">温度参数的效果</div>
+            <ul>
+                <li><strong>temperature < 1.0</strong>：减少初始随机性，生成更"典型"的样本</li>
+                <li><strong>temperature > 1.0</strong>：增加初始随机性，生成更多样但可能质量较低的样本</li>
+                <li><strong>noise_temperature < 1.0</strong>：减少去噪过程的随机性，结果更确定但可能过于平滑</li>
+                <li><strong>noise_temperature > 1.0</strong>：增加去噪随机性，可能产生更多细节但也可能引入伪影</li>
+            </ul>
+        </div>
+        
+        <h4>确定性采样：DDIM预览</h4>
+        
+        <p>一个有趣的观察是：如果我们完全去除步进噪声（设置 $\sigma_t = 0$），采样过程变成确定性的。这就是DDIM的核心思想：</p>
+        
+        <div class="code-block">
+<pre>def ddpm_deterministic_sample(model, shape, num_timesteps=1000, eta=0.0):
+    """
+    确定性或部分确定性采样
+    eta=0: 完全确定性（DDIM）
+    eta=1: 标准DDPM（完全随机）
+    """
+    x_t = torch.randn(shape, device='cuda')
+    
+    for t in reversed(range(num_timesteps)):
+        # 预测噪声
+        epsilon_pred = model(x_t, t)
+        
+        # 预测x_0
+        x_0_pred = (x_t - torch.sqrt(1 - alphas_bar[t]) * epsilon_pred) / torch.sqrt(alphas_bar[t])
+        
+        if t > 0:
+            # 计算方向指向x_{t-1}
+            direction = torch.sqrt(1 - alphas_bar[t-1]) * epsilon_pred
+            
+            # 确定性部分
+            x_t = torch.sqrt(alphas_bar[t-1]) * x_0_pred + direction
+            
+            # 随机部分（由eta控制）
+            if eta > 0:
+                noise = torch.randn_like(x_t)
+                variance = eta * betas[t] * (1 - alphas_bar[t-1]) / (1 - alphas_bar[t])
+                x_t = x_t + torch.sqrt(variance) * noise
+        else:
+            x_t = x_0_pred
+    
+    return x_t</pre>
+        </div>
+        
+        <h4>采样种子与可重复性</h4>
+        
+        <p>对于需要可重复结果的应用，控制随机种子至关重要：</p>
+        
+        <div class="code-block">
+<pre>class SeededSampler:
+    """可重复的采样器"""
+    def __init__(self, model, device='cuda'):
+        self.model = model
+        self.device = device
+        
+    def sample_with_seed(self, seed, shape, **kwargs):
+        """使用指定种子采样"""
+        # 保存当前随机状态
+        cpu_state = torch.get_rng_state()
+        cuda_state = torch.cuda.get_rng_state(self.device)
+        
+        # 设置种子
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        
+        # 采样
+        result = ddpm_sample(self.model, shape, device=self.device, **kwargs)
+        
+        # 恢复随机状态
+        torch.set_rng_state(cpu_state)
+        torch.cuda.set_rng_state(cuda_state, self.device)
+        
+        return result
+    
+    def sample_variations(self, base_seed, num_variations, shape, temperature_range=(0.8, 1.2)):
+        """生成同一种子的多个变体"""
+        variations = []
+        
+        for i in range(num_variations):
+            # 使用相同的基础种子但不同的温度
+            temp = np.linspace(temperature_range[0], temperature_range[1], num_variations)[i]
+            
+            torch.manual_seed(base_seed)
+            torch.cuda.manual_seed(base_seed)
+            
+            sample = ddpm_sample_with_temperature(
+                self.model, shape, 
+                temperature=temp,
+                device=self.device
+            )
+            variations.append(sample)
+            
+        return torch.stack(variations)</pre>
+        </div>
+        
+        <h4>高级技巧：引导采样（Guided Sampling）</h4>
+        
+        <p>我们可以在采样过程中加入额外的引导信号，这是条件生成的基础：</p>
+        
+        <div class="code-block">
+<pre>def guided_sample(model, shape, guidance_fn=None, guidance_scale=1.0):
+    """
+    带引导的采样
+    guidance_fn: 计算引导梯度的函数
+    guidance_scale: 引导强度
+    """
+    x_t = torch.randn(shape, device='cuda')
+    x_t.requires_grad = True
+    
+    for t in reversed(range(num_timesteps)):
+        # 标准DDPM更新
+        with torch.no_grad():
+            epsilon_pred = model(x_t, t)
+            mean = compute_mean(x_t, epsilon_pred, t)
+            std = torch.sqrt(betas[t])
+        
+        # 计算引导梯度
+        if guidance_fn is not None and t > 0:
+            # 计算引导损失
+            guidance_loss = guidance_fn(x_t, t)
+            
+            # 计算梯度
+            grad = torch.autograd.grad(guidance_loss, x_t)[0]
+            
+            # 应用引导（注意符号：我们要最小化损失）
+            mean = mean - guidance_scale * std**2 * grad
+        
+        # 更新x_t
+        if t > 0:
+            noise = torch.randn_like(x_t)
+            x_t = mean + std * noise
+        else:
+            x_t = mean
+            
+        x_t = x_t.detach().requires_grad_(True)
+    
+    return x_t.detach()
+
+# 示例：类别引导
+def classifier_guidance(x_t, t, classifier, target_class):
+    """使用分类器引导生成特定类别"""
+    logits = classifier(x_t, t)
+    log_prob = F.log_softmax(logits, dim=1)
+    return -log_prob[:, target_class].sum()  # 负对数概率作为损失</pre>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.5.2：探索温度参数的影响</div>
+            <p>实现一个实验，系统地探索不同温度参数对生成结果的影响：</p>
+            <ol>
+                <li>固定种子，改变temperature（0.5, 0.7, 1.0, 1.3, 1.5）</li>
+                <li>固定种子，改变noise_temperature（0, 0.5, 1.0, 1.5）</li>
+                <li>可视化结果并计算多样性指标（如平均像素方差）</li>
+            </ol>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_5_2')">显示答案</button>
+            <div id="answer3_5_2" class="answer">
+                <pre>def temperature_ablation_study(model, seed=42):
+    """温度参数消融实验"""
+    import matplotlib.pyplot as plt
+    
+    shape = (1, 3, 32, 32)
+    
+    # 实验1：初始温度的影响
+    init_temps = [0.5, 0.7, 1.0, 1.3, 1.5]
+    init_results = []
+    
+    for temp in init_temps:
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        
+        sample = ddpm_sample_with_temperature(
+            model, shape, 
+            temperature=temp,
+            noise_temperature=1.0
+        )
+        init_results.append(sample)
+    
+    # 实验2：噪声温度的影响
+    noise_temps = [0.0, 0.5, 1.0, 1.5]
+    noise_results = []
+    
+    for noise_temp in noise_temps:
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        
+        sample = ddpm_sample_with_temperature(
+            model, shape,
+            temperature=1.0,
+            noise_temperature=noise_temp
+        )
+        noise_results.append(sample)
+    
+    # 可视化
+    fig, axes = plt.subplots(2, max(len(init_temps), len(noise_temps)), figsize=(15, 6))
+    
+    # 绘制初始温度结果
+    for i, (temp, img) in enumerate(zip(init_temps, init_results)):
+        img_np = (img[0].clamp(-1, 1) + 1) / 2
+        axes[0, i].imshow(img_np.permute(1, 2, 0).cpu())
+        axes[0, i].set_title(f'T_init={temp}')
+        axes[0, i].axis('off')
+    
+    # 绘制噪声温度结果
+    for i, (temp, img) in enumerate(zip(noise_temps, noise_results)):
+        img_np = (img[0].clamp(-1, 1) + 1) / 2
+        axes[1, i].imshow(img_np.permute(1, 2, 0).cpu())
+        axes[1, i].set_title(f'T_noise={temp}')
+        axes[1, i].axis('off')
+    
+    # 隐藏多余的子图
+    for i in range(len(noise_temps), len(init_temps)):
+        axes[1, i].axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # 计算多样性指标
+    print("初始温度对图像标准差的影响:")
+    for temp, img in zip(init_temps, init_results):
+        std = img.std().item()
+        print(f"  T_init={temp}: std={std:.4f}")
+    
+    print("\n噪声温度对图像标准差的影响:")
+    for temp, img in zip(noise_temps, noise_results):
+        std = img.std().item()
+        print(f"  T_noise={temp}: std={std:.4f}")
+
+# 额外分析：多次采样的多样性
+def diversity_analysis(model, num_samples=100):
+    """分析不同温度设置下的样本多样性"""
+    shape = (num_samples, 3, 32, 32)
+    
+    # 标准采样
+    samples_standard = ddpm_sample(model, shape)
+    
+    # 低温采样
+    samples_low_temp = ddpm_sample_with_temperature(
+        model, shape, temperature=0.7, noise_temperature=0.7
+    )
+    
+    # 计算成对距离
+    def pairwise_l2_distance(samples):
+        # 展平样本
+        flat = samples.view(num_samples, -1)
+        # 计算成对L2距离
+        distances = torch.cdist(flat, flat, p=2)
+        # 取上三角部分（避免重复）
+        mask = torch.triu(torch.ones_like(distances), diagonal=1).bool()
+        return distances[mask].mean().item()
+    
+    div_standard = pairwise_l2_distance(samples_standard)
+    div_low_temp = pairwise_l2_distance(samples_low_temp)
+    
+    print(f"标准采样的平均成对距离: {div_standard:.4f}")
+    print(f"低温采样的平均成对距离: {div_low_temp:.4f}")
+    print(f"多样性降低比例: {(1 - div_low_temp/div_standard)*100:.1f}%")</pre>
+                <p><strong>关键发现</strong>：</p>
+                <ul>
+                    <li>降低初始温度会使生成结果更接近"平均"图像，减少极端情况</li>
+                    <li>noise_temperature=0 会产生过度平滑的结果，丢失纹理细节</li>
+                    <li>适度降低温度（0.7-0.9）通常能提高感知质量，但会牺牲多样性</li>
+                    <li>对于特定应用，需要在质量和多样性之间找到平衡</li>
+                </ul>
+            </div>
+        </div>
         
         <h3>3.5.3 常见问题与调试技巧</h3>
-        <p>[待完成：采样过程的可视化与问题诊断]</p>
+        
+        <p>DDPM采样过程中可能遇到各种问题。本节总结常见问题及其解决方案，帮助你快速定位和修复问题。</p>
+        
+        <h4>问题1：生成结果全是噪声</h4>
+        
+        <div class="definition">
+            <div class="definition-title">症状与原因</div>
+            <ul>
+                <li><strong>症状</strong>：采样结果看起来像随机噪声，没有任何结构</li>
+                <li><strong>可能原因</strong>：
+                    <ol>
+                        <li>模型未正确加载或权重损坏</li>
+                        <li>噪声调度计算错误</li>
+                        <li>时间步编码错误</li>
+                        <li>输入归一化不匹配</li>
+                    </ol>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="code-block">
+<pre># 调试步骤1：验证模型预测
+def debug_model_predictions(model, device='cuda'):
+    """检查模型在不同时间步的预测"""
+    # 创建测试输入
+    x = torch.randn(1, 3, 32, 32, device=device)
+    
+    # 测试几个关键时间步
+    test_timesteps = [0, 250, 500, 750, 999]
+    
+    for t in test_timesteps:
+        t_tensor = torch.tensor([t], device=device)
+        with torch.no_grad():
+            pred = model(x, t_tensor)
+        
+        print(f"t={t}:")
+        print(f"  Input stats: mean={x.mean():.4f}, std={x.std():.4f}")
+        print(f"  Pred stats:  mean={pred.mean():.4f}, std={pred.std():.4f}")
+        
+        # 预测应该接近标准正态分布
+        if abs(pred.mean()) > 0.5 or abs(pred.std() - 1.0) > 0.5:
+            print("  ⚠️ 警告：预测统计量异常！")
+
+# 调试步骤2：验证噪声调度
+def debug_noise_schedule(num_timesteps=1000):
+    """检查噪声调度的合理性"""
+    betas = linear_beta_schedule(num_timesteps)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    
+    print("噪声调度检查:")
+    print(f"β_0 = {betas[0]:.6f}, β_T = {betas[-1]:.6f}")
+    print(f"ᾱ_0 = {alphas_bar[0]:.6f}, ᾱ_T = {alphas_bar[-1]:.6f}")
+    
+    # 检查关键属性
+    if alphas_bar[-1] > 0.01:
+        print("⚠️ 警告：ᾱ_T 太大，最终噪声水平不够")
+    if betas[0] > 0.01:
+        print("⚠️ 警告：β_0 太大，初始破坏太严重")
+    
+    # 检查单调性
+    if not torch.all(alphas_bar[1:] <= alphas_bar[:-1]):
+        print("⚠️ 警告：ᾱ 不是单调递减的！")
+    
+    return betas, alphas, alphas_bar</pre>
+        </div>
+        
+        <h4>问题2：生成结果模糊或过度平滑</h4>
+        
+        <div class="visualization" style="background-color: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h5>常见原因及解决方案</h5>
+            <ol>
+                <li><strong>方差设置过小</strong>：检查是否使用了过小的 $\sigma_t$</li>
+                <li><strong>提前停止采样</strong>：确保完成所有1000步（或设定的步数）</li>
+                <li><strong>模型过拟合到均值</strong>：可能需要调整训练时的噪声调度</li>
+                <li><strong>数值精度问题</strong>：使用FP16时某些操作可能损失精度</li>
+            </ol>
+        </div>
+        
+        <div class="code-block">
+<pre># 诊断过度平滑问题
+def diagnose_smoothness(model, num_samples=10):
+    """诊断生成结果的平滑度问题"""
+    samples = []
+    
+    # 生成多个样本
+    for _ in range(num_samples):
+        sample = ddpm_sample(model, (1, 3, 32, 32))
+        samples.append(sample)
+    
+    samples = torch.cat(samples, dim=0)
+    
+    # 计算高频信息
+    def compute_high_freq_energy(images):
+        # 使用Sobel滤波器检测边缘
+        sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], 
+                               dtype=torch.float32).view(1, 1, 3, 3)
+        sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], 
+                               dtype=torch.float32).view(1, 1, 3, 3)
+        
+        # 转换为灰度
+        gray = images.mean(dim=1, keepdim=True)
+        
+        # 计算梯度
+        edges_x = F.conv2d(gray, sobel_x, padding=1)
+        edges_y = F.conv2d(gray, sobel_y, padding=1)
+        edges = torch.sqrt(edges_x**2 + edges_y**2)
+        
+        return edges.mean().item()
+    
+    # 与真实数据对比
+    real_data = next(iter(train_loader))[0][:num_samples]
+    
+    gen_hf = compute_high_freq_energy(samples)
+    real_hf = compute_high_freq_energy(real_data)
+    
+    print(f"生成样本的高频能量: {gen_hf:.4f}")
+    print(f"真实数据的高频能量: {real_hf:.4f}")
+    print(f"比率: {gen_hf/real_hf:.2f}")
+    
+    if gen_hf/real_hf < 0.5:
+        print("⚠️ 生成结果可能过度平滑！")
+        print("建议：")
+        print("  1. 检查噪声温度设置")
+        print("  2. 验证最后几步的方差")
+        print("  3. 考虑使用改进的方差调度")</pre>
+        </div>
+        
+        <h4>问题3：生成速度极慢</h4>
+        
+        <div class="code-block">
+<pre># 性能分析工具
+class SamplingProfiler:
+    """采样性能分析器"""
+    def __init__(self):
+        self.timings = defaultdict(list)
+    
+    def profile_sampling(self, model, shape=(1, 3, 32, 32), num_steps=1000):
+        """详细分析采样各阶段耗时"""
+        import time
+        
+        # 初始化
+        start_total = time.time()
+        x_t = torch.randn(shape, device='cuda')
+        
+        # 预计算
+        start_precompute = time.time()
+        betas = linear_beta_schedule(num_steps).cuda()
+        alphas = 1 - betas
+        alphas_bar = torch.cumprod(alphas, dim=0)
+        sqrt_alphas = torch.sqrt(alphas)
+        sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
+        self.timings['precompute'].append(time.time() - start_precompute)
+        
+        # 采样循环
+        for t in reversed(range(num_steps)):
+            # 模型推理
+            start_inference = time.time()
+            t_tensor = torch.full((shape[0],), t, device='cuda', dtype=torch.long)
+            with torch.no_grad():
+                epsilon_pred = model(x_t, t_tensor)
+            torch.cuda.synchronize()
+            self.timings['inference'].append(time.time() - start_inference)
+            
+            # 更新计算
+            start_update = time.time()
+            mean = (x_t - betas[t] / sqrt_one_minus_alphas_bar[t] * epsilon_pred) / sqrt_alphas[t]
+            if t > 0:
+                noise = torch.randn_like(x_t)
+                std = torch.sqrt(betas[t])
+                x_t = mean + std * noise
+            else:
+                x_t = mean
+            torch.cuda.synchronize()
+            self.timings['update'].append(time.time() - start_update)
+        
+        total_time = time.time() - start_total
+        
+        # 分析结果
+        print(f"总耗时: {total_time:.2f}秒")
+        print(f"预计算: {sum(self.timings['precompute']):.3f}秒")
+        print(f"模型推理: {sum(self.timings['inference']):.2f}秒 "
+              f"({np.mean(self.timings['inference'])*1000:.1f}ms/步)")
+        print(f"更新计算: {sum(self.timings['update']):.2f}秒 "
+              f"({np.mean(self.timings['update'])*1000:.1f}ms/步)")
+        
+        # 优化建议
+        if np.mean(self.timings['inference']) > 0.05:  # 50ms
+            print("\n优化建议:")
+            print("  1. 考虑使用更小的模型")
+            print("  2. 启用混合精度推理")
+            print("  3. 使用torch.compile()优化")
+            print("  4. 考虑DDIM等快速采样方法")</pre>
+        </div>
+        
+        <h4>问题4：内存溢出（OOM）</h4>
+        
+        <div class="code-block">
+<pre># 内存友好的批量采样
+def memory_efficient_batch_sampling(model, total_samples, batch_size=16, 
+                                  image_shape=(3, 32, 32)):
+    """内存高效的批量采样"""
+    all_samples = []
+    
+    # 分批生成
+    num_batches = (total_samples + batch_size - 1) // batch_size
+    
+    for i in tqdm(range(num_batches), desc="Batch sampling"):
+        current_batch_size = min(batch_size, total_samples - i * batch_size)
+        shape = (current_batch_size,) + image_shape
+        
+        # 生成当前批次
+        with torch.cuda.amp.autocast():  # 使用混合精度节省内存
+            samples = ddpm_sample(model, shape)
+        
+        # 立即移到CPU以释放GPU内存
+        all_samples.append(samples.cpu())
+        
+        # 清理GPU缓存
+        if i % 10 == 0:
+            torch.cuda.empty_cache()
+    
+    return torch.cat(all_samples, dim=0)
+
+# 诊断内存使用
+def diagnose_memory_usage(model, batch_sizes=[1, 2, 4, 8, 16]):
+    """诊断不同批次大小的内存使用"""
+    import gc
+    
+    for bs in batch_sizes:
+        torch.cuda.empty_cache()
+        gc.collect()
+        
+        try:
+            # 记录初始内存
+            init_mem = torch.cuda.memory_allocated() / 1024**3
+            
+            # 尝试采样
+            shape = (bs, 3, 256, 256)  # 使用较大尺寸测试
+            _ = ddpm_sample(model, shape, num_timesteps=50)  # 只测试50步
+            
+            # 记录峰值内存
+            peak_mem = torch.cuda.max_memory_allocated() / 1024**3
+            
+            print(f"Batch size {bs}: 峰值内存 {peak_mem:.2f}GB "
+                  f"(增加 {peak_mem - init_mem:.2f}GB)")
+            
+        except torch.cuda.OutOfMemoryError:
+            print(f"Batch size {bs}: OOM!")
+            break
+        finally:
+            torch.cuda.empty_cache()</pre>
+        </div>
+        
+        <h4>可视化调试工具</h4>
+        
+        <div class="code-block">
+<pre>def visualize_sampling_debug(model, save_path="debug_sampling.png"):
+    """可视化采样过程用于调试"""
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
+    
+    # 设置
+    shape = (1, 3, 32, 32)
+    checkpoints = [999, 800, 600, 400, 200, 100, 50, 20, 10, 0]
+    
+    # 收集数据
+    x_t = torch.randn(shape, device='cuda')
+    x_t_history = [x_t.cpu()]
+    pred_x0_history = []
+    noise_pred_history = []
+    
+    # 采样并记录
+    betas = linear_beta_schedule(1000).cuda()
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    
+    for t in reversed(range(1000)):
+        t_tensor = torch.tensor([t], device='cuda')
+        
+        # 预测
+        epsilon_pred = model(x_t, t_tensor)
+        
+        # 预测的x_0
+        pred_x0 = (x_t - torch.sqrt(1 - alphas_bar[t]) * epsilon_pred) / torch.sqrt(alphas_bar[t])
+        
+        # 更新
+        mean = (x_t - betas[t] / torch.sqrt(1 - alphas_bar[t]) * epsilon_pred) / torch.sqrt(alphas[t])
+        if t > 0:
+            noise = torch.randn_like(x_t)
+            x_t = mean + torch.sqrt(betas[t]) * noise
+        else:
+            x_t = mean
+        
+        # 记录检查点
+        if t in checkpoints:
+            x_t_history.append(x_t.cpu())
+            pred_x0_history.append(pred_x0.cpu())
+            noise_pred_history.append(epsilon_pred.cpu())
+    
+    # 创建可视化
+    fig = plt.figure(figsize=(15, 10))
+    gs = GridSpec(4, len(checkpoints), figure=fig)
+    
+    # 绘制x_t
+    for i, (t, x) in enumerate(zip(checkpoints, x_t_history)):
+        ax = fig.add_subplot(gs[0, i])
+        img = (x[0].clamp(-1, 1) + 1) / 2
+        ax.imshow(img.permute(1, 2, 0))
+        ax.set_title(f't={t}')
+        ax.axis('off')
+    
+    # 绘制预测的x_0
+    for i, (t, x0) in enumerate(zip(checkpoints[:-1], pred_x0_history)):
+        ax = fig.add_subplot(gs[1, i])
+        img = (x0[0].clamp(-1, 1) + 1) / 2
+        ax.imshow(img.permute(1, 2, 0))
+        ax.set_title(f'pred x_0')
+        ax.axis('off')
+    
+    # 绘制噪声预测的统计
+    ax = fig.add_subplot(gs[2:, :])
+    t_values = checkpoints[:-1]
+    means = [eps.mean().item() for eps in noise_pred_history]
+    stds = [eps.std().item() for eps in noise_pred_history]
+    
+    ax.plot(t_values, means, 'b-', label='Mean')
+    ax.plot(t_values, stds, 'r-', label='Std')
+    ax.axhline(y=0, color='b', linestyle='--', alpha=0.5)
+    ax.axhline(y=1, color='r', linestyle='--', alpha=0.5)
+    ax.set_xlabel('Time step')
+    ax.set_ylabel('Statistics')
+    ax.set_title('Noise Prediction Statistics')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.invert_xaxis()
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    print(f"调试可视化已保存到 {save_path}")</pre>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.5.3：实现采样质量诊断工具</div>
+            <p>创建一个综合诊断工具，能够：</p>
+            <ol>
+                <li>自动检测常见的采样问题</li>
+                <li>生成诊断报告</li>
+                <li>提供具体的修复建议</li>
+            </ol>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_5_3')">显示答案</button>
+            <div id="answer3_5_3" class="answer">
+                <pre>class DDPMSamplingDiagnostics:
+    """DDPM采样综合诊断工具"""
+    
+    def __init__(self, model, device='cuda'):
+        self.model = model
+        self.device = device
+        self.diagnostics = {}
+        
+    def run_full_diagnostics(self, num_samples=5):
+        """运行完整诊断"""
+        print("=== DDPM采样诊断开始 ===\n")
+        
+        # 1. 模型基础检查
+        self._check_model_basics()
+        
+        # 2. 噪声调度检查
+        self._check_noise_schedule()
+        
+        # 3. 采样质量检查
+        self._check_sampling_quality(num_samples)
+        
+        # 4. 性能检查
+        self._check_performance()
+        
+        # 5. 生成报告
+        self._generate_report()
+        
+    def _check_model_basics(self):
+        """检查模型基础设置"""
+        print("1. 检查模型基础设置...")
+        
+        # 检查模型是否在eval模式
+        if self.model.training:
+            self.diagnostics['model_mode'] = 'WARNING: 模型在训练模式'
+        else:
+            self.diagnostics['model_mode'] = 'OK: 模型在评估模式'
+        
+        # 检查参数统计
+        params = []
+        for p in self.model.parameters():
+            params.append(p.data.flatten())
+        params = torch.cat(params)
+        
+        param_mean = params.mean().item()
+        param_std = params.std().item()
+        
+        if abs(param_mean) > 1.0 or param_std > 10.0:
+            self.diagnostics['param_stats'] = f'WARNING: 参数统计异常 (mean={param_mean:.3f}, std={param_std:.3f})'
+        else:
+            self.diagnostics['param_stats'] = 'OK: 参数统计正常'
+            
+    def _check_noise_schedule(self):
+        """检查噪声调度"""
+        print("2. 检查噪声调度...")
+        
+        betas = linear_beta_schedule(1000)
+        alphas_bar = torch.cumprod(1 - betas, dim=0)
+        
+        # 检查端点
+        if alphas_bar[0] < 0.99:
+            self.diagnostics['schedule_start'] = f'WARNING: α̅_0={alphas_bar[0]:.4f} 太小'
+        else:
+            self.diagnostics['schedule_start'] = 'OK: 起始点正常'
+            
+        if alphas_bar[-1] > 0.01:
+            self.diagnostics['schedule_end'] = f'WARNING: α̅_T={alphas_bar[-1]:.4f} 太大'
+        else:
+            self.diagnostics['schedule_end'] = 'OK: 终点正常'
+            
+    def _check_sampling_quality(self, num_samples):
+        """检查采样质量"""
+        print(f"3. 检查采样质量 (生成{num_samples}个样本)...")
+        
+        samples = []
+        for _ in range(num_samples):
+            sample = ddpm_sample(self.model, (1, 3, 32, 32), device=self.device)
+            samples.append(sample)
+        samples = torch.cat(samples)
+        
+        # 检查输出范围
+        sample_min = samples.min().item()
+        sample_max = samples.max().item()
+        
+        if sample_min < -3 or sample_max > 3:
+            self.diagnostics['output_range'] = f'WARNING: 输出范围异常 [{sample_min:.2f}, {sample_max:.2f}]'
+        else:
+            self.diagnostics['output_range'] = 'OK: 输出范围正常'
+            
+        # 检查多样性
+        if num_samples > 1:
+            diversity = samples.std(dim=0).mean().item()
+            if diversity < 0.1:
+                self.diagnostics['diversity'] = f'WARNING: 样本多样性过低 (std={diversity:.3f})'
+            else:
+                self.diagnostics['diversity'] = 'OK: 样本多样性正常'
+                
+    def _check_performance(self):
+        """检查性能"""
+        print("4. 检查性能...")
+        
+        import time
+        shape = (1, 3, 32, 32)
+        
+        # 测试单步时间
+        x = torch.randn(shape, device=self.device)
+        t = torch.tensor([500], device=self.device)
+        
+        # 预热
+        for _ in range(10):
+            _ = self.model(x, t)
+        torch.cuda.synchronize()
+        
+        # 计时
+        start = time.time()
+        for _ in range(100):
+            _ = self.model(x, t)
+        torch.cuda.synchronize()
+        step_time = (time.time() - start) / 100
+        
+        total_time = step_time * 1000
+        if total_time > 60:
+            self.diagnostics['performance'] = f'WARNING: 预计采样时间过长 ({total_time:.1f}秒)'
+        else:
+            self.diagnostics['performance'] = f'OK: 预计采样时间 {total_time:.1f}秒'
+            
+    def _generate_report(self):
+        """生成诊断报告"""
+        print("\n=== 诊断报告 ===")
+        
+        warnings = 0
+        for key, value in self.diagnostics.items():
+            if value.startswith('WARNING'):
+                print(f"❌ {value}")
+                warnings += 1
+            else:
+                print(f"✅ {value}")
+                
+        print(f"\n总结: {len(self.diagnostics)}项检查, {warnings}个警告")
+        
+        if warnings > 0:
+            print("\n建议的修复步骤:")
+            if 'model_mode' in self.diagnostics and 'WARNING' in self.diagnostics['model_mode']:
+                print("- 调用 model.eval() 切换到评估模式")
+            if 'schedule_end' in self.diagnostics and 'WARNING' in self.diagnostics['schedule_end']:
+                print("- 增加总时间步数或调整beta_end")
+            if 'diversity' in self.diagnostics and 'WARNING' in self.diagnostics['diversity']:
+                print("- 检查模型是否过拟合或模式崩塌")
+            if 'performance' in self.diagnostics and 'WARNING' in self.diagnostics['performance']:
+                print("- 考虑使用DDIM或其他快速采样方法")
+
+# 使用示例
+diagnostics = DDPMSamplingDiagnostics(model)
+diagnostics.run_full_diagnostics()</pre>
+                <p><strong>诊断工具的扩展</strong>：可以添加更多检查项，如：</p>
+                <ul>
+                    <li>检查是否使用了EMA模型</li>
+                    <li>验证条件生成的正确性</li>
+                    <li>检测特定的视觉伪影（棋盘效应、色彩偏移等）</li>
+                    <li>与真实数据分布的统计对比</li>
+                </ul>
+            </div>
+        </div>
         
         <h2>3.6 完整实现：构建你的第一个DDPM</h2>
+        <p>本节将把前面学到的所有概念整合成一个完整的DDPM实现。我们将构建一个可以在MNIST数据集上训练的完整系统。</p>
+        
         <h3>3.6.1 模型架构</h3>
-        <p>[待完成：结合第2章的U-Net实现DDPM]</p>
+        <p>首先，让我们实现一个适合DDPM的U-Net架构。这个架构需要：</p>
+        <ul>
+            <li>接受带噪声的图像 $x_t$ 作为输入</li>
+            <li>接受时间步 $t$ 作为条件信息</li>
+            <li>输出预测的噪声 $\epsilon_\theta(x_t, t)$</li>
+        </ul>
+
+        <div class="code-container">
+            <div class="code-header">
+                <span>Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
+            </div>
+            <pre>import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+
+class SinusoidalPositionalEmbedding(nn.Module):
+    """正弦位置编码，用于时间步嵌入"""
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+    
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        return embeddings
+
+class ResidualBlock(nn.Module):
+    """带时间嵌入的残差块"""
+    def __init__(self, in_channels, out_channels, time_emb_dim, dropout=0.1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
+        self.time_emb = nn.Linear(time_emb_dim, out_channels)
+        self.dropout = nn.Dropout(dropout)
+        self.norm1 = nn.GroupNorm(8, out_channels)
+        self.norm2 = nn.GroupNorm(8, out_channels)
+        self.shortcut = nn.Conv2d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
+        
+    def forward(self, x, t):
+        h = self.conv1(x)
+        h = self.norm1(h)
+        h = F.silu(h)
+        
+        # 添加时间嵌入
+        h = h + self.time_emb(F.silu(t))[:, :, None, None]
+        
+        h = self.conv2(h)
+        h = self.norm2(h)
+        h = F.silu(h)
+        h = self.dropout(h)
+        
+        return h + self.shortcut(x)
+
+class AttentionBlock(nn.Module):
+    """自注意力块"""
+    def __init__(self, channels, num_heads=4):
+        super().__init__()
+        self.num_heads = num_heads
+        self.norm = nn.GroupNorm(8, channels)
+        self.qkv = nn.Conv2d(channels, channels * 3, 1)
+        self.proj = nn.Conv2d(channels, channels, 1)
+        
+    def forward(self, x):
+        B, C, H, W = x.shape
+        h = self.norm(x)
+        qkv = self.qkv(h)
+        q, k, v = qkv.chunk(3, dim=1)
+        
+        # 重塑为多头格式
+        q = q.view(B, self.num_heads, C // self.num_heads, H * W).transpose(2, 3)
+        k = k.view(B, self.num_heads, C // self.num_heads, H * W).transpose(2, 3)
+        v = v.view(B, self.num_heads, C // self.num_heads, H * W).transpose(2, 3)
+        
+        # 计算注意力
+        scale = (C // self.num_heads) ** -0.5
+        attn = torch.softmax(torch.matmul(q, k.transpose(-2, -1)) * scale, dim=-1)
+        out = torch.matmul(attn, v)
+        
+        # 重塑回原始格式
+        out = out.transpose(2, 3).contiguous().view(B, C, H, W)
+        return x + self.proj(out)</pre>
+        </div>
+
+        <div class="important-box">
+            <div class="box-title">架构设计要点</div>
+            <ul>
+                <li><strong>时间嵌入</strong>：使用正弦位置编码将离散时间步转换为连续表示</li>
+                <li><strong>残差连接</strong>：每个块都包含残差连接，有助于梯度流动</li>
+                <li><strong>注意力机制</strong>：在低分辨率特征图上使用自注意力，捕获长程依赖</li>
+                <li><strong>GroupNorm</strong>：使用组归一化而非批归一化，更适合小批量训练</li>
+            </ul>
+        </div>
+
+        <h4>轻量级DDPM U-Net</h4>
+        <p>对于简单任务（如MNIST），可以使用更轻量的架构：</p>
+
+        <div class="code-container">
+            <div class="code-header">
+                <span>Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
+            </div>
+            <pre>class SimpleDDPMUNet(nn.Module):
+    """轻量级DDPM U-Net，适用于MNIST等简单数据集"""
+    def __init__(self, image_channels=1, n_channels=32, ch_mults=(1, 2, 2, 4),
+                 n_blocks=2):
+        super().__init__()
+        
+        # 时间嵌入
+        self.time_emb = nn.Sequential(
+            SinusoidalPositionalEmbedding(n_channels),
+            nn.Linear(n_channels, n_channels * 4),
+            nn.GELU(),
+            nn.Linear(n_channels * 4, n_channels * 4)
+        )
+        
+        # 输入层
+        self.conv_in = nn.Conv2d(image_channels, n_channels, 3, padding=1)
+        
+        # 下采样
+        self.downs = nn.ModuleList()
+        chs = [n_channels]
+        now_ch = n_channels
+        
+        for i, mult in enumerate(ch_mults):
+            out_ch = n_channels * mult
+            for _ in range(n_blocks):
+                self.downs.append(ResidualBlock(now_ch, out_ch, n_channels * 4))
+                now_ch = out_ch
+                chs.append(now_ch)
+            
+            if i < len(ch_mults) - 1:
+                self.downs.append(nn.Conv2d(now_ch, now_ch, 3, stride=2, padding=1))
+                chs.append(now_ch)
+        
+        # 中间层
+        self.middle = nn.ModuleList([
+            ResidualBlock(now_ch, now_ch, n_channels * 4),
+            ResidualBlock(now_ch, now_ch, n_channels * 4)
+        ])
+        
+        # 上采样
+        self.ups = nn.ModuleList()
+        for i, mult in reversed(list(enumerate(ch_mults))):
+            out_ch = n_channels * mult
+            
+            for _ in range(n_blocks + 1):
+                self.ups.append(ResidualBlock(chs.pop() + now_ch, out_ch, n_channels * 4))
+                now_ch = out_ch
+            
+            if i > 0:
+                self.ups.append(nn.ConvTranspose2d(now_ch, now_ch, 4, stride=2, padding=1))
+        
+        # 输出层
+        self.conv_out = nn.Sequential(
+            nn.GroupNorm(8, now_ch),
+            nn.SiLU(),
+            nn.Conv2d(now_ch, image_channels, 3, padding=1)
+        )
+    
+    def forward(self, x, t):
+        # 获取时间嵌入
+        t = self.time_emb(t)
+        
+        # 初始卷积
+        h = self.conv_in(x)
+        
+        # 下采样
+        hs = [h]
+        for layer in self.downs:
+            if isinstance(layer, ResidualBlock):
+                h = layer(h, t)
+            else:
+                h = layer(h)
+            hs.append(h)
+        
+        # 中间层
+        for layer in self.middle:
+            h = layer(h, t)
+        
+        # 上采样
+        for layer in self.ups:
+            if isinstance(layer, ResidualBlock):
+                h = layer(torch.cat([h, hs.pop()], dim=1), t)
+            else:
+                h = layer(h)
+        
+        # 输出
+        return self.conv_out(h)</pre>
+        </div>
+
+        <div class="exercise">
+            <div class="exercise-title">练习 3.6.1：模型参数计算</div>
+            <p>实现一个函数来计算U-Net模型的参数量，并比较不同配置的模型大小。</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_6_1')">显示答案</button>
+            <div id="answer3_6_1" class="answer">
+                <pre>def count_parameters(model):
+    """计算模型参数量"""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+def compare_model_sizes():
+    """比较不同模型配置的参数量"""
+    configs = [
+        {"name": "Tiny", "n_channels": 16, "ch_mults": (1, 2, 2)},
+        {"name": "Small", "n_channels": 32, "ch_mults": (1, 2, 2, 4)},
+        {"name": "Base", "n_channels": 64, "ch_mults": (1, 2, 4, 8)},
+        {"name": "Large", "n_channels": 128, "ch_mults": (1, 2, 4, 8)}
+    ]
+    
+    for config in configs:
+        model = SimpleDDPMUNet(
+            n_channels=config["n_channels"],
+            ch_mults=config["ch_mults"]
+        )
+        params = count_parameters(model)
+        print(f"{config['name']}: {params:,} parameters ({params/1e6:.2f}M)")
+
+# 输出示例：
+# Tiny: 461,729 parameters (0.46M)
+# Small: 3,652,481 parameters (3.65M)
+# Base: 35,742,785 parameters (35.74M)
+# Large: 142,836,097 parameters (142.84M)</pre>
+            </div>
+        </div>
         
         <h3>3.6.2 训练循环</h3>
         <p>[待完成：完整的训练代码]</p>
