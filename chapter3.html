@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3章：去噪扩散概率模型 (DDPM) - Diffusion Models Tutorial</title>
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <script src="common.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-bar">
+            <a href="chapter2.html">← 上一章</a>
+            <span>第3章 / 共14章</span>
+            <a href="chapter4.html">下一章 →</a>
+        </div>
+        
+        <h1>第3章：去噪扩散概率模型 (DDPM)</h1>
+        
+        <div class="chapter-intro">
+            2020年，Ho等人的论文"Denoising Diffusion Probabilistic Models"让扩散模型真正进入了实用阶段。DDPM不仅简化了训练过程，还达到了与GAN相媲美的生成质量。本章将深入剖析DDPM的数学原理、训练算法和实现细节。通过本章学习，你将掌握如何从零实现一个完整的DDPM，并理解其背后的概率论基础。
+        </div>
+        
+        <h2>3.1 DDPM的核心思想：简化与统一</h2>
+        
+        <p>在DDPM之前，扩散模型虽然理论优雅，但实践困难。2015年Sohl-Dickstein等人的开创性工作需要估计整个反向过程的熵，训练极其复杂。DDPM的革命性贡献在于：<strong>将复杂的变分推断简化为简单的去噪任务</strong>。</p>
+        
+        <div class="definition">
+            <div class="definition-title">DDPM的三个关键简化</div>
+            <ol>
+                <li><strong>固定方差调度</strong>：前向过程使用预定义的 $\beta_t$ 序列，无需学习</li>
+                <li><strong>简化反向过程</strong>：假设反向过程也是高斯分布，只需学习均值（实际上是学习噪声）</li>
+                <li><strong>重参数化目标</strong>：将预测均值转换为预测噪声，大幅提升训练稳定性</li>
+            </ol>
+        </div>
+        
+        <h3>3.1.1 从复杂到简单：DDPM的洞察</h3>
+        
+        <p>让我们通过一个类比来理解DDPM的核心思想：</p>
+        
+        <div class="visualization" style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h4>墨水扩散的类比</h4>
+            <p>想象一滴墨水在水中扩散：</p>
+            <ul>
+                <li><strong>前向过程</strong>：墨水逐渐扩散，最终均匀分布（物理过程，确定的）</li>
+                <li><strong>反向过程</strong>：如何让扩散的墨水重新聚集？（需要学习的）</li>
+            </ul>
+            <p>DDPM的关键洞察：<strong>在每个时间步，我们只需要知道"墨水应该向哪个方向聚集"</strong>，而这个方向恰好与添加的噪声方向相反！</p>
+        </div>
+        
+        <h3>3.1.2 数学框架概览</h3>
+        
+        <p>DDPM定义了两个过程：</p>
+        
+        <div class="math-block">
+            <strong>前向过程（固定）</strong>：<br>
+            $q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$<br><br>
+            
+            <strong>反向过程（学习）</strong>：<br>
+            $p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$
+        </div>
+        
+        <p>关键创新在于如何参数化 $\boldsymbol{\mu}_\theta$：</p>
+        
+        <div class="code-block">
+<pre># 早期方法：直接预测均值（不稳定）
+mean = model(x_t, t)
+
+# DDPM创新：预测噪声（稳定且有效）
+noise_pred = model(x_t, t)
+mean = (x_t - beta_t / sqrt(1 - alpha_bar_t) * noise_pred) / sqrt(alpha_t)</pre>
+        </div>
+        
+        <h3>3.1.3 为什么预测噪声更好？</h3>
+        
+        <p>这个看似简单的改变带来了巨大的好处：</p>
+        
+        <div class="definition">
+            <div class="definition-title">预测噪声的优势</div>
+            <table style="width: 100%; margin-top: 10px;">
+                <tr>
+                    <th style="padding: 10px; background-color: #f0f0f0;">方面</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">预测均值</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">预测噪声</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">输出范围</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">需要匹配数据分布</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">标准高斯（已归一化）</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">训练信号</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">随t变化剧烈</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">各时间步相对一致</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">梯度流</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">可能梯度消失</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">梯度传播良好</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">物理意义</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">预测去噪后的图像</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">预测添加的噪声</td>
+                </tr>
+            </table>
+        </div>
+        
+        <h3>3.1.4 DDPM vs 早期扩散模型</h3>
+        
+        <p>让我们对比DDPM与2015年的原始扩散模型：</p>
+        
+        <div class="code-block">
+<pre># 2015年的扩散模型（复杂）
+# 需要估计：
+# 1. 前向过程的熵
+# 2. 反向过程的完整分布
+# 3. 变分参数的优化
+# 训练极其不稳定，生成质量差
+
+# DDPM（2020年）的训练（极简）
+for x_0, _ in dataloader:
+    t = torch.randint(0, num_timesteps, (batch_size,))
+    noise = torch.randn_like(x_0)
+    x_t = sqrt_alpha_bar[t] * x_0 + sqrt_one_minus_alpha_bar[t] * noise
+    
+    noise_pred = model(x_t, t)
+    loss = F.mse_loss(noise_pred, noise)
+    loss.backward()</pre>
+        </div>
+        
+        <p>这种简化不是以牺牲性能为代价的——相反，DDPM首次让扩散模型在生成质量上与GAN竞争，同时保持了训练的稳定性。</p>
+        
+        <div class="exercise">
+            <div class="exercise-title">思考题 3.1：直觉理解</div>
+            <p>为什么在高噪声情况下（大的t），预测噪声比预测原始图像更容易？提示：考虑信噪比。</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_1')">显示答案</button>
+            <div id="answer3_1" class="answer">
+                <p><strong>答案：</strong></p>
+                <p>当t很大时，$\mathbf{x}_t \approx \mathcal{N}(0, \mathbf{I})$，几乎是纯噪声。此时：</p>
+                <ul>
+                    <li>原始图像 $\mathbf{x}_0$ 的信息几乎完全丢失，预测它需要"凭空想象"</li>
+                    <li>但添加的噪声 $\boldsymbol{\epsilon}$ 是已知的，且占主导地位</li>
+                    <li>网络只需要识别噪声模式，而不是重建复杂的图像结构</li>
+                </ul>
+                <p>类比：在雪花噪声的电视屏幕上，识别噪声模式比重建原始节目容易得多。</p>
+            </div>
+        </div>
+        
+        <h2>3.2 前向过程：数学推导与性质</h2>
+        
+        <p>前向过程是扩散模型的基础，它定义了如何将数据逐步转换为噪声。虽然这个过程在训练和推理时都不需要实际执行完整的马尔可夫链，但理解其数学性质对掌握DDPM至关重要。</p>
+        
+        <h3>3.2.1 马尔可夫链的构建</h3>
+        
+        <p>前向过程定义为一个马尔可夫链：</p>
+        
+        <div class="math-block">
+            $$\mathbf{x}_0 \to \mathbf{x}_1 \to \mathbf{x}_2 \to \cdots \to \mathbf{x}_T$$
+        </div>
+        
+        <p>其中每一步的转移概率为：</p>
+        
+        <div class="math-block">
+            $$q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$$
+        </div>
+        
+        <div class="definition">
+            <div class="definition-title">关键性质1：方差调度的约束</div>
+            <p>为什么是 $\sqrt{1-\beta_t}$ 而不是其他系数？这是为了保持信号的期望能量：</p>
+            <div class="math-block">
+                $$\mathbb{E}[\|\mathbf{x}_t\|^2 | \mathbf{x}_{t-1}] = (1-\beta_t)\|\mathbf{x}_{t-1}\|^2 + \beta_t \cdot d$$
+            </div>
+            <p>其中 $d$ 是数据维度。当 $\beta_t$ 很小时，信号能量近似保持不变。</p>
+        </div>
+        
+        <p>让我们验证这个性质：</p>
+        
+        <div class="code-block">
+<pre>import torch
+import matplotlib.pyplot as plt
+
+# 验证能量保持性质
+x_0 = torch.randn(1000, 3, 32, 32)  # 1000个32x32的RGB图像
+beta = 0.02  # 典型的beta值
+
+# 一步前向过程
+noise = torch.randn_like(x_0)
+x_1 = torch.sqrt(1 - beta) * x_0 + torch.sqrt(beta) * noise
+
+print(f"原始信号能量: {x_0.pow(2).mean():.4f}")
+print(f"扩散后信号能量: {x_1.pow(2).mean():.4f}")
+print(f"理论预期: {(1-beta)*x_0.pow(2).mean() + beta*3*32*32:.4f}")</pre>
+        </div>
+        
+        <h3>3.2.2 重参数化技巧</h3>
+        
+        <p>DDPM的一个关键技巧是：我们可以直接从 $\mathbf{x}_0$ 采样任意时刻的 $\mathbf{x}_t$，而不需要逐步模拟整个马尔可夫链。</p>
+        
+        <div class="definition">
+            <div class="definition-title">定理：闭式采样公式</div>
+            <p>定义 $\alpha_t = 1 - \beta_t$ 和 $\bar{\alpha}_t = \prod_{s=1}^{t}\alpha_s$，则：</p>
+            <div class="math-block">
+                $$q(\mathbf{x}_t|\mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
+            </div>
+        </div>
+        
+        <p><strong>证明</strong>（这个证明很重要，值得仔细理解）：</p>
+        
+        <div class="math-block">
+            <p>我们用归纳法证明。</p>
+            <p><strong>基础情况</strong>（$t=1$）：显然成立，因为 $\bar{\alpha}_1 = \alpha_1 = 1 - \beta_1$。</p>
+            
+            <p><strong>归纳步骤</strong>：假设对 $t-1$ 成立，即：</p>
+            $$\mathbf{x}_{t-1} = \sqrt{\bar{\alpha}_{t-1}}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_{t-1}}\boldsymbol{\epsilon}_{t-1}$$
+            
+            <p>其中 $\boldsymbol{\epsilon}_{t-1} \sim \mathcal{N}(0, \mathbf{I})$。根据前向过程定义：</p>
+            $$\mathbf{x}_t = \sqrt{\alpha_t}\mathbf{x}_{t-1} + \sqrt{1-\alpha_t}\boldsymbol{\epsilon}_t$$
+            
+            <p>代入 $\mathbf{x}_{t-1}$ 的表达式：</p>
+            $$\mathbf{x}_t = \sqrt{\alpha_t}(\sqrt{\bar{\alpha}_{t-1}}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_{t-1}}\boldsymbol{\epsilon}_{t-1}) + \sqrt{1-\alpha_t}\boldsymbol{\epsilon}_t$$
+            
+            $$= \sqrt{\alpha_t\bar{\alpha}_{t-1}}\mathbf{x}_0 + \sqrt{\alpha_t(1-\bar{\alpha}_{t-1})}\boldsymbol{\epsilon}_{t-1} + \sqrt{1-\alpha_t}\boldsymbol{\epsilon}_t$$
+            
+            <p>注意到 $\alpha_t\bar{\alpha}_{t-1} = \bar{\alpha}_t$，且两个独立高斯噪声的线性组合仍是高斯噪声：</p>
+            $$\text{Var}[\sqrt{\alpha_t(1-\bar{\alpha}_{t-1})}\boldsymbol{\epsilon}_{t-1} + \sqrt{1-\alpha_t}\boldsymbol{\epsilon}_t] = \alpha_t(1-\bar{\alpha}_{t-1}) + (1-\alpha_t) = 1-\bar{\alpha}_t$$
+            
+            <p>因此：</p>
+            $$\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$$
+            
+            <p>其中 $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$。证毕。</p>
+        </div>
+        
+        <h3>3.2.3 噪声调度的设计</h3>
+        
+        <p>噪声调度 $\{\beta_t\}_{t=1}^T$ 的选择对模型性能有重要影响。DDPM原文使用线性调度，但后续研究发现其他调度可能更优。</p>
+        
+        <div class="code-block">
+<pre>import numpy as np
+import matplotlib.pyplot as plt
+
+def linear_beta_schedule(timesteps, beta_start=0.0001, beta_end=0.02):
+    """DDPM原始的线性调度"""
+    return np.linspace(beta_start, beta_end, timesteps)
+
+def cosine_beta_schedule(timesteps, s=0.008):
+    """Improved DDPM的余弦调度"""
+    steps = timesteps + 1
+    t = np.linspace(0, timesteps, steps)
+    alphas_cumprod = np.cos(((t / timesteps) + s) / (1 + s) * np.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return np.clip(betas, 0.0001, 0.9999)
+
+def quadratic_beta_schedule(timesteps, beta_start=0.0001, beta_end=0.02):
+    """二次调度（较少使用）"""
+    t = np.linspace(0, 1, timesteps)
+    return beta_start + (beta_end - beta_start) * t ** 2
+
+# 可视化不同调度
+timesteps = 1000
+linear_betas = linear_beta_schedule(timesteps)
+cosine_betas = cosine_beta_schedule(timesteps)
+quadratic_betas = quadratic_beta_schedule(timesteps)
+
+# 计算信噪比（更直观的指标）
+def compute_snr(betas):
+    alphas = 1 - betas
+    alphas_cumprod = np.cumprod(alphas)
+    return alphas_cumprod / (1 - alphas_cumprod)
+
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+plt.plot(linear_betas, label='Linear')
+plt.plot(cosine_betas, label='Cosine')
+plt.plot(quadratic_betas, label='Quadratic')
+plt.xlabel('Timestep')
+plt.ylabel('β_t')
+plt.title('Beta Schedules')
+plt.legend()
+
+plt.subplot(1, 3, 2)
+plt.semilogy(compute_snr(linear_betas), label='Linear')
+plt.semilogy(compute_snr(cosine_betas), label='Cosine')
+plt.semilogy(compute_snr(quadratic_betas), label='Quadratic')
+plt.xlabel('Timestep')
+plt.ylabel('SNR (log scale)')
+plt.title('Signal-to-Noise Ratio')
+plt.legend()
+
+plt.subplot(1, 3, 3)
+# 展示不同调度下的样本
+alphas_cumprod_linear = np.cumprod(1 - linear_betas)
+alphas_cumprod_cosine = np.cumprod(1 - cosine_betas)
+
+t_vis = [0, 250, 500, 750, 999]
+for i, t in enumerate(t_vis):
+    plt.scatter(i, alphas_cumprod_linear[t], color='blue', s=100)
+    plt.scatter(i, alphas_cumprod_cosine[t], color='red', s=100)
+    
+plt.xlabel('Visualization Step')
+plt.ylabel('√(ᾱ_t)')
+plt.title('Signal Preservation at Key Steps')
+plt.legend(['Linear', 'Cosine'])
+plt.tight_layout()
+plt.show()</pre>
+        </div>
+        
+        <div class="definition">
+            <div class="definition-title">调度策略对比</div>
+            <table style="width: 100%; margin-top: 10px;">
+                <tr>
+                    <th style="padding: 10px; background-color: #f0f0f0;">调度类型</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">特点</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">优势</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">劣势</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">线性 (Linear)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">β线性增长</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">简单直观</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">前期破坏过快</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">余弦 (Cosine)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">基于SNR设计</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">更好的感知质量</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">末期可能过慢</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">二次 (Quadratic)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">β二次增长</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">前期保留更多信息</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">后期可能太激进</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.2：实现自定义噪声调度</div>
+            <p>设计一个"S形"噪声调度，使得：</p>
+            <ol>
+                <li>前期（t < 200）：缓慢添加噪声，保留更多结构信息</li>
+                <li>中期（200 ≤ t ≤ 800）：快速添加噪声</li>
+                <li>后期（t > 800）：再次放缓，确保收敛到纯噪声</li>
+            </ol>
+            <p>实现这个调度并与标准调度对比SNR曲线。</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_2')">显示答案</button>
+            <div id="answer3_2" class="answer">
+                <pre>def sigmoid_beta_schedule(timesteps, beta_start=0.0001, beta_end=0.02):
+    """S形噪声调度"""
+    t = np.linspace(-6, 6, timesteps)
+    sigmoid = 1 / (1 + np.exp(-t))
+    betas = beta_start + (beta_end - beta_start) * sigmoid
+    return betas
+
+# 也可以分段设计
+def piecewise_beta_schedule(timesteps, beta_start=0.0001, beta_end=0.02):
+    """分段噪声调度"""
+    betas = np.zeros(timesteps)
+    
+    # 前期：缓慢增长
+    t1 = int(0.2 * timesteps)
+    betas[:t1] = np.linspace(beta_start, beta_start * 5, t1)
+    
+    # 中期：快速增长
+    t2 = int(0.8 * timesteps)
+    betas[t1:t2] = np.linspace(beta_start * 5, beta_end * 0.8, t2 - t1)
+    
+    # 后期：缓慢增长到beta_end
+    betas[t2:] = np.linspace(beta_end * 0.8, beta_end, timesteps - t2)
+    
+    return betas</pre>
+                <p><strong>关键洞察</strong>：好的噪声调度应该在保留足够信息和充分探索噪声空间之间取得平衡。余弦调度之所以优于线性调度，正是因为它更好地平衡了这两个需求。</p>
+            </div>
+        </div>
+        
+        <h2>3.3 反向过程：从噪声到图像</h2>
+        
+        <p>反向过程是扩散模型的核心——如何从纯噪声逐步恢复出清晰的数据。DDPM的关键贡献之一是推导出了在已知 $\mathbf{x}_0$ 时的反向条件分布的闭式解。</p>
+        
+        <h3>3.3.1 反向条件概率的推导</h3>
+        
+        <p>这是DDPM中最重要的数学推导之一。我们想要计算 $q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0)$。</p>
+        
+        <div class="definition">
+            <div class="definition-title">定理：反向过程的后验分布</div>
+            <p>给定 $\mathbf{x}_t$ 和 $\mathbf{x}_0$，反向过程的后验分布为：</p>
+            <div class="math-block">
+                $$q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \tilde{\beta}_t\mathbf{I})$$
+            </div>
+            <p>其中：</p>
+            <div class="math-block">
+                $$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1-\bar{\alpha}_t}\mathbf{x}_0 + \frac{\sqrt{\alpha_t}(1-\bar{\alpha}_{t-1})}{1-\bar{\alpha}_t}\mathbf{x}_t$$
+                
+                $$\tilde{\beta}_t = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t}\beta_t$$
+            </div>
+        </div>
+        
+        <p><strong>证明</strong>：使用贝叶斯定理：</p>
+        
+        <div class="math-block">
+            $$q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \frac{q(\mathbf{x}_t|\mathbf{x}_{t-1}, \mathbf{x}_0)q(\mathbf{x}_{t-1}|\mathbf{x}_0)}{q(\mathbf{x}_t|\mathbf{x}_0)}$$
+        </div>
+        
+        <p>由于前向过程的马尔可夫性质，$q(\mathbf{x}_t|\mathbf{x}_{t-1}, \mathbf{x}_0) = q(\mathbf{x}_t|\mathbf{x}_{t-1})$。现在我们知道：</p>
+        
+        <ul>
+            <li>$q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{\alpha_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$</li>
+            <li>$q(\mathbf{x}_{t-1}|\mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \sqrt{\bar{\alpha}_{t-1}}\mathbf{x}_0, (1-\bar{\alpha}_{t-1})\mathbf{I})$</li>
+            <li>$q(\mathbf{x}_t|\mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$</li>
+        </ul>
+        
+        <p>将三个高斯分布代入贝叶斯公式，经过繁琐但直接的代数运算（主要是配方），可以得到上述结果。</p>
+        
+        <div class="visualization" style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h4>💡 关键洞察</h4>
+            <p>注意 $\tilde{\boldsymbol{\mu}}_t$ 是 $\mathbf{x}_0$ 和 $\mathbf{x}_t$ 的<strong>线性组合</strong>！这意味着：</p>
+            <ul>
+                <li>如果我们知道 $\mathbf{x}_0$，反向过程就是确定的（除了小的高斯噪声）</li>
+                <li>实践中我们不知道 $\mathbf{x}_0$，所以需要神经网络来预测它</li>
+                <li>这解释了为什么扩散模型本质上是在学习"去噪"</li>
+            </ul>
+        </div>
+        
+        <h3>3.3.2 参数化选择：预测噪声 vs 预测均值</h3>
+        
+        <p>既然 $\tilde{\boldsymbol{\mu}}_t$ 依赖于未知的 $\mathbf{x}_0$，我们需要用神经网络来近似它。DDPM提供了几种参数化方式：</p>
+        
+        <div class="code-block">
+<pre># 方式1：直接预测均值（最直接但不稳定）
+mu_theta = model(x_t, t)
+
+# 方式2：预测x_0（需要clip到合理范围）
+x_0_pred = model(x_t, t)
+mu_theta = (sqrt_alpha_bar_prev * beta_t * x_0_pred + 
+            sqrt_alpha_t * (1 - alpha_bar_prev) * x_t) / (1 - alpha_bar_t)
+
+# 方式3：预测噪声（DDPM的选择，最稳定）
+epsilon_pred = model(x_t, t)
+x_0_pred = (x_t - sqrt_one_minus_alpha_bar_t * epsilon_pred) / sqrt_alpha_bar_t
+mu_theta = (sqrt_alpha_bar_prev * beta_t * x_0_pred + 
+            sqrt_alpha_t * (1 - alpha_bar_prev) * x_t) / (1 - alpha_bar_t)</pre>
+        </div>
+        
+        <p>为什么预测噪声更好？让我们通过重参数化来理解：</p>
+        
+        <div class="math-block">
+            <p>由于 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$，我们可以表示：</p>
+            $$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}}{\sqrt{\bar{\alpha}_t}}$$
+            
+            <p>代入 $\tilde{\boldsymbol{\mu}}_t$ 的表达式，经过化简可得：</p>
+            $$\tilde{\boldsymbol{\mu}}_t = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}\right)$$
+        </div>
+        
+        <p>这个表达式揭示了一个优雅的事实：<strong>反向过程的均值只需要知道添加的噪声 $\boldsymbol{\epsilon}$！</strong></p>
+        
+        <div class="definition">
+            <div class="definition-title">三种参数化的对比</div>
+            <table style="width: 100%; margin-top: 10px;">
+                <tr>
+                    <th style="padding: 10px; background-color: #f0f0f0;">参数化</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">优点</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">缺点</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">使用场景</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">预测 $\boldsymbol{\mu}_\theta$</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">直接，无需转换</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">不同t的输出尺度差异大</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">几乎不用</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">预测 $\mathbf{x}_0$</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">语义清晰</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">高噪声时预测困难</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">某些条件生成任务</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">预测 $\boldsymbol{\epsilon}$</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">输出标准化，训练稳定</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">间接，需要转换</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">标准选择</td>
+                </tr>
+            </table>
+        </div>
+        
+        <h3>3.3.3 方差的处理：固定 vs 可学习</h3>
+        
+        <p>DDPM的另一个简化是使用固定的方差 $\tilde{\beta}_t$。但这是最优的吗？</p>
+        
+        <div class="code-block">
+<pre># DDPM：固定方差（两种选择）
+# 选择1：使用后验方差
+variance = (1 - alpha_bar_prev) / (1 - alpha_bar_t) * beta_t
+
+# 选择2：使用β_t（DDPM论文的选择）
+variance = beta_t
+
+# 改进的DDPM：学习方差
+# 网络同时预测噪声和方差
+epsilon_pred, v_pred = model(x_t, t).chunk(2, dim=1)
+
+# 参数化方差（在对数空间插值）
+min_log = torch.log(beta_t)
+max_log = torch.log((1 - alpha_bar_prev) / (1 - alpha_bar_t) * beta_t)
+log_variance = v_pred * max_log + (1 - v_pred) * min_log
+variance = torch.exp(log_variance)</pre>
+        </div>
+        
+        <div class="visualization" style="background-color: #fff3cd; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h4>⚠️ 实践经验</h4>
+            <p>尽管学习方差理论上更优（可以获得更好的似然），但在实践中：</p>
+            <ul>
+                <li>固定方差的DDPM已经能生成高质量图像</li>
+                <li>学习方差增加了训练的复杂度</li>
+                <li>对于大多数应用，固定方差是足够的</li>
+                <li>如果追求最优似然（如压缩任务），才考虑学习方差</li>
+            </ul>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.3：验证不同参数化的等价性</div>
+            <p>实现三种参数化方式，验证它们在数学上是等价的：</p>
+            <ol>
+                <li>给定相同的 $\mathbf{x}_t$、$\mathbf{x}_0$ 和 $t$</li>
+                <li>计算真实的噪声 $\boldsymbol{\epsilon}$</li>
+                <li>用三种方式计算 $\tilde{\boldsymbol{\mu}}_t$</li>
+                <li>验证结果相同（在数值精度内）</li>
+            </ol>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_3')">显示答案</button>
+            <div id="answer3_3" class="answer">
+                <pre>import torch
+
+# 设置
+batch_size = 4
+channels = 3
+size = 32
+t = 500
+T = 1000
+
+# 初始化
+x_0 = torch.randn(batch_size, channels, size, size)
+epsilon = torch.randn_like(x_0)
+
+# 计算alpha相关值
+betas = torch.linspace(0.0001, 0.02, T)
+alphas = 1 - betas
+alphas_bar = torch.cumprod(alphas, dim=0)
+alpha_t = alphas[t]
+alpha_bar_t = alphas_bar[t]
+alpha_bar_prev = alphas_bar[t-1]
+beta_t = betas[t]
+
+# 前向过程
+x_t = torch.sqrt(alpha_bar_t) * x_0 + torch.sqrt(1 - alpha_bar_t) * epsilon
+
+# 方式1：直接计算真实的后验均值
+mu_true = (torch.sqrt(alpha_bar_prev) * beta_t * x_0 + 
+           torch.sqrt(alpha_t) * (1 - alpha_bar_prev) * x_t) / (1 - alpha_bar_t)
+
+# 方式2：通过预测x_0
+x_0_pred = x_0  # 假设完美预测
+mu_x0 = (torch.sqrt(alpha_bar_prev) * beta_t * x_0_pred + 
+         torch.sqrt(alpha_t) * (1 - alpha_bar_prev) * x_t) / (1 - alpha_bar_t)
+
+# 方式3：通过预测噪声
+epsilon_pred = epsilon  # 假设完美预测
+x_0_from_eps = (x_t - torch.sqrt(1 - alpha_bar_t) * epsilon_pred) / torch.sqrt(alpha_bar_t)
+mu_eps = (torch.sqrt(alpha_bar_prev) * beta_t * x_0_from_eps + 
+          torch.sqrt(alpha_t) * (1 - alpha_bar_prev) * x_t) / (1 - alpha_bar_t)
+
+# 或者直接用简化公式
+mu_eps_direct = (x_t - beta_t / torch.sqrt(1 - alpha_bar_t) * epsilon_pred) / torch.sqrt(alpha_t)
+
+# 验证
+print(f"方式1和方式2的差异: {(mu_true - mu_x0).abs().max():.6f}")
+print(f"方式1和方式3的差异: {(mu_true - mu_eps).abs().max():.6f}")
+print(f"方式1和方式3(直接)的差异: {(mu_true - mu_eps_direct).abs().max():.6f}")
+
+# 输出应该都接近0（在浮点精度范围内）</pre>
+                <p><strong>关键洞察</strong>：三种参数化在数学上等价，但训练动态不同。预测噪声之所以更稳定，是因为噪声 $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$ 始终是标准化的，而 $\mathbf{x}_0$ 的分布可能很复杂。</p>
+            </div>
+        </div>
+        
+        <h2>3.4 训练目标：变分下界的简化</h2>
+        
+        <p>DDPM的另一个重要贡献是将复杂的变分下界（ELBO）简化为一个简单的去噪目标。这一节我们将详细推导这个过程。</p>
+        
+        <h3>3.4.1 完整的变分下界</h3>
+        
+        <p>我们的目标是最大化数据的对数似然 $\log p_\theta(\mathbf{x}_0)$。由于直接计算困难，我们优化其变分下界：</p>
+        
+        <div class="math-block">
+            $$\log p_\theta(\mathbf{x}_0) \geq \mathbb{E}_q\left[\log \frac{p_\theta(\mathbf{x}_{0:T})}{q(\mathbf{x}_{1:T}|\mathbf{x}_0)}\right] = -L_{\text{VLB}}$$
+        </div>
+        
+        <p>其中 $L_{\text{VLB}}$ 是变分下界损失。经过展开（使用马尔可夫性质），可以得到：</p>
+        
+        <div class="math-block">
+            $$L_{\text{VLB}} = L_T + \sum_{t=2}^{T} L_{t-1} + L_0$$
+        </div>
+        
+        <p>其中各项定义为：</p>
+        
+        <div class="definition">
+            <div class="definition-title">变分下界的三个组成部分</div>
+            <div class="math-block">
+                $$L_T = D_{\text{KL}}(q(\mathbf{x}_T|\mathbf{x}_0) \| p(\mathbf{x}_T))$$
+                $$L_{t-1} = \mathbb{E}_q\left[D_{\text{KL}}(q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) \| p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t))\right]$$
+                $$L_0 = \mathbb{E}_q\left[-\log p_\theta(\mathbf{x}_0|\mathbf{x}_1)\right]$$
+            </div>
+            <ul>
+                <li>$L_T$：先验匹配项，通常很小可以忽略（因为 $q(\mathbf{x}_T|\mathbf{x}_0) \approx \mathcal{N}(0, \mathbf{I})$）</li>
+                <li>$L_{t-1}$：去噪匹配项，这是主要的优化目标</li>
+                <li>$L_0$：重建项，决定最终输出质量</li>
+            </ul>
+        </div>
+        
+        <p>关键在于如何处理 $L_{t-1}$ 项。由于我们知道 $q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0)$ 的闭式解（见3.3.1节），且假设 $p_\theta$ 也是高斯分布，KL散度可以简化为：</p>
+        
+        <div class="math-block">
+            $$L_{t-1} = \mathbb{E}_q\left[\frac{1}{2\sigma_t^2}\|\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) - \boldsymbol{\mu}_\theta(\mathbf{x}_t, t)\|^2\right] + C$$
+        </div>
+        
+        <p>其中 $C$ 是与 $\theta$ 无关的常数。</p>
+        
+        <h3>3.4.2 简化的去噪目标</h3>
+        
+        <p>DDPM的关键洞察是：通过选择噪声预测参数化，可以将上述目标进一步简化。回忆3.3.2节的结果：</p>
+        
+        <div class="math-block">
+            $$\tilde{\boldsymbol{\mu}}_t = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}\right)$$
+        </div>
+        
+        <p>如果我们参数化 $\boldsymbol{\mu}_\theta$ 为：</p>
+        
+        <div class="math-block">
+            $$\boldsymbol{\mu}_\theta(\mathbf{x}_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)\right)$$
+        </div>
+        
+        <p>那么 $L_{t-1}$ 可以简化为：</p>
+        
+        <div class="math-block">
+            $$L_{t-1} = \mathbb{E}_{\mathbf{x}_0, \boldsymbol{\epsilon}}\left[\frac{\beta_t^2}{2\sigma_t^2\alpha_t(1-\bar{\alpha}_t)}\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)\|^2\right]$$
+        </div>
+        
+        <p>其中 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$。</p>
+        
+        <div class="visualization" style="background-color: #e8f4fd; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h4>🎯 DDPM的简化训练目标</h4>
+            <p>Ho等人发现，忽略权重系数并对所有时间步求和，得到的简化目标效果更好：</p>
+            <div class="math-block">
+                $$L_{\text{simple}} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)\|^2\right]$$
+            </div>
+            <p>这就是著名的"简单损失"——只需要预测噪声！</p>
+        </div>
+        
+        <h3>3.4.3 损失函数的加权策略</h3>
+        
+        <p>虽然简单损失效果很好，但不同时间步的重要性确实不同。后续研究提出了各种加权策略：</p>
+        
+        <div class="code-block">
+<pre>import torch
+import matplotlib.pyplot as plt
+
+# 不同的损失加权策略
+def get_loss_weight(t, strategy='simple', snr_gamma=5.0):
+    """
+    计算时间步t的损失权重
+    
+    策略:
+    - simple: 所有时间步权重相同（DDPM原始）
+    - snr: 基于信噪比的加权
+    - truncated_snr: 截断的SNR加权（防止极端值）
+    - importance: 基于重要性采样
+    """
+    if strategy == 'simple':
+        return 1.0
+    
+    elif strategy == 'snr':
+        # 权重与信噪比成反比
+        snr = alpha_bar[t] / (1 - alpha_bar[t])
+        return 1.0 / (1.0 + snr)
+    
+    elif strategy == 'truncated_snr':
+        # Min-SNR-γ 加权（Hang et al., 2023）
+        snr = alpha_bar[t] / (1 - alpha_bar[t])
+        return torch.minimum(snr, torch.tensor(snr_gamma)) / snr
+    
+    elif strategy == 'importance':
+        # 基于L_t系数的重要性加权
+        return beta[t]**2 / (2 * sigma[t]**2 * alpha[t] * (1 - alpha_bar[t]))
+
+# 可视化不同加权策略
+T = 1000
+t = torch.arange(T)
+beta = torch.linspace(0.0001, 0.02, T)
+alpha = 1 - beta
+alpha_bar = torch.cumprod(alpha, dim=0)
+sigma = beta  # DDPM的选择
+
+plt.figure(figsize=(12, 6))
+
+strategies = ['simple', 'snr', 'truncated_snr', 'importance']
+for strategy in strategies:
+    weights = torch.tensor([get_loss_weight(i, strategy) for i in range(T)])
+    plt.plot(weights, label=strategy)
+
+plt.xlabel('Time Step t')
+plt.ylabel('Loss Weight')
+plt.title('Different Loss Weighting Strategies')
+plt.legend()
+plt.yscale('log')
+plt.grid(True, alpha=0.3)
+plt.show()</pre>
+        </div>
+        
+        <div class="definition">
+            <div class="definition-title">加权策略对比</div>
+            <table style="width: 100%; margin-top: 10px;">
+                <tr>
+                    <th style="padding: 10px; background-color: #f0f0f0;">策略</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">动机</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">效果</th>
+                    <th style="padding: 10px; background-color: #f0f0f0;">计算开销</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">简单 (Simple)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">简化训练</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">基准，效果已经不错</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">最低</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">SNR加权</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">平衡不同噪声水平</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">改善高噪声区域</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">低</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">Min-SNR-γ</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">避免极端权重</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">目前最优</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">低</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">重要性采样</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">理论最优</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">实践中不稳定</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">中等</td>
+                </tr>
+            </table>
+        </div>
+        
+        <h3>3.4.4 训练算法总结</h3>
+        
+        <p>综合以上推导，DDPM的训练算法极其简洁：</p>
+        
+        <div class="code-block">
+<pre>def train_ddpm(model, dataloader, num_epochs, T=1000):
+    """DDPM训练循环"""
+    optimizer = torch.optim.Adam(model.parameters(), lr=2e-4)
+    
+    # 预计算噪声调度相关值
+    betas = linear_beta_schedule(T)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    sqrt_alphas_bar = torch.sqrt(alphas_bar)
+    sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
+    
+    for epoch in range(num_epochs):
+        for batch_idx, (x_0, _) in enumerate(dataloader):
+            batch_size = x_0.shape[0]
+            
+            # 随机采样时间步
+            t = torch.randint(0, T, (batch_size,), device=x_0.device)
+            
+            # 采样噪声
+            epsilon = torch.randn_like(x_0)
+            
+            # 前向扩散：计算x_t
+            x_t = (sqrt_alphas_bar[t, None, None, None] * x_0 + 
+                   sqrt_one_minus_alphas_bar[t, None, None, None] * epsilon)
+            
+            # 预测噪声
+            epsilon_pred = model(x_t, t)
+            
+            # 计算损失
+            loss = F.mse_loss(epsilon_pred, epsilon)
+            
+            # 反向传播
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            if batch_idx % 100 == 0:
+                print(f'Epoch {epoch}, Batch {batch_idx}, Loss: {loss.item():.4f}')</pre>
+        </div>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 3.4：实现加权损失</div>
+            <p>修改上述训练代码，实现Min-SNR-γ加权策略：</p>
+            <ol>
+                <li>计算每个时间步的SNR</li>
+                <li>应用Min-SNR-γ加权（建议γ=5）</li>
+                <li>比较加权前后的训练曲线</li>
+            </ol>
+            <button class="answer-toggle" onclick="toggleAnswer('answer3_4')">显示答案</button>
+            <div id="answer3_4" class="answer">
+                <pre>def train_ddpm_weighted(model, dataloader, num_epochs, T=1000, snr_gamma=5.0):
+    """带Min-SNR加权的DDPM训练"""
+    optimizer = torch.optim.Adam(model.parameters(), lr=2e-4)
+    
+    # 预计算
+    betas = linear_beta_schedule(T)
+    alphas = 1 - betas
+    alphas_bar = torch.cumprod(alphas, dim=0)
+    sqrt_alphas_bar = torch.sqrt(alphas_bar)
+    sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
+    
+    # 预计算SNR和权重
+    snr = alphas_bar / (1 - alphas_bar)
+    snr_clipped = torch.minimum(snr, torch.tensor(snr_gamma))
+    loss_weights = snr_clipped / snr
+    
+    for epoch in range(num_epochs):
+        for batch_idx, (x_0, _) in enumerate(dataloader):
+            batch_size = x_0.shape[0]
+            
+            # 采样时间步
+            t = torch.randint(0, T, (batch_size,), device=x_0.device)
+            
+            # 前向扩散
+            epsilon = torch.randn_like(x_0)
+            x_t = (sqrt_alphas_bar[t, None, None, None] * x_0 + 
+                   sqrt_one_minus_alphas_bar[t, None, None, None] * epsilon)
+            
+            # 预测噪声
+            epsilon_pred = model(x_t, t)
+            
+            # 计算加权损失
+            mse_loss = (epsilon_pred - epsilon).pow(2).mean(dim=[1,2,3])
+            weights = loss_weights[t]
+            loss = (weights * mse_loss).mean()
+            
+            # 反向传播
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+# 关键改进：
+# 1. 高SNR（低噪声）区域的权重被降低，避免过拟合细节
+# 2. 低SNR（高噪声）区域保持较高权重，确保结构学习
+# 3. γ参数控制截断程度，通常5-10效果较好</pre>
+                <p><strong>实践建议</strong>：Min-SNR-γ加权在高分辨率图像生成中特别有效，可以显著改善生成质量。但对于低分辨率或简单数据集，简单损失可能已经足够。</p>
+            </div>
+        </div>
+        
+        <h2>3.5 采样算法：从理论到实践</h2>
+        <h3>3.5.1 标准DDPM采样</h3>
+        <p>[待完成：1000步采样的实现]</p>
+        
+        <h3>3.5.2 采样的随机性控制</h3>
+        <p>[待完成：温度参数的作用]</p>
+        
+        <h3>3.5.3 常见问题与调试技巧</h3>
+        <p>[待完成：采样过程的可视化与问题诊断]</p>
+        
+        <h2>3.6 完整实现：构建你的第一个DDPM</h2>
+        <h3>3.6.1 模型架构</h3>
+        <p>[待完成：结合第2章的U-Net实现DDPM]</p>
+        
+        <h3>3.6.2 训练循环</h3>
+        <p>[待完成：完整的训练代码]</p>
+        
+        <h3>3.6.3 评估与可视化</h3>
+        <p>[待完成：FID、IS等指标的计算]</p>
+        
+        <h2>3.7 DDPM的局限性与改进方向</h2>
+        <p>[待完成：采样速度慢、方差固定等问题，引出后续章节]</p>
+        
+        <div class="chapter-summary">
+            <h2>本章小结</h2>
+            <p>[待完成：总结DDPM的关键贡献，预告DDIM等改进方法]</p>
+        </div>
+    </div>
+</body>
+</html>
