@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>附录C：信息几何与分数函数的力学解释 - 扩散模型教程</title>
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <script src="common.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-bar">
+            <a href="appendix-b.html">← 上一章</a>
+            <span>附录C</span>
+            <a href="index.html">返回首页 →</a>
+        </div>
+        
+        <h1>附录C：信息几何与分数函数的力学解释</h1>
+        
+        <div class="chapter-intro">
+            扩散模型的成功不仅仅是工程上的胜利，更是深刻数学原理的体现。本附录将从信息几何的角度重新审视扩散模型，揭示分数函数作为"力"的物理意义，并建立与能量优化的深刻联系。这种视角不仅提供了理论洞察，也为设计新算法提供了指导原则。
+        </div>
+
+        <h2>C.1 信息几何基础</h2>
+        
+        <h3>C.1.1 概率分布的流形结构</h3>
+        
+        <p>信息几何将概率分布空间看作一个弯曲的流形，而不是平坦的欧几里得空间。这种视角对理解扩散模型至关重要。</p>
+        
+        <h4>概率单纯形</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">概率单纯形的定义</div>
+            <p>设 $\Omega$ 是样本空间，定义概率单纯形：</p>
+            <div class="formula">
+                $$\mathcal{P} = \left\{p = (p_1, ..., p_n) : p_i \geq 0, \sum_{i=1}^n p_i = 1\right\}$$
+            </div>
+            
+            <p>这是一个 $(n-1)$ 维流形，嵌入在 $\mathbb{R}^n$ 中。对于连续分布，我们考虑：</p>
+            <div class="formula">
+                $$\mathcal{P}(\mathcal{X}) = \left\{p : \mathcal{X} \to \mathbb{R}^+ \mid \int_{\mathcal{X}} p(x)dx = 1\right\}$$
+            </div>
+        </div>
+        
+        <h4>切空间的结构</h4>
+        
+        <p>在每个点 $p \in \mathcal{P}$，切空间由满足约束的无穷小变化组成：</p>
+        
+        <div class="note-box">
+            <h4>切向量的特征</h4>
+            <p>对于概率分布 $p(x)$，切向量 $v(x) \in T_p\mathcal{P}$ 满足：</p>
+            <div class="formula">
+                $$\int_{\mathcal{X}} v(x) dx = 0$$
+            </div>
+            
+            <p>这保证了沿着 $v$ 方向的无穷小移动仍然保持归一化。</p>
+        </div>
+        
+        <h4>指数族与自然参数</h4>
+        
+        <div class="example-box">
+            <div class="example-title">指数族分布</div>
+            <p>指数族是信息几何中最重要的例子：</p>
+            <div class="formula">
+                $$p(x; \theta) = \exp(\theta^T T(x) - A(\theta))$$
+            </div>
+            
+            <p>其中：</p>
+            <ul>
+                <li>$\theta$ 是自然参数（natural parameters）</li>
+                <li>$T(x)$ 是充分统计量</li>
+                <li>$A(\theta) = \log \int \exp(\theta^T T(x)) dx$ 是对数配分函数</li>
+            </ul>
+        </div>
+        
+        <div class="code-block">
+<pre># 可视化概率分布流形
+import torch
+import numpy as np
+
+class ProbabilityManifold:
+    """演示概率分布流形的概念"""
+    
+    def __init__(self, dim=3):
+        self.dim = dim  # 单纯形的维度
+    
+    def project_to_simplex(self, x):
+        """将点投影到概率单纯形上"""
+        # 使用softmax作为投影
+        return torch.softmax(x, dim=-1)
+    
+    def tangent_projection(self, p, v):
+        """将向量投影到切空间"""
+        # 切空间约束: sum(v) = 0
+        v_mean = v.mean(dim=-1, keepdim=True)
+        return v - v_mean
+    
+    def exponential_family_example(self):
+        """演示指数族的性质"""
+        print("指数族示例：二项分布")
+        print("="*50)
+        
+        # 自然参数空间
+        theta_values = torch.linspace(-2, 2, 5)
+        
+        for theta in theta_values:
+            # 二项分布: p = exp(theta*x) / (1 + exp(theta))
+            p = torch.sigmoid(theta)
+            
+            # 对数配分函数
+            A_theta = torch.log(1 + torch.exp(theta))
+            
+            # 期望参数（对偶参数）
+            mu = p  # dA/dtheta = E[X]
+            
+            # Fisher信息（二阶导）
+            I_theta = p * (1 - p)  # d²A/dtheta² = Var[X]
+            
+            print(f"\u03b8={theta:6.2f}: p={p:6.4f}, A(\u03b8)={A_theta:6.4f}, I(\u03b8)={I_theta:6.4f}")
+    
+    def geodesic_distance(self, p1, p2, metric='kl'):
+        """计算两个分布之间的测地线距离"""
+        eps = 1e-8
+        
+        if metric == 'kl':
+            # KL散度（不对称）
+            return (p1 * (torch.log(p1 + eps) - torch.log(p2 + eps))).sum()
+        
+        elif metric == 'fisher_rao':
+            # Fisher-Rao距离（真正的测地线距离）
+            sqrt_p1 = torch.sqrt(p1 + eps)
+            sqrt_p2 = torch.sqrt(p2 + eps)
+            cos_angle = (sqrt_p1 * sqrt_p2).sum()
+            return 2 * torch.acos(torch.clamp(cos_angle, -1, 1))
+        
+        elif metric == 'wasserstein':
+            # 简化的Wasserstein距离（一维情况）
+            # 这里只是示例，实际计算更复杂
+            return torch.abs(p1 - p2).sum()
+
+# 演示概率流形的性质
+def demonstrate_probability_manifold():
+    manifold = ProbabilityManifold()
+    
+    # 1. 指数族示例
+    manifold.exponential_family_example()
+    
+    # 2. 测地线距离比较
+    print("\n\n不同度量下的距离")
+    print("="*50)
+    
+    # 创建两个分布
+    p1 = torch.tensor([0.7, 0.2, 0.1])
+    p2 = torch.tensor([0.2, 0.3, 0.5])
+    
+    metrics = ['kl', 'fisher_rao', 'wasserstein']
+    for metric in metrics:
+        dist = manifold.geodesic_distance(p1, p2, metric)
+        print(f"{metric:15s}: {dist:8.4f}")
+    
+    # 3. 切空间投影
+    print("\n\n切空间投影")
+    print("="*50)
+    
+    v = torch.tensor([1.0, -0.5, -0.5])  # 一个向量
+    v_tangent = manifold.tangent_projection(p1, v)
+    
+    print(f"原始向量: {v.numpy()}")
+    print(f"切向量: {v_tangent.numpy()}")
+    print(f"切向量之和: {v_tangent.sum().item():.6f} (应为0)")
+
+demonstrate_probability_manifold()</pre>
+        </div>
+        
+        <h4>为什么几何视角重要？</h4>
+        
+        <div class="note-box">
+            <h4>几何视角的优势</h4>
+            <ol>
+                <li><strong>坐标无关性</strong>：几何性质不依赖于特定的参数化</li>
+                <li><strong>自然的距离概念</strong>：Fisher-Rao距离提供了分布间的内在度量</li>
+                <li><strong>优化的指导</strong>：自然梯度比普通梯度更适合在流形上优化</li>
+                <li><strong>统一视角</strong>：将不同的统计方法统一在几何框架下</li>
+            </ol>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">扩散模型中的流形结构</div>
+            <p>在扩散模型中，我们可以将整个过程看作在概率分布流形上的一条路径：</p>
+            <ul>
+                <li>$p_0 = p_{data}$：起点是数据分布</li>
+                <li>$p_T \approx \mathcal{N}(0, I)$：终点是简单的高斯分布</li>
+                <li>$\{p_t\}_{t \in [0,T]}$：连接两者的光滑路径</li>
+            </ul>
+            
+            <p>这条路径的选择（即SDE的设计）直接影响模型的性能！</p>
+        </div>
+        
+        <h3>C.1.2 Fisher信息度量</h3>
+        
+        <p>Fisher信息度量是概率分布流形上的自然黎曼度量。它不仅在统计学中扮演着核心角色，也为理解扩散模型的分数函数提供了几何基础。</p>
+        
+        <h4>Fisher信息矩阵的定义</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">Fisher信息矩阵</div>
+            <p>对于参数化的概率分布族 $\{p(x; \theta) : \theta \in \Theta\}$，Fisher信息矩阵定义为：</p>
+            <div class="formula">
+                $$I_{ij}(\theta) = \mathbb{E}_{p(x;\theta)}\left[\frac{\partial \log p(x;\theta)}{\partial \theta_i} \frac{\partial \log p(x;\theta)}{\partial \theta_j}\right]$$
+            </div>
+            
+            <p>等价地，可以写成：</p>
+            <div class="formula">
+                $$I_{ij}(\theta) = -\mathbb{E}_{p(x;\theta)}\left[\frac{\partial^2 \log p(x;\theta)}{\partial \theta_i \partial \theta_j}\right]$$
+            </div>
+        </div>
+        
+        <h4>几何意义</h4>
+        
+        <p>Fisher信息矩阵定义了参数空间中的一个黎曼度量：</p>
+        
+        <div class="note-box">
+            <h4>度量的直观理解</h4>
+            <ul>
+                <li><strong>局部距离</strong>：$ds^2 = \sum_{i,j} I_{ij}(\theta) d\theta_i d\theta_j$</li>
+                <li><strong>可区分性</strong>：矩阵元素越大，表示该方向上分布变化越快</li>
+                <li><strong>信息量</strong>：从数据中提取参数信息的难易程度</li>
+                <li><strong>曲率</strong>：反映了参数空间的弯曲程度</li>
+            </ul>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">例子：高斯分布的Fisher信息</div>
+            <p>考虑一维高斯分布 $\mathcal{N}(\mu, \sigma^2)$，参数 $\theta = (\mu, \sigma)$：</p>
+            <div class="formula">
+                $$I(\theta) = \begin{pmatrix}
+                    \frac{1}{\sigma^2} & 0 \\
+                    0 & \frac{2}{\sigma^2}
+                \end{pmatrix}$$
+            </div>
+            
+            <p>观察：</p>
+            <ul>
+                <li>$\mu$ 和 $\sigma$ 参数正交（非对角元为0）</li>
+                <li>方差越小，信息量越大（更容易估计参数）</li>
+                <li>估计 $\sigma$ 比估计 $\mu$ 更难（因子为2）</li>
+            </ul>
+        </div>
+        
+        <div class="code-block">
+<pre># 计算和可视化Fisher信息度量
+import torch
+import numpy as np
+
+class FisherInformation:
+    """计算和分析Fisher信息度量"""
+    
+    def gaussian_fisher(self, mu, sigma):
+        """计算高斯分布的Fisher信息矩阵"""
+        I = torch.zeros(2, 2)
+        I[0, 0] = 1 / sigma**2  # I_{μμ}
+        I[1, 1] = 2 / sigma**2  # I_{σσ}
+        return I
+    
+    def exponential_family_fisher(self, theta, compute_hessian=True):
+        """计算指数族的Fisher信息
+        
+        对于指数族 p(x;\theta) = exp(\theta^T T(x) - A(\theta))
+        Fisher信息 = A(\theta)的Hessian矩阵
+        """
+        # 例子：多项分布
+        # A(\theta) = log(sum(exp(\theta)))
+        exp_theta = torch.exp(theta)
+        Z = exp_theta.sum()
+        
+        # 一阶导数（期望参数）
+        mu = exp_theta / Z
+        
+        if compute_hessian:
+            # 二阶导数（Fisher信息）
+            n = len(theta)
+            I = torch.zeros(n, n)
+            
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        I[i, j] = mu[i] * (1 - mu[i])
+                    else:
+                        I[i, j] = -mu[i] * mu[j]
+            
+            return I, mu
+        
+        return mu
+    
+    def natural_gradient(self, grad, fisher_matrix, regularization=1e-8):
+        """计算自然梯度
+        
+        自然梯度 = Fisher信息矩阵的逆 × 普通梯度
+        """
+        # 添加正则化以保证数值稳定性
+        I_reg = fisher_matrix + regularization * torch.eye(fisher_matrix.shape[0])
+        
+        # 计算自然梯度
+        natural_grad = torch.linalg.solve(I_reg, grad)
+        
+        return natural_grad
+    
+    def geodesic_distance(self, theta1, theta2, n_steps=100):
+        """计算两点间的测地线距离（数值近似）"""
+        # 使用线性插值作为路径的近似
+        path = torch.linspace(0, 1, n_steps).unsqueeze(1)
+        thetas = theta1 + path * (theta2 - theta1)
+        
+        total_distance = 0
+        for i in range(n_steps - 1):
+            # 计算当前点的Fisher信息
+            I, _ = self.exponential_family_fisher(thetas[i])
+            
+            # 计算微小步长
+            d_theta = thetas[i+1] - thetas[i]
+            
+            # 计算度量距离 ds^2 = d\theta^T I d\theta
+            ds = torch.sqrt(d_theta @ I @ d_theta)
+            total_distance += ds
+        
+        return total_distance
+
+# 演示Fisher信息的性质
+def demonstrate_fisher_information():
+    fisher = FisherInformation()
+    
+    print("Fisher信息度量分析")
+    print("="*60)
+    
+    # 1. 高斯分布的Fisher信息
+    print("\n1. 高斯分布 N(μ, σ²)")
+    print("-"*40)
+    
+    mu, sigma = 0.0, 1.0
+    I_gaussian = fisher.gaussian_fisher(mu, sigma)
+    print(f"Fisher信息矩阵：\n{I_gaussian}")
+    print(f"\n行列式: {torch.det(I_gaussian):.4f}")
+    print(f"迹: {torch.trace(I_gaussian):.4f}")
+    
+    # 2. 指数族的Fisher信息
+    print("\n\n2. 多项分布（指数族）")
+    print("-"*40)
+    
+    theta = torch.tensor([1.0, 0.5, -0.5])
+    I_exp, mu = fisher.exponential_family_fisher(theta)
+    
+    print(f"\u81ea然参数 \u03b8: {theta.numpy()}")
+    print(f"\u671f望参数 μ: {mu.numpy()}")
+    print(f"\nFisher信息矩阵：\n{I_exp}")
+    
+    # 3. 自然梯度 vs 普通梯度
+    print("\n\n3. 自然梯度 vs 普通梯度")
+    print("-"*40)
+    
+    # 假设一个普通梯度
+    grad = torch.tensor([1.0, -0.5, 0.2])
+    natural_grad = fisher.natural_gradient(grad, I_exp)
+    
+    print(f"普通梯度: {grad.numpy()}")
+    print(f"自然梯度: {natural_grad.numpy()}")
+    print(f"范数比: {torch.norm(natural_grad) / torch.norm(grad):.4f}")
+    
+    # 4. 测地线距离
+    print("\n\n4. 测地线距离")
+    print("-"*40)
+    
+    theta1 = torch.tensor([0.0, 0.0, 0.0])
+    theta2 = torch.tensor([1.0, 1.0, 1.0])
+    
+    geo_dist = fisher.geodesic_distance(theta1, theta2)
+    euclidean_dist = torch.norm(theta2 - theta1)
+    
+    print(f"欧几里得距离: {euclidean_dist:.4f}")
+    print(f"测地线距离: {geo_dist:.4f}")
+    print(f"比值: {geo_dist / euclidean_dist:.4f}")
+    
+    print("\n观察：测地线距离考虑了流形的弯曲，通常比欧几里得距离更长")
+
+demonstrate_fisher_information()</pre>
+        </div>
+        
+        <h4>Fisher信息与分数函数</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">重要联系</div>
+            <p>分数函数 $s(x, \theta) = \nabla_x \log p(x; \theta)$ 与Fisher信息密切相关：</p>
+            <div class="formula">
+                $$I_{ij}(\theta) = \mathbb{E}_{p(x;\theta)}[s_i(x, \theta) s_j(x, \theta)]$$
+            </div>
+            
+            <p>其中 $s_i = \frac{\partial \log p}{\partial \theta_i}$ 是关于参数的分数。</p>
+            
+            <p>这表明：Fisher信息度量了分数函数的"变化率"。</p>
+        </div>
+        
+        <h4>在扩散模型中的应用</h4>
+        
+        <div class="note-box">
+            <h4>为什么Fisher信息对扩散模型重要？</h4>
+            <ol>
+                <li><strong>自然参数化</strong>：在训练分数网络时，使用自然梯度可以加速收敛</li>
+                <li><strong>距离度量</strong>：提供了分布间的内在距离，用于设计更好的损失函数</li>
+                <li><strong>最优传输</strong>：测地线提供了从数据分布到噪声分布的最优路径</li>
+                <li><strong>曲率信息</strong>：帮助理解为什么某些区域的学习更困难</li>
+            </ol>
+        </div>
+        
+        <h3>C.1.3 自然梯度与普通梯度</h3>
+        
+        <p>在优化概率模型时，选择合适的梯度方向至关重要。自然梯度考虑了参数空间的几何结构，提供了比普通梯度更好的下降方向。</p>
+        
+        <h4>普通梯度的问题</h4>
+        
+        <div class="note-box">
+            <h4>为什么普通梯度不够好？</h4>
+            <p>考虑一个简单的例子：优化二项分布的参数 $p \in [0,1]$。</p>
+            <ul>
+                <li>当 $p \approx 0$ 或 $p \approx 1$ 时，小的参数变化会导致分布的大幅变化</li>
+                <li>当 $p \approx 0.5$ 时，同样的参数变化对分布影响较小</li>
+                <li>普通梯度没有考虑这种"不均匀性"</li>
+            </ul>
+        </div>
+        
+        <h4>自然梯度的定义</h4>
+        
+        <div class="theorem-box">
+            <div class="theorem-title">自然梯度</div>
+            <p>设 $L(\theta)$ 是关于参数 $\theta$ 的损失函数，普通梯度为 $g = \nabla_\theta L$。自然梯度定义为：</p>
+            <div class="formula">
+                $$\tilde{g} = I(\theta)^{-1} g$$
+            </div>
+            
+            <p>其中 $I(\theta)$ 是Fisher信息矩阵。更新规则为：</p>
+            <div class="formula">
+                $$\theta_{t+1} = \theta_t - \alpha I(\theta_t)^{-1} \nabla_\theta L(\theta_t)$$
+            </div>
+        </div>
+        
+        <h4>几何解释</h4>
+        
+        <div class="example-box">
+            <div class="example-title">最陡下降方向</div>
+            <p>自然梯度是在Fisher信息度量下的最陡下降方向：</p>
+            <ul>
+                <li><strong>普通梯度</strong>：在欧几里得空间中的最陡下降</li>
+                <li><strong>自然梯度</strong>：在曲线流形上的最陡下降</li>
+                <li><strong>优势</strong>：不依赖于参数化方式（坐标无关）</li>
+            </ul>
+        </div>
+        
+        <div class="code-block">
+<pre># 比较自然梯度和普通梯度的优化路径
+import torch
+import numpy as np
+
+class GradientComparison:
+    """比较自然梯度和普通梯度的优化效果"""
+    
+    def __init__(self, target_dist):
+        """
+        Args:
+            target_dist: 目标分布的参数
+        """
+        self.target = target_dist
+    
+    def kl_divergence(self, theta, target):
+        """计算KL散度作为损失函数"""
+        # 简化：使用多项分布
+        p = torch.softmax(theta, dim=0)
+        q = torch.softmax(target, dim=0)
+        
+        kl = (p * (torch.log(p + 1e-8) - torch.log(q + 1e-8))).sum()
+        return kl
+    
+    def compute_gradients(self, theta):
+        """计算普通梯度和Fisher信息"""
+        theta.requires_grad_(True)
+        
+        # 计算损失
+        loss = self.kl_divergence(theta, self.target)
+        
+        # 普通梯度
+        grad = torch.autograd.grad(loss, theta, retain_graph=True)[0]
+        
+        # Fisher信息（对于多项分布）
+        p = torch.softmax(theta, dim=0)
+        n = len(theta)
+        fisher = torch.zeros(n, n)
+        
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    fisher[i, j] = p[i] * (1 - p[i])
+                else:
+                    fisher[i, j] = -p[i] * p[j]
+        
+        return grad.detach(), fisher
+    
+    def natural_gradient_step(self, theta, grad, fisher, lr=0.1, reg=1e-4):
+        """执行自然梯度步"""
+        # 正则化Fisher矩阵
+        fisher_reg = fisher + reg * torch.eye(fisher.shape[0])
+        
+        # 计算自然梯度
+        nat_grad = torch.linalg.solve(fisher_reg, grad)
+        
+        # 更新参数
+        return theta - lr * nat_grad
+    
+    def ordinary_gradient_step(self, theta, grad, lr=0.1):
+        """执行普通梯度步"""
+        return theta - lr * grad
+    
+    def optimize(self, init_theta, method='natural', n_steps=50, lr=0.1):
+        """优化过程"""
+        theta = init_theta.clone()
+        history = {'theta': [theta.clone()], 'loss': []}
+        
+        for step in range(n_steps):
+            # 计算梯度
+            grad, fisher = self.compute_gradients(theta)
+            
+            # 更新参数
+            if method == 'natural':
+                theta = self.natural_gradient_step(theta, grad, fisher, lr)
+            else:
+                theta = self.ordinary_gradient_step(theta, grad, lr)
+            
+            # 记录
+            loss = self.kl_divergence(theta, self.target).item()
+            history['theta'].append(theta.clone())
+            history['loss'].append(loss)
+        
+        return history
+
+# 演示两种梯度的比较
+def demonstrate_gradient_comparison():
+    print("自然梯度 vs 普通梯度优化比较")
+    print("="*60)
+    
+    # 设置
+    target = torch.tensor([2.0, 1.0, -1.0])  # 目标分布参数
+    init = torch.tensor([0.0, 0.0, 0.0])     # 初始参数
+    
+    optimizer = GradientComparison(target)
+    
+    # 优化
+    print("\n正在优化...")
+    history_natural = optimizer.optimize(init, method='natural', n_steps=20, lr=0.5)
+    history_ordinary = optimizer.optimize(init, method='ordinary', n_steps=20, lr=0.1)
+    
+    # 结果分析
+    print("\n优化结果：")
+    print("-"*40)
+    print(f"目标分布: {torch.softmax(target, dim=0).numpy()}")
+    print(f"\n自然梯度最终结果: {torch.softmax(history_natural['theta'][-1], dim=0).numpy()}")
+    print(f"最终损失: {history_natural['loss'][-1]:.6f}")
+    print(f"收敛步数: {len([l for l in history_natural['loss'] if l > 0.01])}")
+    
+    print(f"\n普通梯度最终结果: {torch.softmax(history_ordinary['theta'][-1], dim=0).numpy()}")
+    print(f"最终损失: {history_ordinary['loss'][-1]:.6f}")
+    print(f"收敛步数: {len([l for l in history_ordinary['loss'] if l > 0.01])}")
+    
+    # 不同参数化下的行为
+    print("\n\n参数化不变性测试")
+    print("-"*40)
+    
+    # 重新参数化：对参数进行线性变换
+    A = torch.tensor([[2.0, 1.0, 0.0], 
+                      [1.0, 2.0, 1.0], 
+                      [0.0, 1.0, 2.0]])
+    
+    target_reparam = A @ target
+    init_reparam = A @ init
+    
+    print("在新参数化下：")
+    optimizer_reparam = GradientComparison(target_reparam)
+    
+    # 普通梯度在新参数化下会受影响
+    history_ordinary_reparam = optimizer_reparam.optimize(init_reparam, method='ordinary', n_steps=20, lr=0.1)
+    
+    print(f"普通梯度收敛步数（原参数化）: {len([l for l in history_ordinary['loss'] if l > 0.01])}")
+    print(f"普通梯度收敛步数（新参数化）: {len([l for l in history_ordinary_reparam['loss'] if l > 0.01])}")
+    print("\n观察：普通梯度的效率依赖于参数化，而自然梯度具有参数化不变性！")
+
+demonstrate_gradient_comparison()</pre>
+        </div>
+        
+        <h4>在扩散模型中的应用</h4>
+        
+        <div class="note-box">
+            <h4>自然梯度与分数匹配</h4>
+            <p>在训练分数网络时，可以考虑使用自然梯度的思想：</p>
+            <ol>
+                <li><strong>预条件化</strong>：使用Fisher信息的近似来预条件化梯度</li>
+                <li><strong>自适应学习率</strong>：不同参数方向使用不同的学习率</li>
+                <li><strong>二阶方法</strong>：Adam等优化器部分地实现了自然梯度的思想</li>
+            </ol>
+        </div>
+        
+        <div class="example-box">
+            <div class="example-title">实用建议</div>
+            <ul>
+                <li><strong>完整Fisher矩阵</strong>：计算成本高，通常只用于小规模问题</li>
+                <li><strong>对角近似</strong>：只保留对角元素，大幅降低计算成本</li>
+                <li><strong>Kronecker因子分解</strong>：对于神经网络，可以使用K-FAC等方法</li>
+                <li><strong>动量方法</strong>：结合动量可以进一步提高收敛速度</li>
+            </ul>
+        </div>
+
+        <h2>C.2 分数函数的几何意义</h2>
+        
+        <h3>C.2.1 分数函数作为切向量</h3>
+        [内容待补充]
+        
+        <h3>C.2.2 Stein恒等式与无穷小生成元</h3>
+        [内容待补充]
+        
+        <h3>C.2.3 分数匹配的几何解释</h3>
+        [内容待补充]
+
+        <h2>C.3 分数函数的力学解释</h2>
+        
+        <h3>C.3.1 从梯度流到力场</h3>
+        [内容待补充]
+        
+        <h3>C.3.2 能量景观与势函数</h3>
+        [内容待补充]
+        
+        <h3>C.3.3 Langevin动力学的物理图像</h3>
+        [内容待补充]
+
+        <h2>C.4 能量模型与扩散模型的统一</h2>
+        
+        <h3>C.4.1 能量函数与概率密度</h3>
+        [内容待补充]
+        
+        <h3>C.4.2 对比散度与分数匹配</h3>
+        [内容待补充]
+        
+        <h3>C.4.3 从EBM到扩散模型的桥梁</h3>
+        [内容待补充]
+
+        <h2>C.5 信息几何在扩散模型中的应用</h2>
+        
+        <h3>C.5.1 最优传输视角</h3>
+        [内容待补充]
+        
+        <h3>C.5.2 Wasserstein梯度流</h3>
+        [内容待补充]
+        
+        <h3>C.5.3 扩散过程的测地线</h3>
+        [内容待补充]
+
+        <h2>C.6 计算考虑与实践意义</h2>
+        
+        <h3>C.6.1 自然参数化的优势</h3>
+        [内容待补充]
+        
+        <h3>C.6.2 曲率与训练动力学</h3>
+        [内容待补充]
+        
+        <h3>C.6.3 几何启发的算法设计</h3>
+        [内容待补充]
+
+        <div class="chapter-summary">
+            <h2>本章小结</h2>
+            [小结待补充]
+        </div>
+    </div>
+</body>
+</html>
