@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第2章：神经网络架构：U-Net与ViT - Diffusion Models Tutorial</title>
+    <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <script src="common.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-bar">
+            <a href="chapter1.html">← 上一章</a>
+            <span>第2章 / 共14章</span>
+            <a href="chapter3.html">下一章 →</a>
+        </div>
+        
+        <h1>第2章：神经网络架构：U-Net与ViT</h1>
+        
+        <div class="chapter-intro">
+            扩散模型的核心是去噪网络——一个能够从噪声数据中预测噪声或清晰信号的神经网络。本章将深入介绍两种主流的去噪网络架构：U-Net和Vision Transformer (ViT)。我们将学习它们的设计原理、实现细节，以及如何将它们应用于扩散模型中。通过本章的学习，你将掌握如何为不同类型的数据选择和设计合适的去噪网络。
+        </div>
+        
+        <h2>2.1 去噪网络在扩散模型中的作用</h2>
+        <p>[待完成：介绍去噪网络的核心任务、输入输出格式、时间嵌入的重要性]</p>
+        
+        <h2>2.2 U-Net架构详解</h2>
+        
+        <h3>2.2.1 U-Net的基本结构</h3>
+        <p>[待完成：U-Net的编码器-解码器结构、跳跃连接的作用]</p>
+        
+        <h3>2.2.2 扩散模型中的U-Net改进</h3>
+        <p>[待完成：时间嵌入、自注意力机制、GroupNorm、残差连接]</p>
+        
+        <h3>2.2.3 实现一个完整的U-Net</h3>
+        <p>[待完成：PyTorch代码实现，包括所有组件]</p>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 2.1：构建简化的U-Net</div>
+            <p>[待完成：实现一个最小化的U-Net结构]</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer2_1')">显示答案</button>
+            <div id="answer2_1" class="answer">
+                <p>[待完成：答案代码和解释]</p>
+            </div>
+        </div>
+        
+        <h2>2.3 Vision Transformer (ViT) 在扩散模型中的应用</h2>
+        
+        <h3>2.3.1 ViT的基本原理</h3>
+        <p>[待完成：图像分块、位置编码、自注意力机制]</p>
+        
+        <h3>2.3.2 DiT架构概览</h3>
+        <p>[待完成：Diffusion Transformer的设计思路，与U-Net的对比]</p>
+        
+        <h3>2.3.3 实现用于扩散的ViT</h3>
+        <p>[待完成：PyTorch实现，包括patch embedding、transformer blocks]</p>
+        
+        <div class="exercise">
+            <div class="exercise-title">练习 2.2：比较U-Net和ViT的计算复杂度</div>
+            <p>[待完成：分析两种架构的参数量和计算量]</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer2_2')">显示答案</button>
+            <div id="answer2_2" class="answer">
+                <p>[待完成：详细的复杂度分析]</p>
+            </div>
+        </div>
+        
+        <h2>2.4 条件信息的注入</h2>
+        
+        <h3>2.4.1 时间步嵌入</h3>
+        <p>[待完成：正弦位置编码、可学习嵌入、注入方式]</p>
+        
+        <h3>2.4.2 类别条件和文本条件</h3>
+        <p>[待完成：cross-attention、adaptive normalization]</p>
+        
+        <h2>2.5 实践：构建灵活的去噪网络</h2>
+        <p>[待完成：设计一个可配置的网络架构，支持不同的backbone]</p>
+        
+        <div class="code-collapsible">
+            <button class="code-toggle collapsed" onclick="toggleCode('fullUNetCode')">
+                <span>完整的U-Net实现代码</span>
+            </button>
+            <div id="fullUNetCode" class="code-content collapsed">
+                <pre><code class="language-python"># 待完成：完整的U-Net代码实现
+import torch
+import torch.nn as nn
+
+class UNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # TODO: 实现完整的U-Net
+        pass</code></pre>
+            </div>
+        </div>
+        
+        <h2>2.6 性能优化与实用技巧</h2>
+        
+        <h3>2.6.1 内存优化</h3>
+        <p>[待完成：gradient checkpointing、混合精度训练]</p>
+        
+        <h3>2.6.2 训练稳定性</h3>
+        <p>[待完成：初始化策略、归一化技术]</p>
+        
+        <div class="exercise">
+            <div class="exercise-title">综合练习：设计适合特定数据的去噪网络</div>
+            <p>[待完成：给定数据特性，选择和修改网络架构]</p>
+            <button class="answer-toggle" onclick="toggleAnswer('answer2_final')">显示答案</button>
+            <div id="answer2_final" class="answer">
+                <p>[待完成：设计思路和实现]</p>
+            </div>
+        </div>
+        
+        <div class="chapter-summary">
+            <h2>本章小结</h2>
+            <p>[待完成：总结U-Net和ViT的关键点，预告下一章DDPM的内容]</p>
+        </div>
+    </div>
+</body>
+</html>
