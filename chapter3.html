@@ -267,47 +267,32 @@ cosine_betas = cosine_beta_schedule(timesteps)
 quadratic_betas = quadratic_beta_schedule(timesteps)
 
 # 计算信噪比（更直观的指标）
+# 比较不同噪声调度
+linear_betas = linear_beta_schedule(1000)
+cosine_betas = cosine_beta_schedule(1000) 
+quadratic_betas = quadratic_beta_schedule(1000)
+
+# 计算信噪比
 def compute_snr(betas):
     alphas = 1 - betas
     alphas_cumprod = np.cumprod(alphas)
     return alphas_cumprod / (1 - alphas_cumprod)
 
-plt.figure(figsize=(15, 5))
-
-plt.subplot(1, 3, 1)
-plt.plot(linear_betas, label='Linear')
-plt.plot(cosine_betas, label='Cosine')
-plt.plot(quadratic_betas, label='Quadratic')
-plt.xlabel('Timestep')
-plt.ylabel('β_t')
-plt.title('Beta Schedules')
-plt.legend()
-
-plt.subplot(1, 3, 2)
-plt.semilogy(compute_snr(linear_betas), label='Linear')
-plt.semilogy(compute_snr(cosine_betas), label='Cosine')
-plt.semilogy(compute_snr(quadratic_betas), label='Quadratic')
-plt.xlabel('Timestep')
-plt.ylabel('SNR (log scale)')
-plt.title('Signal-to-Noise Ratio')
-plt.legend()
-
-plt.subplot(1, 3, 3)
-# 展示不同调度下的样本
+# 展示不同调度下的关键统计数据
 alphas_cumprod_linear = np.cumprod(1 - linear_betas)
 alphas_cumprod_cosine = np.cumprod(1 - cosine_betas)
 
 t_vis = [0, 250, 500, 750, 999]
-for i, t in enumerate(t_vis):
-    plt.scatter(i, alphas_cumprod_linear[t], color='blue', s=100)
-    plt.scatter(i, alphas_cumprod_cosine[t], color='red', s=100)
-    
-plt.xlabel('Visualization Step')
-plt.ylabel('√(ᾱ_t)')
-plt.title('Signal Preservation at Key Steps')
-plt.legend(['Linear', 'Cosine'])
-plt.tight_layout()
-plt.show()</pre>
+print("Signal preservation (√ᾱ_t) at key timesteps:")
+print("Timestep | Linear | Cosine")
+for t in t_vis:
+    print(f"{t:8d} | {np.sqrt(alphas_cumprod_linear[t]):.4f} | {np.sqrt(alphas_cumprod_cosine[t]):.4f}")
+
+print("\nSNR at key timesteps:")
+snr_linear = compute_snr(linear_betas)
+snr_cosine = compute_snr(cosine_betas)
+for t in t_vis:
+    print(f"{t:8d} | {snr_linear[t]:.4f} | {snr_cosine[t]:.4f}")</pre>
         </div>
         
         <div class="definition">
@@ -696,7 +681,7 @@ def get_loss_weight(t, strategy='simple', snr_gamma=5.0):
         # 基于L_t系数的重要性加权
         return beta[t]**2 / (2 * sigma[t]**2 * alpha[t] * (1 - alpha_bar[t]))
 
-# 可视化不同加权策略
+# 分析不同加权策略
 T = 1000
 t = torch.arange(T)
 beta = torch.linspace(0.0001, 0.02, T)
@@ -704,20 +689,27 @@ alpha = 1 - beta
 alpha_bar = torch.cumprod(alpha, dim=0)
 sigma = beta  # DDPM的选择
 
-plt.figure(figsize=(12, 6))
-
+# 计算不同策略的权重
 strategies = ['simple', 'snr', 'truncated_snr', 'importance']
+weight_stats = {}
+
 for strategy in strategies:
     weights = torch.tensor([get_loss_weight(i, strategy) for i in range(T)])
-    plt.plot(weights, label=strategy)
+    weight_stats[strategy] = {
+        'min': weights.min().item(),
+        'max': weights.max().item(),
+        'mean': weights.mean().item(),
+        'std': weights.std().item()
+    }
 
-plt.xlabel('Time Step t')
-plt.ylabel('Loss Weight')
-plt.title('Different Loss Weighting Strategies')
-plt.legend()
-plt.yscale('log')
-plt.grid(True, alpha=0.3)
-plt.show()</pre>
+# 打印权重统计
+print("Loss weight statistics for different strategies:")
+for strategy, stats in weight_stats.items():
+    print(f"\n{strategy}:")
+    print(f"  Min: {stats['min']:.6f}")
+    print(f"  Max: {stats['max']:.6f}")
+    print(f"  Mean: {stats['mean']:.6f}")
+    print(f"  Std: {stats['std']:.6f}")</pre>
         </div>
         
         <div class="definition">
@@ -936,17 +928,15 @@ def ddpm_sample(model, shape, num_timesteps=1000, device='cuda'):
         <p>为了更好地理解采样过程，让我们可视化不同时间步的中间结果：</p>
         
         <div class="code-block">
-<pre>def visualize_sampling_process(model, num_steps_to_show=10):
-    """可视化DDPM采样过程"""
-    import matplotlib.pyplot as plt
-    
+<pre>def get_sampling_trajectory(model, num_steps_to_show=10):
+    """获取DDPM采样过程的中间结果"""
     # 采样并保存中间结果
     shape = (1, 3, 32, 32)
     T = 1000
     
     # 选择要展示的时间步
     steps_to_show = torch.linspace(T-1, 0, num_steps_to_show, dtype=torch.long)
-    intermediate_images = []
+    intermediate_results = []
     
     # 初始化
     x_t = torch.randn(shape, device='cuda')
@@ -966,18 +956,18 @@ def ddpm_sample(model, shape, num_timesteps=1000, device='cuda'):
         if t in steps_to_show:
             # 将x_t映射到[0, 1]范围（用于可视化）
             img = (x_t.clamp(-1, 1) + 1) / 2
-            intermediate_images.append(img.cpu())
+            intermediate_results.append({
+                'timestep': t,
+                'image': img.cpu()
+            })
     
-    # 绘制结果
-    fig, axes = plt.subplots(1, len(intermediate_images), figsize=(20, 4))
-    for i, (img, t) in enumerate(zip(intermediate_images, steps_to_show)):
-        axes[i].imshow(img[0].permute(1, 2, 0))
-        axes[i].set_title(f't = {t.item()}')
-        axes[i].axis('off')
-    
-    plt.suptitle('DDPM Sampling Process: From Noise to Image')
-    plt.tight_layout()
-    plt.show()</pre>
+    return intermediate_results
+
+# 使用示例
+trajectory = get_sampling_trajectory(model, num_steps_to_show=10)
+print(f"Saved {len(trajectory)} intermediate results")
+for i, result in enumerate(trajectory):
+    print(f"Step {i}: t={result['timestep']}, shape={result['image'].shape}")</pre>
         </div>
         
         <div class="visualization" style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px;">
@@ -1366,8 +1356,6 @@ def classifier_guidance(x_t, t, classifier, target_class):
             <div id="answer3_5_2" class="answer">
                 <pre>def temperature_ablation_study(model, seed=42):
     """温度参数消融实验"""
-    import matplotlib.pyplot as plt
-    
     shape = (1, 3, 32, 32)
     
     # 实验1：初始温度的影响
@@ -1400,40 +1388,37 @@ def classifier_guidance(x_t, t, classifier, target_class):
         )
         noise_results.append(sample)
     
-    # 可视化
-    fig, axes = plt.subplots(2, max(len(init_temps), len(noise_temps)), figsize=(15, 6))
+    # 分析结果
+    results = {
+        'init_temperature': {},
+        'noise_temperature': {}
+    }
     
-    # 绘制初始温度结果
-    for i, (temp, img) in enumerate(zip(init_temps, init_results)):
-        img_np = (img[0].clamp(-1, 1) + 1) / 2
-        axes[0, i].imshow(img_np.permute(1, 2, 0).cpu())
-        axes[0, i].set_title(f'T_init={temp}')
-        axes[0, i].axis('off')
-    
-    # 绘制噪声温度结果
-    for i, (temp, img) in enumerate(zip(noise_temps, noise_results)):
-        img_np = (img[0].clamp(-1, 1) + 1) / 2
-        axes[1, i].imshow(img_np.permute(1, 2, 0).cpu())
-        axes[1, i].set_title(f'T_noise={temp}')
-        axes[1, i].axis('off')
-    
-    # 隐藏多余的子图
-    for i in range(len(noise_temps), len(init_temps)):
-        axes[1, i].axis('off')
-    
-    plt.tight_layout()
-    plt.show()
-    
-    # 计算多样性指标
-    print("初始温度对图像标准差的影响:")
+    # 计算初始温度的影响
+    print("初始温度对图像统计特性的影响:")
     for temp, img in zip(init_temps, init_results):
-        std = img.std().item()
-        print(f"  T_init={temp}: std={std:.4f}")
+        stats = {
+            'mean': img.mean().item(),
+            'std': img.std().item(),
+            'min': img.min().item(),
+            'max': img.max().item()
+        }
+        results['init_temperature'][temp] = stats
+        print(f"  T_init={temp}: mean={stats['mean']:.4f}, std={stats['std']:.4f}")
     
-    print("\n噪声温度对图像标准差的影响:")
+    # 计算噪声温度的影响
+    print("\n噪声温度对图像统计特性的影响:")
     for temp, img in zip(noise_temps, noise_results):
-        std = img.std().item()
-        print(f"  T_noise={temp}: std={std:.4f}")
+        stats = {
+            'mean': img.mean().item(),
+            'std': img.std().item(),
+            'min': img.min().item(),
+            'max': img.max().item()
+        }
+        results['noise_temperature'][temp] = stats
+        print(f"  T_noise={temp}: mean={stats['mean']:.4f}, std={stats['std']:.4f}")
+    
+    return results
 
 # 额外分析：多次采样的多样性
 def diversity_analysis(model, num_samples=100):
@@ -1605,69 +1590,23 @@ def diagnose_smoothness(model, num_samples=10):
         
         <h4>问题3：生成速度极慢</h4>
         
-        <div class="code-block">
-<pre># 性能分析工具
-class SamplingProfiler:
-    """采样性能分析器"""
-    def __init__(self):
-        self.timings = defaultdict(list)
-    
-    def profile_sampling(self, model, shape=(1, 3, 32, 32), num_steps=1000):
-        """详细分析采样各阶段耗时"""
-        import time
-        
-        # 初始化
-        start_total = time.time()
-        x_t = torch.randn(shape, device='cuda')
-        
-        # 预计算
-        start_precompute = time.time()
-        betas = linear_beta_schedule(num_steps).cuda()
-        alphas = 1 - betas
-        alphas_bar = torch.cumprod(alphas, dim=0)
-        sqrt_alphas = torch.sqrt(alphas)
-        sqrt_one_minus_alphas_bar = torch.sqrt(1 - alphas_bar)
-        self.timings['precompute'].append(time.time() - start_precompute)
-        
-        # 采样循环
-        for t in reversed(range(num_steps)):
-            # 模型推理
-            start_inference = time.time()
-            t_tensor = torch.full((shape[0],), t, device='cuda', dtype=torch.long)
-            with torch.no_grad():
-                epsilon_pred = model(x_t, t_tensor)
-            torch.cuda.synchronize()
-            self.timings['inference'].append(time.time() - start_inference)
+        <div class="note-box">
+            <div class="box-title">性能分析与优化</div>
+            <p>DDPM的主要性能瓶颈在于需要1000步迭代，每步都需要通过U-Net进行一次前向传播。典型的性能特征：</p>
+            <ul>
+                <li><strong>预计算阶段</strong>：约0.1秒，包括噪声调度的计算</li>
+                <li><strong>模型推理</strong>：每步15-50ms（取决于模型大小和GPU），总计15-50秒</li>
+                <li><strong>更新计算</strong>：每步1-2ms，相对可忽略</li>
+            </ul>
             
-            # 更新计算
-            start_update = time.time()
-            mean = (x_t - betas[t] / sqrt_one_minus_alphas_bar[t] * epsilon_pred) / sqrt_alphas[t]
-            if t > 0:
-                noise = torch.randn_like(x_t)
-                std = torch.sqrt(betas[t])
-                x_t = mean + std * noise
-            else:
-                x_t = mean
-            torch.cuda.synchronize()
-            self.timings['update'].append(time.time() - start_update)
-        
-        total_time = time.time() - start_total
-        
-        # 分析结果
-        print(f"总耗时: {total_time:.2f}秒")
-        print(f"预计算: {sum(self.timings['precompute']):.3f}秒")
-        print(f"模型推理: {sum(self.timings['inference']):.2f}秒 "
-              f"({np.mean(self.timings['inference'])*1000:.1f}ms/步)")
-        print(f"更新计算: {sum(self.timings['update']):.2f}秒 "
-              f"({np.mean(self.timings['update'])*1000:.1f}ms/步)")
-        
-        # 优化建议
-        if np.mean(self.timings['inference']) > 0.05:  # 50ms
-            print("\n优化建议:")
-            print("  1. 考虑使用更小的模型")
-            print("  2. 启用混合精度推理")
-            print("  3. 使用torch.compile()优化")
-            print("  4. 考虑DDIM等快速采样方法")</pre>
+            <p><strong>优化建议</strong>：</p>
+            <ol>
+                <li>使用更小的模型架构（减少通道数或层数）</li>
+                <li>启用混合精度推理（torch.cuda.amp）</li>
+                <li>使用torch.compile()进行图优化（PyTorch 2.0+）</li>
+                <li>采用DDIM等快速采样方法（可减少到50步以下）</li>
+                <li>批量生成以提高GPU利用率</li>
+            </ol>
         </div>
         
         <h4>问题4：内存溢出（OOM）</h4>
@@ -1732,20 +1671,20 @@ def diagnose_memory_usage(model, batch_sizes=[1, 2, 4, 8, 16]):
         <h4>可视化调试工具</h4>
         
         <div class="code-block">
-<pre>def visualize_sampling_debug(model, save_path="debug_sampling.png"):
-    """可视化采样过程用于调试"""
-    import matplotlib.pyplot as plt
-    from matplotlib.gridspec import GridSpec
-    
+<pre>def analyze_sampling_debug(model):
+    """分析采样过程用于调试"""
     # 设置
     shape = (1, 3, 32, 32)
     checkpoints = [999, 800, 600, 400, 200, 100, 50, 20, 10, 0]
     
     # 收集数据
     x_t = torch.randn(shape, device='cuda')
-    x_t_history = [x_t.cpu()]
-    pred_x0_history = []
-    noise_pred_history = []
+    debug_data = {
+        'x_t_history': [x_t.cpu()],
+        'pred_x0_history': [],
+        'noise_pred_history': [],
+        'noise_stats': []
+    }
     
     # 采样并记录
     betas = linear_beta_schedule(1000).cuda()
@@ -1771,50 +1710,36 @@ def diagnose_memory_usage(model, batch_sizes=[1, 2, 4, 8, 16]):
         
         # 记录检查点
         if t in checkpoints:
-            x_t_history.append(x_t.cpu())
-            pred_x0_history.append(pred_x0.cpu())
-            noise_pred_history.append(epsilon_pred.cpu())
+            debug_data['x_t_history'].append(x_t.cpu())
+            debug_data['pred_x0_history'].append(pred_x0.cpu())
+            debug_data['noise_pred_history'].append(epsilon_pred.cpu())
+            debug_data['noise_stats'].append({
+                't': t,
+                'mean': epsilon_pred.mean().item(),
+                'std': epsilon_pred.std().item(),
+                'min': epsilon_pred.min().item(),
+                'max': epsilon_pred.max().item()
+            })
     
-    # 创建可视化
-    fig = plt.figure(figsize=(15, 10))
-    gs = GridSpec(4, len(checkpoints), figure=fig)
+    # 打印分析结果
+    print("采样过程调试分析:")
+    print("==================")
+    print("\n噪声预测统计:")
+    print("Timestep | Mean      | Std       | Min       | Max")
+    print("-" * 55)
+    for stats in debug_data['noise_stats']:
+        print(f"{stats['t']:8d} | {stats['mean']:9.6f} | {stats['std']:9.6f} | {stats['min']:9.6f} | {stats['max']:9.6f}")
     
-    # 绘制x_t
-    for i, (t, x) in enumerate(zip(checkpoints, x_t_history)):
-        ax = fig.add_subplot(gs[0, i])
-        img = (x[0].clamp(-1, 1) + 1) / 2
-        ax.imshow(img.permute(1, 2, 0))
-        ax.set_title(f't={t}')
-        ax.axis('off')
+    # 检查x_0预测的稳定性
+    print("\nx_0预测稳定性分析:")
+    for i, (t, x0) in enumerate(zip(checkpoints[:-1], debug_data['pred_x0_history'])):
+        x0_range = x0.max().item() - x0.min().item()
+        x0_clipped = (x0 < -1).sum().item() + (x0 > 1).sum().item()
+        total_pixels = x0.numel()
+        clip_ratio = x0_clipped / total_pixels
+        print(f"t={t:3d}: range={x0_range:.3f}, clipped pixels={clip_ratio:.1%}")
     
-    # 绘制预测的x_0
-    for i, (t, x0) in enumerate(zip(checkpoints[:-1], pred_x0_history)):
-        ax = fig.add_subplot(gs[1, i])
-        img = (x0[0].clamp(-1, 1) + 1) / 2
-        ax.imshow(img.permute(1, 2, 0))
-        ax.set_title(f'pred x_0')
-        ax.axis('off')
-    
-    # 绘制噪声预测的统计
-    ax = fig.add_subplot(gs[2:, :])
-    t_values = checkpoints[:-1]
-    means = [eps.mean().item() for eps in noise_pred_history]
-    stds = [eps.std().item() for eps in noise_pred_history]
-    
-    ax.plot(t_values, means, 'b-', label='Mean')
-    ax.plot(t_values, stds, 'r-', label='Std')
-    ax.axhline(y=0, color='b', linestyle='--', alpha=0.5)
-    ax.axhline(y=1, color='r', linestyle='--', alpha=0.5)
-    ax.set_xlabel('Time step')
-    ax.set_ylabel('Statistics')
-    ax.set_title('Noise Prediction Statistics')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    ax.invert_xaxis()
-    
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
-    print(f"调试可视化已保存到 {save_path}")</pre>
+    return debug_data</pre>
         </div>
         
         <div class="exercise">
@@ -2001,7 +1926,7 @@ diagnostics.run_full_diagnostics()</pre>
             <li>输出预测的噪声 $\epsilon_\theta(x_t, t)$</li>
         </ul>
 
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2096,7 +2021,7 @@ class AttentionBlock(nn.Module):
         <h4>轻量级DDPM U-Net</h4>
         <p>对于简单任务（如MNIST），可以使用更轻量的架构：</p>
 
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2227,7 +2152,7 @@ def compare_model_sizes():
         <h3>3.6.2 训练循环</h3>
         <p>现在让我们实现完整的DDPM训练循环。这个实现包含了前面章节介绍的所有关键组件。</p>
 
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2378,7 +2303,7 @@ def train_ddpm(model, train_loader, num_epochs=100, lr=2e-4,
         # 定期生成样本
         if (epoch + 1) % save_interval == 0:
             samples = trainer.sample(16)
-            plot_samples(samples, epoch + 1)
+            save_samples(samples, epoch + 1)
             
             # 保存检查点
             torch.save({
@@ -2390,26 +2315,28 @@ def train_ddpm(model, train_loader, num_epochs=100, lr=2e-4,
     
     return trainer, losses
 
-def plot_samples(samples, epoch):
-    """可视化生成的样本"""
-    samples = samples.cpu().numpy()
-    fig, axes = plt.subplots(4, 4, figsize=(8, 8))
+def save_samples(samples, epoch, save_dir='./samples'):
+    """保存生成的样本"""
+    import os
+    os.makedirs(save_dir, exist_ok=True)
     
-    for i, ax in enumerate(axes.flat):
-        if i < len(samples):
-            # 假设是单通道图像（如MNIST）
-            img = samples[i].squeeze()
-            ax.imshow(img, cmap='gray')
-            ax.axis('off')
+    # 保存为PyTorch张量格式
+    torch.save(samples, os.path.join(save_dir, f'samples_epoch_{epoch}.pt'))
     
-    plt.suptitle(f'Generated Samples - Epoch {epoch}')
-    plt.tight_layout()
-    plt.savefig(f'samples_epoch_{epoch}.png')
-    plt.close()</pre>
+    # 可选：保存为单独的图像文件
+    if samples.shape[1] == 1:  # 单通道图像
+        from torchvision.utils import save_image
+        # 将值域从[-1, 1]映射到[0, 1]
+        samples_normalized = (samples + 1) / 2
+        save_image(samples_normalized, 
+                  os.path.join(save_dir, f'grid_epoch_{epoch}.png'),
+                  nrow=4, normalize=False)
+    
+    print(f"已保存 {len(samples)} 个样本到 {save_dir}")</pre>
         </div>
 
         <h4>使用示例：在MNIST上训练DDPM</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2446,14 +2373,12 @@ trainer, losses = train_ddpm(
 # 生成新样本
 new_samples = trainer.sample(64, image_size=(1, 28, 28))
 
-# 可视化训练损失
-plt.figure(figsize=(10, 5))
-plt.plot(losses)
-plt.xlabel('Epoch')
-plt.ylabel('Average Loss')
-plt.title('DDPM Training Loss')
-plt.grid(True)
-plt.show()</pre>
+# 分析训练损失
+print("训练损失统计:")
+print(f"  初始损失: {losses[0]:.4f}")
+print(f"  最终损失: {losses[-1]:.4f}")
+print(f"  最低损失: {min(losses):.4f} (Epoch {losses.index(min(losses)) + 1})")
+print(f"  损失下降: {(losses[0] - losses[-1]) / losses[0] * 100:.1f}%")</pre>
         </div>
 
         <div class="note-box">
@@ -2467,7 +2392,7 @@ plt.show()</pre>
         </div>
 
         <h4>高级训练技术</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2543,7 +2468,7 @@ def train_ddpm_with_ema(model, train_loader, num_epochs=100):
         if (epoch + 1) % 10 == 0:
             ema.apply_shadow()
             samples = trainer.sample(16)
-            plot_samples(samples, epoch + 1)
+            save_samples(samples, epoch + 1)
             ema.restore()
     
     return trainer, ema</pre>
@@ -2613,7 +2538,7 @@ for epoch in range(num_epochs):
         </div>
 
         <h4>FID计算实现</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2710,7 +2635,7 @@ class FIDCalculator:
         </div>
 
         <h4>Inception Score实现</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2766,7 +2691,7 @@ class FIDCalculator:
         </div>
 
         <h4>综合评估工具</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2843,55 +2768,29 @@ class FIDCalculator:
         
         return np.mean(distances)
     
-    def visualize_results(self, results, samples, save_path='evaluation_results.png'):
-        """可视化评估结果"""
-        fig = plt.figure(figsize=(15, 10))
+    def save_results(self, results, samples, save_path='evaluation_results.pt'):
+        """保存评估结果"""
+        # 保存样本和评估指标
+        torch.save({
+            'samples': samples,
+            'metrics': results,
+            'timestamp': np.datetime64('now')
+        }, save_path)
         
-        # 生成样本展示
-        gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+        # 打印评估报告
+        print("\n" + "="*50)
+        print("评估结果报告")
+        print("="*50)
+        print(f"FID Score: {results['fid']:.2f} (越低越好)")
+        print(f"Inception Score: {results['is_mean']:.2f} ± {results['is_std']:.2f} (越高越好)")
+        print(f"Diversity Score: {results['diversity']:.4f} (越高越好)")
+        print(f"\n结果已保存到: {save_path}")
         
-        # 显示生成样本
-        ax_samples = fig.add_subplot(gs[0:2, :])
-        n_show = min(64, len(samples))
-        grid_size = int(np.sqrt(n_show))
-        
-        sample_grid = []
-        for i in range(grid_size):
-            row = []
-            for j in range(grid_size):
-                idx = i * grid_size + j
-                if idx < n_show:
-                    img = samples[idx].squeeze().numpy()
-                    row.append(img)
-            if row:
-                sample_grid.append(np.hstack(row))
-        sample_grid = np.vstack(sample_grid)
-        
-        ax_samples.imshow(sample_grid, cmap='gray')
-        ax_samples.set_title('Generated Samples', fontsize=16)
-        ax_samples.axis('off')
-        
-        # 显示评估指标
-        ax_metrics = fig.add_subplot(gs[2, :])
-        metrics_text = f"""
-        Evaluation Metrics:
-        • FID Score: {results['fid']:.2f} (lower is better)
-        • Inception Score: {results['is_mean']:.2f} ± {results['is_std']:.2f} (higher is better)
-        • Diversity Score: {results['diversity']:.4f} (higher is better)
-        """
-        ax_metrics.text(0.1, 0.5, metrics_text, fontsize=14, 
-                       verticalalignment='center', transform=ax_metrics.transAxes)
-        ax_metrics.axis('off')
-        
-        plt.tight_layout()
-        plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        plt.show()
-        
-        return fig</pre>
+        return results</pre>
         </div>
 
         <h4>使用示例</h4>
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -2907,12 +2806,12 @@ print(f"FID Score: {results['fid']:.2f}")
 print(f"Inception Score: {results['is_mean']:.2f} ± {results['is_std']:.2f}")
 print(f"Diversity Score: {results['diversity']:.4f}")
 
-# 可视化结果
-evaluator.visualize_results(results, generated_samples)
+# 保存结果
+evaluator.save_results(results, generated_samples)
 
-# 生成采样轨迹可视化
-def visualize_sampling_trajectory(trainer, num_steps_show=10):
-    """可视化采样轨迹"""
+# 分析采样轨迹
+def analyze_sampling_trajectory(trainer, num_steps_show=10):
+    """分析采样轨迹"""
     # 生成带轨迹的样本
     samples, trajectory = trainer.sample(4, return_trajectory=True)
     
@@ -2920,23 +2819,31 @@ def visualize_sampling_trajectory(trainer, num_steps_show=10):
     total_steps = len(trajectory)
     step_indices = np.linspace(0, total_steps-1, num_steps_show, dtype=int)
     
-    fig, axes = plt.subplots(4, num_steps_show, figsize=(20, 8))
+    print("\n采样轨迹分析:")
+    print("="*50)
+    print(f"总步数: {trainer.num_timesteps}")
+    print(f"轨迹采样点: {len(step_indices)}")
     
-    for i in range(4):
-        for j, step_idx in enumerate(step_indices):
-            img = trajectory[step_idx][i].squeeze().numpy()
-            axes[i, j].imshow(img, cmap='gray')
-            axes[i, j].axis('off')
-            if i == 0:
-                t = trainer.num_timesteps - step_idx * 100 if step_idx > 0 else trainer.num_timesteps
-                axes[i, j].set_title(f't={t}')
+    # 分析每个阶段的统计特性
+    for i, step_idx in enumerate(step_indices):
+        t = trainer.num_timesteps - step_idx * 100 if step_idx > 0 else trainer.num_timesteps
+        img_batch = trajectory[step_idx]
+        
+        stats = {
+            'mean': img_batch.mean().item(),
+            'std': img_batch.std().item(),
+            'min': img_batch.min().item(),
+            'max': img_batch.max().item()
+        }
+        
+        print(f"\n步骤 {i+1}/{num_steps_show} (t={t}):")
+        print(f"  均值: {stats['mean']:6.3f}, 标准差: {stats['std']:6.3f}")
+        print(f"  范围: [{stats['min']:6.3f}, {stats['max']:6.3f}]")
     
-    plt.suptitle('Sampling Trajectory: From Noise to Image', fontsize=16)
-    plt.tight_layout()
-    plt.show()
+    return samples, trajectory
 
-# 可视化采样轨迹
-visualize_sampling_trajectory(trainer)</pre>
+# 分析采样轨迹
+final_samples, full_trajectory = analyze_sampling_trajectory(trainer)</pre>
         </div>
 
         <div class="exercise">
@@ -3026,7 +2933,7 @@ print(f"Precision: {precision:.3f}, Recall: {recall:.3f}")</pre>
 
         <h3>3.7.2 性能分析</h3>
         
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -3084,40 +2991,29 @@ print(f"Precision: {precision:.3f}, Recall: {recall:.3f}")</pre>
     
     return results
 
-# 可视化性能分析
-def plot_performance_analysis(results):
-    """可视化性能分析结果"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    
-    # 采样时间 vs 步数
+# 分析性能结果
+def analyze_performance_results(results):
+    """分析性能测试结果"""
     steps = [r['steps'] for r in results['sampling_times']]
     times = [r['time_per_sample'] for r in results['sampling_times']]
     
-    ax1.plot(steps, times, 'o-', linewidth=2, markersize=8)
-    ax1.set_xlabel('Number of Sampling Steps')
-    ax1.set_ylabel('Time per Sample (seconds)')
-    ax1.set_title('DDPM Sampling Time vs Steps')
-    ax1.grid(True, alpha=0.3)
-    ax1.set_xscale('log')
-    ax1.set_yscale('log')
+    print("\n性能分析报告:")
+    print("="*60)
+    print("步数    | 每样本时间(s) | 相对1000步加速比 | 质量影响")
+    print("-"*60)
     
-    # 理论加速比
     baseline_time = times[-1]  # 1000步的时间
-    speedups = [baseline_time / t for t in times]
+    for i, (step, time) in enumerate(zip(steps, times)):
+        speedup = baseline_time / time
+        quality_impact = "高" if step >= 500 else ("中" if step >= 100 else "低")
+        print(f"{step:8d} | {time:13.4f} | {speedup:15.1f}x | {quality_impact}")
     
-    ax2.bar(range(len(steps)), speedups, tick_label=[str(s) for s in steps])
-    ax2.set_xlabel('Number of Sampling Steps')
-    ax2.set_ylabel('Speedup vs 1000 Steps')
-    ax2.set_title('Potential Speedup with Fewer Steps')
-    ax2.grid(True, alpha=0.3, axis='y')
+    print("\n关键发现:")
+    print(f"- 从1000步减少到50步可获得 {baseline_time/times[1]:.1f}x 加速")
+    print(f"- 每步平均耗时: {times[-1]/1000*1000:.2f}ms")
+    print(f"- 主要瓶颈: U-Net前向传播")
     
-    # 添加数值标签
-    for i, (s, speedup) in enumerate(zip(steps, speedups)):
-        ax2.text(i, speedup + 0.5, f'{speedup:.1f}x', 
-                ha='center', va='bottom')
-    
-    plt.tight_layout()
-    plt.show()</pre>
+    return results</pre>
         </div>
 
         <h3>3.7.3 改进方向概览</h3>
@@ -3182,7 +3078,7 @@ def plot_performance_analysis(results):
 
         <h3>3.7.4 实验：不同改进的效果</h3>
         
-        <div class="code-container">
+        <div class="code-block">
             <div class="code-header">
                 <span>Python</span>
                 <button class="copy-btn" onclick="copyCode(this)">复制代码</button>
@@ -3328,22 +3224,38 @@ def simplified_ddim_sample(model, shape, num_inference_steps=50,
     return x_t
 
 # 测试不同步数和eta值
-fig, axes = plt.subplots(3, 4, figsize=(12, 9))
+test_configs = [
+    {'steps': 10, 'etas': [0.0, 0.3, 0.7, 1.0]},
+    {'steps': 25, 'etas': [0.0, 0.3, 0.7, 1.0]},
+    {'steps': 50, 'etas': [0.0, 0.3, 0.7, 1.0]}
+]
 
-for i, num_steps in enumerate([10, 25, 50]):
-    for j, eta in enumerate([0.0, 0.3, 0.7, 1.0]):
+print("DDIM采样测试结果:")
+print("="*60)
+print("步数 | η值  | 采样时间(s) | 相对质量评估")
+print("-"*60)
+
+for config in test_configs:
+    num_steps = config['steps']
+    for eta in config['etas']:
+        import time
+        start = time.time()
         samples = simplified_ddim_sample(
             model, shape=(1, 1, 28, 28), 
             num_inference_steps=num_steps, 
             eta=eta
         )
-        axes[i, j].imshow(samples[0, 0].cpu(), cmap='gray')
-        axes[i, j].set_title(f'Steps={num_steps}, η={eta}')
-        axes[i, j].axis('off')
+        elapsed = time.time() - start
+        
+        # 简单的质量评估（基于样本统计）
+        quality = "高" if samples.std() > 0.3 else ("中" if samples.std() > 0.2 else "低")
+        
+        print(f"{num_steps:4d} | {eta:4.1f} | {elapsed:11.4f} | {quality}")
 
-plt.suptitle('DDIM Sampling: Steps vs Stochasticity (η)')
-plt.tight_layout()
-plt.show()</pre>
+print("\n关键观察:")
+print("- η=0 (确定性采样) 速度最快，质量稳定")
+print("- η=1 (完全随机，等同于DDPM) 质量最高但速度慢")
+print("- 步数减少显著提升速度，但可能影响质量")</pre>
             </div>
         </div>
 
