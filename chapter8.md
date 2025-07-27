@@ -55,7 +55,8 @@ DDIM通过重新参数化前向过程，巧妙地解决了这些问题。
 DDIM的关键洞察是：存在一族非马尔可夫前向过程，它们具有相同的边缘分布 $q(\mathbf{x}_t|\mathbf{x}_0)$ ，但对应的反向过程可以是确定性的。
 
 具体地，DDIM定义了一个新的前向过程：
-$$q_\sigma(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \sigma_t^2\mathbf{I})$$
+$$q_\sigma(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \sigma_t^2\mathbf{I})
+$$
 
 其中：
 $$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \sqrt{\bar{\alpha}_{t-1}}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_{t-1} - \sigma_t^2} \cdot \frac{\mathbf{x}_t - \sqrt{\bar{\alpha}_t}\mathbf{x}_0}{\sqrt{1 - \bar{\alpha}_t}}$$
@@ -114,7 +115,8 @@ DDIM最小化了一个修改后的变分下界，其中KL散度项被重新加�
 **2. 数值ODE求解器视角**
 
 当 $\eta = 0$ 时，DDIM等价于求解概率流ODE：
-$$\frac{d\mathbf{x}_t}{dt} = -\frac{1}{2}\beta_t\left[\mathbf{x}_t + \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)\right]$$
+$$\frac{d\mathbf{x}_t}{dt} = -\frac{1}{2}\beta_t\left[\mathbf{x}_t + \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)\right]
+$$
 
 **3. 最优传输视角**
 
@@ -136,7 +138,8 @@ $$d\mathbf{x} = \mathbf{f}(\mathbf{x}, t)dt + g(t)d\mathbf{w}$$
 - $\mathbf{w}$ ：标准维纳过程
 
 对于DDPM/DDIM，相应的SDE是：
-$$d\mathbf{x} = -\frac{1}{2}\beta(t)\mathbf{x}dt + \sqrt{\beta(t)}d\mathbf{w}$$
+$$d\mathbf{x} = -\frac{1}{2}\beta(t)\mathbf{x}dt + \sqrt{\beta(t)}d\mathbf{w}
+$$
 
 ### 8.2.2 反向时间SDE
 
@@ -234,10 +237,12 @@ $$\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau) = \sum_{n=0}^{k-1} \frac{(
 DPM-Solver++引入了两个关键改进：
 
 1. **数据预测参数化**：预测 $\mathbf{x}_0$ 而非 $\boldsymbol{\epsilon}$
-   $$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sigma_t\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\alpha_t}$$
+   
+$$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sigma_t\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\alpha_t}$$
 
 2. **thresholding**：动态裁剪防止数值不稳定
-   $$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)$$
+   
+$$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)$$
 
 **算法伪代码**：
 
@@ -297,7 +302,8 @@ $$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|f_\thet
 
 一致性模型(Consistency Models)学习映射函数 $f_\theta$ ，使得同一轨迹上的所有点映射到相同的起点：
 
-$$f_\theta(\mathbf{x}_t, t) = f_\theta(\mathbf{x}_s, s), \quad \forall s, t \in [0, T]$$
+$$f_\theta(\mathbf{x}_t, t) = f_\theta(\mathbf{x}_s, s), \quad \forall s, t \in [0, T]
+$$
 
 **自一致性损失**：
 $$\mathcal{L} = \mathbb{E}\left[\|f_\theta(\mathbf{x}_t, t) - f_{\theta^-}(\mathbf{x}_s, s)\|^2\right]$$

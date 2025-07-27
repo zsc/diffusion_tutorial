@@ -97,7 +97,8 @@
 **自动评估指标**：
 1. **困惑度（Perplexity）**：
    
-$$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x_i|x_{<i})\right)$$
+$$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x_i|x_{<i})\right)
+$$
 
 2. **BLEU分数**：
    
@@ -320,10 +321,12 @@ $$
 
 1. **VLB损失**：理论最优但可能不稳定
 2. **交叉熵损失**：
-   $$\mathcal{L}_\text{CE} = -\mathbb{E}_{x_0,t}\left[\log p_\theta(x_0|x_t)\right]
+   
+$$\mathcal{L}_\text{CE} = -\mathbb{E}_{x_0,t}\left[\log p_\theta(x_0|x_t)\right]
 $$
 3. **混合损失**：
-   $$\mathcal{L} = \mathcal{L}_\text{CE} + \lambda \mathcal{L}_\text{VLB}$$
+   
+$$\mathcal{L} = \mathcal{L}_\text{CE} + \lambda \mathcal{L}_\text{VLB}$$
 
 **训练算法**：
 ```

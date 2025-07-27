@@ -18,7 +18,8 @@ $$\nabla_x \log p(x) = \frac{\nabla_x p(x)}{p(x)}$$
 
 对于标准正态分布 $p(x) = \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2}}$ ：
 
-$$\log p(x) = -\frac{x^2}{2} - \frac{1}{2}\log(2\pi)$$
+$$\log p(x) = -\frac{x^2}{2} - \frac{1}{2}\log(2\pi)
+$$
 
 分数函数为：
 $$\nabla_x \log p(x) = -x$$
@@ -42,7 +43,8 @@ $$p(x) = \frac{1}{Z} \exp(-E(x)), \quad Z = \int \exp(-E(x)) dx$$
 
 但分数函数可以直接计算，无需知道 $Z$ ：
 
-$$\nabla_x \log p(x) = -\nabla_x E(x)$$
+$$\nabla_x \log p(x) = -\nabla_x E(x)
+$$
 
 **实例：Ising模型**
 
@@ -68,7 +70,8 @@ $$x_{t+1} = x_t + \epsilon \nabla_x \log p(x_t) + \sqrt{2\epsilon} \xi_t$$
 从几何角度看，分数函数定义了数据流形上的一个向量场。这个向量场有着优美的性质：
 
 **性质1：梯度流的不动点**
-$$\nabla_x \log p(x^*) = 0 \Leftrightarrow x^* \text{ 是 } p(x) \text{ 的局部极值点}$$
+$$\nabla_x \log p(x^*) = 0 \Leftrightarrow x^* \text{ 是 } p(x) \text{ 的局部极值点}
+$$
 
 **性质2：体积收缩**
 分数函数的散度反映了概率密度的局部曲率：
@@ -106,7 +109,8 @@ $$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\frac{1}{2}\|\nabla_x \log p_{mo
 
 **Hyvärinen的天才洞察**：通过分部积分，可以得到一个等价的目标函数，不需要真实分数：
 
-$$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\text{tr}(\nabla_x^2 \log p_{model}(x)) + \frac{1}{2}\|\nabla_x \log p_{model}(x)\|^2\right] + \text{const}$$
+$$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\text{tr}(\nabla_x^2 \log p_{model}(x)) + \frac{1}{2}\|\nabla_x \log p_{model}(x)\|^2\right] + \text{const}
+$$
 
 **🔬 研究线索：** 分数匹配的这种"隐式"特性是否可以推广到其他问题？考虑在因果推断、强化学习中的应用。隐式方法避免了直接估计难以处理的量，这个思想值得深入探索。
 
@@ -115,10 +119,12 @@ $$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\text{tr}(\nabla_x^2 \log p_{mod
 计算Hessian矩阵的迹 `torch.autograd.functional.hessian` 在高维情况下代价高昂。Vincent (2011) 提出了一个巧妙的替代方案：
 
 **核心思想**：向数据添加噪声，然后学习去噪
-$$\tilde{x} = x + \sigma \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)$$
+$$\tilde{x} = x + \sigma \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
+$$
 
 去噪分数匹配目标：
-$$\mathcal{L}_{DSM} = \mathbb{E}_{p_{data}(x)}\mathbb{E}_{\epsilon}\left[\frac{1}{2}\|s_\theta(\tilde{x}, \sigma) + \frac{\epsilon}{\sigma}\|^2\right]$$
+$$\mathcal{L}_{DSM} = \mathbb{E}_{p_{data}(x)}\mathbb{E}_{\epsilon}\left[\frac{1}{2}\|s_\theta(\tilde{x}, \sigma) + \frac{\epsilon}{\sigma}\|^2\right]
+$$
 
 **关键洞察**：这个目标函数在学习"如何去噪"，而去噪方向正是分数函数的方向！
 
@@ -131,7 +137,8 @@ $$\mathcal{L}_{DSM} = \mathbb{E}_{p_{data}(x)}\mathbb{E}_{\epsilon}\left[\frac{1
 
 **⚡ 实现挑战：** 计算高维Hessian的另一种方法是使用随机投影：
 
-$$\mathcal{L}_{SSM} = \mathbb{E}_{p_{data}}\mathbb{E}_{v \sim \mathcal{N}(0,I)}\left[v^T\nabla_x^2 \log p_{model}(x)v + \frac{1}{2}(v^T\nabla_x \log p_{model}(x))^2\right]$$
+$$\mathcal{L}_{SSM} = \mathbb{E}_{p_{data}}\mathbb{E}_{v \sim \mathcal{N}(0,I)}\left[v^T\nabla_x^2 \log p_{model}(x)v + \frac{1}{2}(v^T\nabla_x \log p_{model}(x))^2\right]
+$$
 
 这只需要计算方向导数，可以用 `torch.autograd.grad` 高效实现。但投影会损失信息，如何选择最优的投影方向仍是开放问题。
 
@@ -158,7 +165,8 @@ $$\mathcal{L}_{SSM} = \mathbb{E}_{p_{data}}\mathbb{E}_{v \sim \mathcal{N}(0,I)}\
 
 Song & Ermon (2019) 的关键创新是引入多个噪声尺度：
 
-$$\{\sigma_i\}_{i=1}^L, \quad \sigma_1 > \sigma_2 > \cdots > \sigma_L$$
+$$\{\sigma_i\}_{i=1}^L, \quad \sigma_1 > \sigma_2 > \cdots > \sigma_L
+$$
 
 **动机**：
 - 大噪声帮助覆盖整个空间，避免模式遗漏
@@ -242,7 +250,8 @@ $$x_{k+1} = x_k + \epsilon s_\theta(x_k) + \sqrt{2\epsilon}\xi_k$$
 标准Langevin采样很慢，几种加速技术：
 
 1. **预条件Langevin动力学**
-   $$dX_t = G(X_t)\nabla \log p(X_t)dt + \sqrt{2G(X_t)}dW_t$$
+   
+$$dX_t = G(X_t)\nabla \log p(X_t)dt + \sqrt{2G(X_t)}dW_t$$
    
    其中 $G(x)$ 是预条件矩阵。
 
@@ -281,10 +290,12 @@ $$x_{k+1} = x_k + \epsilon s_\theta(x_k) + \sqrt{2\epsilon}\xi_k$$
 关键发现：DDPM的去噪目标等价于分数匹配！
 
 DDPM学习：
-$$\mathbb{E}[\|\epsilon - \epsilon_\theta(x_t, t)\|^2]$$
+$$\mathbb{E}[\|\epsilon - \epsilon_\theta(x_t, t)\|^2]
+$$
 
 而加噪数据的分数函数：
-$$\nabla_{x_t} \log p_t(x_t) = -\frac{\epsilon}{\sqrt{1-\bar{\alpha}_t}}$$
+$$\nabla_{x_t} \log p_t(x_t) = -\frac{\epsilon}{\sqrt{1-\bar{\alpha}_t}}
+$$
 
 因此DDPM实际上在学习（重新缩放的）分数函数。
 
@@ -295,7 +306,8 @@ $$\nabla_{x_t} \log p_t(x_t) = -\frac{\epsilon}{\sqrt{1-\bar{\alpha}_t}}$$
 Song et al. (2021) 提出了统一的SDE框架：
 
 前向SDE：
-$$dx = f(x,t)dt + g(t)dW_t$$
+$$dx = f(x,t)dt + g(t)dW_t
+$$
 
 对应的反向SDE：
 $$dx = [f(x,t) - g(t)^2\nabla_x \log p_t(x)]dt + g(t)d\bar{W}_t$$
@@ -349,7 +361,8 @@ $$dx = [f(x,t) - \frac{1}{2}g(t)^2\nabla_x \log p_t(x)]dt$$
 给定条件 $y$ ，如何建模 $p(x|y)$ 的分数？
 
 **方法1：直接建模**
-$$s_\theta(x, y, t) \approx \nabla_x \log p_t(x|y)$$
+$$s_\theta(x, y, t) \approx \nabla_x \log p_t(x|y)
+$$
 
 **方法2：分类器引导**
 $$\nabla_x \log p(x|y) = \nabla_x \log p(x) + \nabla_x \log p(y|x)$$

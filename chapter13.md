@@ -229,7 +229,8 @@ highly detailed, artstation trending, by Greg Rutkowski"
 **技术原理**：
 
 1. **掩码条件扩散**：
-   $$\mathbf{x}_t = \mathbf{m} \odot \mathbf{x}_t^{\text{known}} + (1-\mathbf{m}) \odot \mathbf{x}_t^{\text{unknown}}$$
+   
+$$\mathbf{x}_t = \mathbf{m} \odot \mathbf{x}_t^{\text{known}} + (1-\mathbf{m}) \odot \mathbf{x}_t^{\text{unknown}}$$
    其中 $\mathbf{m}$ 是二值掩码，1表示保留区域，0表示修复区域。
 
 2. **边界融合**：
@@ -422,13 +423,13 @@ highly detailed, artstation trending, by Greg Rutkowski"
 - 批量应用
 
 **2. 智能批处理**：
-```python
-编辑管道 = [
-    检测人脸 → 美化处理,
-    识别天空 → 替换天空,
-    增强细节 → 色彩校正
-]
-```
+
+编辑管道的设计：
+- 检测人脸 → 美化处理
+- 识别天空 → 替换天空  
+- 增强细节 → 色彩校正
+
+这种流水线式的处理方式可以高效地批量处理图像。
 
 **3. API集成**：
 - RESTful接口
@@ -505,7 +506,8 @@ highly detailed, artstation trending, by Greg Rutkowski"
 **核心原理**：
 
 1. **条件扩散框架**：
-   $$p_\theta(\mathbf{x}_\text{HR}|\mathbf{x}_\text{LR}) = \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_\text{LR})$$
+   
+$$p_\theta(\mathbf{x}_\text{HR}|\mathbf{x}_\text{LR}) = \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_\text{LR})$$
 
 2. **退化建模**：
    - 不仅是简单下采样
@@ -760,7 +762,8 @@ highly detailed, artstation trending, by Greg Rutkowski"
 $$f_\theta(x, y, z) = \begin{cases}
 \text{SDF值} & \text{(形状表示)} \\
 (\mathbf{c}, \sigma) & \text{(NeRF表示)}
-\end{cases}$$
+\end{cases}
+$$
 
 扩散应用于：
 - 潜在代码
@@ -777,7 +780,8 @@ $$f_\theta(x, y, z) = \begin{cases}
 代表方法：DreamFusion、Magic3D
 
 核心技术：Score Distillation Sampling (SDS)
-$$\nabla_\theta \mathcal{L}_\text{SDS} = \mathbb{E}_{t,\epsilon}\left[w(t)(\epsilon_\phi(\mathbf{x}_t, t, y) - \epsilon)\frac{\partial \mathbf{x}}{\partial \theta}\right]$$
+$$\nabla_\theta \mathcal{L}_\text{SDS} = \mathbb{E}_{t,\epsilon}\left[w(t)(\epsilon_\phi(\mathbf{x}_t, t, y) - \epsilon)\frac{\partial \mathbf{x}}{\partial \theta}\right]
+$$
 
 流程：
 1. 文本编码（CLIP）

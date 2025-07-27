@@ -117,10 +117,12 @@ $$\mathbf{e}_{joint} = \text{MLP}(\mathbf{e}_t + \mathbf{e}_c)$$
 $$\mathbf{c}_{train} = \begin{cases}
 \mathbf{c} & \text{with probability } 1-p_{uncond} \\
 \varnothing & \text{with probability } p_{uncond}
-\end{cases}$$
+\end{cases}
+$$
 
 然后正常计算去噪损失：
-$$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{train})\|^2\right]$$
+$$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{train})\|^2\right]
+$$
 
 这是无分类器引导的基础，使模型能够同时进行条件和无条件生成。
 
@@ -173,7 +175,8 @@ $$\mathcal{L}_{total} = \mathcal{L}_{uncond} + \lambda_1\mathcal{L}_{class} + \l
 
 **变分下界的条件版本**：
 
-$$\log p_\theta(\mathbf{x}_0|\mathbf{c}) \geq \mathbb{E}_q\left[\log p_\theta(\mathbf{x}_0|\mathbf{x}_1, \mathbf{c}) - \sum_{t=2}^T D_{KL}(q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) \| p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}))\right]$$
+$$\log p_\theta(\mathbf{x}_0|\mathbf{c}) \geq \mathbb{E}_q\left[\log p_\theta(\mathbf{x}_0|\mathbf{x}_1, \mathbf{c}) - \sum_{t=2}^T D_{KL}(q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) \| p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}))\right]
+$$
 
 这保证了模型学习的是真实的条件分布。
 
@@ -210,7 +213,8 @@ $$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
 
 分类器引导的核心思想是使用外部分类器的梯度来引导扩散模型的采样过程。我们从贝叶斯规则开始：
 
-$$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$$
+$$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)
+$$
 
 第一项是无条件分数，第二项是分类器的梯度。这给出了条件采样的更新规则：
 
@@ -268,7 +272,8 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 
 不同时间步的梯度量级差异很大，需要自适应缩放。根据噪声水平调整：
 
-$$\nabla_{scaled} = \frac{1}{\sqrt{1-\bar{\alpha}_t}} \cdot \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$
+$$\nabla_{scaled} = \frac{1}{\sqrt{1-\bar{\alpha}_t}} \cdot \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)
+$$
 
 这种缩放补偿了不同噪声水平下的信号强度差异。
 
@@ -355,7 +360,8 @@ $$\tilde{\boldsymbol{\epsilon}} = \begin{cases}
 
 使用空间掩码 $\mathbf{M}$ 只对图像的特定区域应用引导：
 
-$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}(\mathbf{M} \odot \nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t))$$
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}(\mathbf{M} \odot \nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t))
+$$
 
 这允许精细的空间控制。
 
@@ -550,7 +556,8 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 
 根据预测的不确定性调整引导强度。一种方法是基于条件和无条件预测的差异：
 
-$$w_{adaptive} = w_{base} \cdot \exp(-\alpha \cdot ||\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)||)$$
+$$w_{adaptive} = w_{base} \cdot \exp(-\alpha \cdot ||\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)||)
+$$
 
 当预测差异较大时，说明模型对条件的理解存在不确定性，此时减小引导权重可以避免过度放大误差。
 
@@ -615,7 +622,8 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 **1. 基础负向提示**
 
 组合正向和负向条件的公式：
-$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]
+$$
 
 这个公式使得生成朝着正向条件移动，同时远离负向条件。
 
@@ -643,7 +651,8 @@ $$w_{neg} = w_{neg,base} \cdot (1 + \alpha \cdot \text{sim}(\mathbf{c}_{pos}, \m
 **1. 时间相关的引导**
 
 使用余弦调度的引导权重：
-$$w(t) = w_{min} + (w_{max} - w_{min}) \cdot \frac{1 + \cos(\pi \cdot t/T)}{2}$$
+$$w(t) = w_{min} + (w_{max} - w_{min}) \cdot \frac{1 + \cos(\pi \cdot t/T)}{2}
+$$
 
 这种调度在初期和末期使用较弱的引导，中期使用较强的引导，形成平滑的过渡。
 
@@ -732,7 +741,8 @@ $$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
 **1. 级联引导**
 
 级联引导通过逐步应用不同的条件来细化生成结果。每个阶段应用一个条件，并可选择地在阶段之间执行部分去噪：
-$$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w_i)$$
+$$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w_i)
+$$
 
 这种方法特别适合处理层次化的条件，如先应用全局布局条件，再应用局部细节条件。
 
