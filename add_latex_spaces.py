@@ -11,6 +11,9 @@ def add_spaces_around_latex(content):
     "我$a+b$，" -> "我 $a+b$ ，"
     "其中$x$是" -> "其中 $x$ 是"
     "文字$$公式$$" -> "文字\n$$公式$$"
+    
+    Also escapes underscores in LaTeX contexts:
+    "$x_i$" -> "$x\_i$"
     """
     # First, handle $$ blocks - ensure newline before starting $$
     # New approach: Find all $$ positions and process them correctly
@@ -67,6 +70,49 @@ def add_spaces_around_latex(content):
             
         # Replace in result
         result = result[:start_pos] + replacement + result[end_pos:]
+    
+    # Escape underscores within LaTeX contexts
+    # First, handle display math blocks $$...$$
+    display_blocks = []
+    i = 0
+    while i < len(result) - 1:
+        if result[i:i+2] == '$$':
+            start = i
+            i += 2
+            # Find the closing $$
+            while i < len(result) - 1:
+                if result[i:i+2] == '$$':
+                    end = i + 2
+                    display_blocks.append((start, end))
+                    i += 2
+                    break
+                i += 1
+        else:
+            i += 1
+    
+    # Process display blocks from end to beginning to avoid position shifts
+    for start, end in reversed(display_blocks):
+        block_content = result[start+2:end-2]
+        # Replace unescaped underscores
+        escaped_content = re.sub(r'(?<!\\)_', r'\_', block_content)
+        result = result[:start+2] + escaped_content + result[end-2:]
+    
+    # Now handle inline math $...$
+    # Pattern to match inline math expressions
+    inline_pattern = r'(?<!\$)\$([^\$\n]+?)\$(?!\$)'
+    matches = list(re.finditer(inline_pattern, result))
+    
+    # Process from end to beginning to avoid position shifts
+    for match in reversed(matches):
+        start_pos = match.start() + 1  # Position after the opening $
+        end_pos = match.end() - 1      # Position before the closing $
+        math_content = match.group(1)
+        
+        # Replace unescaped underscores
+        escaped_content = re.sub(r'(?<!\\)_', r'\_', math_content)
+        
+        # Replace the math content
+        result = result[:start_pos] + escaped_content + result[end_pos:]
     
     result = result.replace('\n$$', '\n\n$$').replace('\n\n\n$$', '\n\n$$')
     return result
