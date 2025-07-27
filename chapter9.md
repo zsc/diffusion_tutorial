@@ -40,13 +40,13 @@
 
 ### 9.1.1 条件分布的数学框架
 
-在条件扩散模型中，我们的目标是建模条件分布 $p(\mathbf{x}|\mathbf{c})$，其中 $\mathbf{x}$ 是数据（如图像），$\mathbf{c}$ 是条件信息（如类别标签、文本描述等）。
+在条件扩散模型中，我们的目标是建模条件分布 $p(\mathbf{x}|\mathbf{c})$ ，其中 $\mathbf{x}$ 是数据（如图像）， $\mathbf{c}$ 是条件信息（如类别标签、文本描述等）。
 
 条件扩散过程定义为：
-- **前向过程**：$q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$（与条件无关）
-- **反向过程**：$p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t, \mathbf{c}), \sigma_t^2\mathbf{I})$
+- **前向过程**： $q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$ （与条件无关）
+- **反向过程**： $p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t, \mathbf{c}), \sigma_t^2\mathbf{I})$
 
-关键在于如何设计和训练条件去噪网络 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$。
+关键在于如何设计和训练条件去噪网络 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$ 。
 
 ### 9.1.2 条件信息的注入方式
 
@@ -288,10 +288,10 @@ def train_noise_conditional_classifier(classifier, diffusion, dataloader):
 
 $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t) - s\sqrt{1 - \bar{\alpha}_t} \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$
 
-- $s = 0$：无条件生成
-- $s = 1$：标准条件生成
-- $s > 1$：强化条件，可能降低多样性
-- $s < 0$：负向引导，远离条件
+- $s = 0$ ：无条件生成
+- $s = 1$ ：标准条件生成
+- $s > 1$ ：强化条件，可能降低多样性
+- $s < 0$ ：负向引导，远离条件
 
 **采样算法**：
 ```python
@@ -458,7 +458,7 @@ grad = grad_ensemble / len(classifiers)
 基本原理基于：
 $$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$$
 
-CFG通过隐式估计 $\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$：
+CFG通过隐式估计 $\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$ ：
 $$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) - \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t)$$
 
 ### 9.3.2 训练策略：条件Dropout
@@ -492,9 +492,9 @@ CFG的采样公式：
 $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = (1 + w)\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - w\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$$
 
 其中：
-- $w$：引导权重（guidance weight）
-- $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$：条件预测
-- $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$：无条件预测
+- $w$ ：引导权重（guidance weight）
+- $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$ ：条件预测
+- $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$ ：无条件预测
 
 这可以重写为：
 $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
@@ -589,7 +589,7 @@ CFG可以视为变分推断中的重要性加权：
 在噪声预测空间中，CFG执行外推：
 - 从无条件预测出发
 - 沿着指向条件预测的方向移动
-- 可能超越条件预测（当 $w > 1$）
+- 可能超越条件预测（当 $w > 1$ ）
 
 <details>
 <summary>**练习 9.3：CFG的深入分析**</summary>

@@ -43,7 +43,7 @@
 回顾DDPM的反向过程：
 $$p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
 
-每一步都需要添加随机噪声 $\sigma_t \boldsymbol{\epsilon}$，这导致：
+每一步都需要添加随机噪声 $\sigma_t \boldsymbol{\epsilon}$ ，这导致：
 1. **采样的随机性**：相同的 $\mathbf{x}_T$ 会生成不同的 $\mathbf{x}_0$
 2. **步数依赖**：减少步数会显著降低质量
 3. **不可逆性**：无法从生成的图像精确重构初始噪声
@@ -52,7 +52,7 @@ DDIM通过重新参数化前向过程，巧妙地解决了这些问题。
 
 ### 8.1.2 DDIM的核心创新
 
-DDIM的关键洞察是：存在一族非马尔可夫前向过程，它们具有相同的边缘分布 $q(\mathbf{x}_t|\mathbf{x}_0)$，但对应的反向过程可以是确定性的。
+DDIM的关键洞察是：存在一族非马尔可夫前向过程，它们具有相同的边缘分布 $q(\mathbf{x}_t|\mathbf{x}_0)$ ，但对应的反向过程可以是确定性的。
 
 具体地，DDIM定义了一个新的前向过程：
 $$q_\sigma(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \sigma_t^2\mathbf{I})$$
@@ -68,9 +68,9 @@ DDIM的采样公式为：
 $$\mathbf{x}_{t-1} = \sqrt{\bar{\alpha}_{t-1}}\underbrace{\left(\frac{\mathbf{x}_t - \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sqrt{\bar{\alpha}_t}}\right)}_{\text{预测的 } \mathbf{x}_0} + \underbrace{\sqrt{1 - \bar{\alpha}_{t-1} - \sigma_t^2} \cdot \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}_{\text{方向指向 } \mathbf{x}_t} + \underbrace{\sigma_t \boldsymbol{\epsilon}}_{\text{随机噪声}}$$
 
 关键参数 $\eta$ 控制随机性：
-- $\eta = 0$：完全确定性（DDIM）
-- $\eta = 1$：等价于DDPM
-- $0 < \eta < 1$：介于两者之间
+- $\eta = 0$ ：完全确定性（DDIM）
+- $\eta = 1$ ：等价于DDPM
+- $0 < \eta < 1$ ：介于两者之间
 
 💡 **实现技巧：加速采样**  
 DDIM允许使用子序列采样。例如，从1000步中均匀选择50步：`timesteps = np.linspace(0, 999, 50).astype(int)`。这可以实现20倍加速！
@@ -88,7 +88,7 @@ DDIM允许使用子序列采样。例如，从1000步中均匀选择50步：`tim
 2. **插值实验**：
    - 生成两个不同的样本 $\mathbf{x}_0^{(1)}, \mathbf{x}_0^{(2)}$
    - 编码到对应的 $\mathbf{x}_T^{(1)}, \mathbf{x}_T^{(2)}$
-   - 在潜在空间插值：$\mathbf{x}_T^{(\lambda)} = (1-\lambda)\mathbf{x}_T^{(1)} + \lambda\mathbf{x}_T^{(2)}$
+   - 在潜在空间插值： $\mathbf{x}_T^{(\lambda)} = (1-\lambda)\mathbf{x}_T^{(1)} + \lambda\mathbf{x}_T^{(2)}$
    - 解码并观察语义插值效果
 
 3. **速度-质量权衡**：
@@ -131,9 +131,9 @@ Song等人(2021)提出了基于随机微分方程(SDE)的统一框架。前向�
 $$d\mathbf{x} = \mathbf{f}(\mathbf{x}, t)dt + g(t)d\mathbf{w}$$
 
 其中：
-- $\mathbf{f}(\cdot, t)$：漂移系数
-- $g(t)$：扩散系数
-- $\mathbf{w}$：标准维纳过程
+- $\mathbf{f}(\cdot, t)$ ：漂移系数
+- $g(t)$ ：扩散系数
+- $\mathbf{w}$ ：标准维纳过程
 
 对于DDPM/DDIM，相应的SDE是：
 $$d\mathbf{x} = -\frac{1}{2}\beta(t)\mathbf{x}dt + \sqrt{\beta(t)}d\mathbf{w}$$
@@ -143,14 +143,14 @@ $$d\mathbf{x} = -\frac{1}{2}\beta(t)\mathbf{x}dt + \sqrt{\beta(t)}d\mathbf{w}$$
 Anderson(1982)证明了反向时间SDE的存在性：
 $$d\mathbf{x} = [\mathbf{f}(\mathbf{x}, t) - g(t)^2\nabla_\mathbf{x} \log p_t(\mathbf{x})]dt + g(t)d\bar{\mathbf{w}}$$
 
-其中 $\bar{\mathbf{w}}$ 是反向时间的维纳过程，$\nabla_\mathbf{x} \log p_t(\mathbf{x})$ 是分数函数（score function）。
+其中 $\bar{\mathbf{w}}$ 是反向时间的维纳过程， $\nabla_\mathbf{x} \log p_t(\mathbf{x})$ 是分数函数（score function）。
 
 ### 8.2.3 概率流ODE
 
 去除随机项，得到确定性的ODE：
 $$\frac{d\mathbf{x}}{dt} = \mathbf{f}(\mathbf{x}, t) - \frac{1}{2}g(t)^2\nabla_\mathbf{x} \log p_t(\mathbf{x})$$
 
-这个ODE与原始SDE具有相同的边缘分布 $p_t(\mathbf{x})$。
+这个ODE与原始SDE具有相同的边缘分布 $p_t(\mathbf{x})$ 。
 
 **关键性质**：
 1. **可逆性**：可以在数据和噪声之间双向转换
@@ -217,7 +217,7 @@ $$\frac{d\mathbf{x}}{dt} = \alpha(t)\mathbf{x} + \sigma(t)\boldsymbol{\epsilon}_
 利用积分因子法，可以得到精确解：
 $$\mathbf{x}_s = e^{\int_t^s \alpha(\tau)d\tau}\mathbf{x}_t + \int_t^s e^{\int_\tau^s \alpha(r)dr}\sigma(\tau)\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau)d\tau$$
 
-关键是如何近似积分中的 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau)$。
+关键是如何近似积分中的 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau)$ 。
 
 ### 8.3.3 DPM-Solver的Taylor展开
 
@@ -307,7 +307,7 @@ $$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|f_\thet
 
 ### 8.4.2 一致性模型
 
-一致性模型(Consistency Models)学习映射函数 $f_\theta$，使得同一轨迹上的所有点映射到相同的起点：
+一致性模型(Consistency Models)学习映射函数 $f_\theta$ ，使得同一轨迹上的所有点映射到相同的起点：
 
 $$f_\theta(\mathbf{x}_t, t) = f_\theta(\mathbf{x}_s, s), \quad \forall s, t \in [0, T]$$
 

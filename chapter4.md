@@ -16,7 +16,7 @@ $$\nabla_x \log p(x) = \frac{\nabla_x p(x)}{p(x)}$$
 
 **例1：一维高斯分布**
 
-对于标准正态分布 $p(x) = \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2}}$：
+对于标准正态分布 $p(x) = \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2}}$ ：
 
 $$\log p(x) = -\frac{x^2}{2} - \frac{1}{2}\log(2\pi)$$
 
@@ -40,7 +40,7 @@ $$\nabla_x \log p(x) = -x$$
 
 $$p(x) = \frac{1}{Z} \exp(-E(x)), \quad Z = \int \exp(-E(x)) dx$$
 
-但分数函数可以直接计算，无需知道 $Z$：
+但分数函数可以直接计算，无需知道 $Z$ ：
 
 $$\nabla_x \log p(x) = -\nabla_x E(x)$$
 
@@ -49,7 +49,7 @@ $$\nabla_x \log p(x) = -\nabla_x E(x)$$
 在统计物理中的Ising模型中，系统能量为：
 $$E(x) = -J \sum_{\langle i,j \rangle} x_i x_j - h \sum_i x_i$$
 
-其中 $x_i \in \{-1, +1\}$。配分函数 $Z$ 的计算是 #P-hard 问题，但能量的梯度（在连续松弛下）却很容易计算。
+其中 $x_i \in \{-1, +1\}$ 。配分函数 $Z$ 的计算是 #P-hard 问题，但能量的梯度（在连续松弛下）却很容易计算。
 
 **💡 开放问题：** 如何设计高效的分数函数估计器，使其在高维空间中仍然准确？当前的神经网络架构是否最优？考虑引入物理约束或对称性。
 
@@ -59,7 +59,7 @@ $$E(x) = -J \sum_{\langle i,j \rangle} x_i x_j - h \sum_i x_i$$
 
 $$x_{t+1} = x_t + \epsilon \nabla_x \log p(x_t) + \sqrt{2\epsilon} \xi_t$$
 
-其中 $\xi_t \sim \mathcal{N}(0, I)$。这就是著名的Langevin动力学。
+其中 $\xi_t \sim \mathcal{N}(0, I)$ 。这就是著名的Langevin动力学。
 
 **⚡ 实现挑战：** Langevin采样在高维空间收敛极慢。如何设计自适应步长？如何处理多尺度问题？预条件器的选择至关重要，可以考虑使用 `torch.optim.LBFGS` 中的Hessian近似思想。
 
@@ -79,9 +79,9 @@ $$\nabla \cdot (\nabla \log p(x)) = \nabla^2 \log p(x) + \|\nabla \log p(x)\|^2$
 <details>
 <summary><strong>练习 4.1：探索分数函数的性质</strong></summary>
 
-1. 证明对于指数族分布 $p(x) = h(x)\exp(\eta^T T(x) - A(\eta))$，分数函数具有特殊形式。
+1. 证明对于指数族分布 $p(x) = h(x)\exp(\eta^T T(x) - A(\eta))$ ，分数函数具有特殊形式。
 
-2. **开放探索**：考虑混合高斯分布 $p(x) = \sum_i \pi_i \mathcal{N}(x; \mu_i, \Sigma_i)$。
+2. **开放探索**：考虑混合高斯分布 $p(x) = \sum_i \pi_i \mathcal{N}(x; \mu_i, \Sigma_i)$ 。
    - 分析分数函数在不同区域的行为
    - 什么条件下会出现"分数坍塌"（score collapse）？
    - 如何设计对这种现象鲁棒的学习算法？
@@ -102,7 +102,7 @@ $$\nabla \cdot (\nabla \log p(x)) = \nabla^2 \log p(x) + \|\nabla \log p(x)\|^2$
 **基本思想**：最小化模型分数与真实分数的差异
 $$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\frac{1}{2}\|\nabla_x \log p_{model}(x) - \nabla_x \log p_{data}(x)\|^2\right]$$
 
-但这里有个问题：我们不知道 $\nabla_x \log p_{data}(x)$！
+但这里有个问题：我们不知道 $\nabla_x \log p_{data}(x)$ ！
 
 **Hyvärinen的天才洞察**：通过分部积分，可以得到一个等价的目标函数，不需要真实分数：
 
@@ -218,7 +218,7 @@ Langevin方程描述了布朗粒子在势场中的运动：
 
 $$dX_t = \nabla \log p(X_t)dt + \sqrt{2}dW_t$$
 
-这个SDE的平稳分布正是 $p(x)$。
+这个SDE的平稳分布正是 $p(x)$ 。
 
 **🔬 研究线索：** Langevin动力学与物理学中的涨落-耗散定理有深刻联系。能否利用这种联系设计更高效的采样算法？考虑引入"记忆"效应或非马尔可夫动力学。
 
@@ -229,7 +229,7 @@ $$x_{k+1} = x_k + \epsilon s_\theta(x_k) + \sqrt{2\epsilon}\xi_k$$
 
 **关键问题**：
 - 离散化误差如何累积？
-- 如何选择步长 $\epsilon$？
+- 如何选择步长 $\epsilon$ ？
 - 何时停止迭代？
 
 **🌟 理论缺口：** 非凸情况下的收敛性分析仍不完整。特别是：
@@ -346,7 +346,7 @@ $$dx = [f(x,t) - \frac{1}{2}g(t)^2\nabla_x \log p_t(x)]dt$$
 
 ### 4.6.1 条件分数模型
 
-给定条件 $y$，如何建模 $p(x|y)$ 的分数？
+给定条件 $y$ ，如何建模 $p(x|y)$ 的分数？
 
 **方法1：直接建模**
 $$s_\theta(x, y, t) \approx \nabla_x \log p_t(x|y)$$
