@@ -44,7 +44,7 @@
 
 **核心思想**：
 
-与扩散模型逐步去噪不同，一致性模型学习一个函数 $f_\theta$，直接将任意时刻的噪声数据映射到干净数据：
+与扩散模型逐步去噪不同，一致性模型学习一个函数 $f_\theta$ ，直接将任意时刻的噪声数据映射到干净数据：
 
 $$f_\theta(\mathbf{x}_t, t) = \mathbf{x}_0, \quad \forall t \in [0, T]$$
 
@@ -86,11 +86,11 @@ $$\mathcal{L}(\theta) = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\
 **技术细节**：
 
 1. **参数化技巧**：
-   - 使用skip connection：$f_\theta(\mathbf{x}_t, t) = c_\text{skip}(t)\mathbf{x}_t + c_\text{out}(t)F_\theta(\mathbf{x}_t, t)$
-   - 边界条件：$f_\theta(\mathbf{x}_0, 0) = \mathbf{x}_0$
+   - 使用skip connection： $f_\theta(\mathbf{x}_t, t) = c_\text{skip}(t)\mathbf{x}_t + c_\text{out}(t)F_\theta(\mathbf{x}_t, t)$
+   - 边界条件： $f_\theta(\mathbf{x}_0, 0) = \mathbf{x}_0$
 
 2. **训练策略**：
-   - 课程学习：从小$\Delta t$开始，逐渐增大
+   - 课程学习：从小 $\Delta t$ 开始，逐渐增大
    - EMA更新目标网络
    - 数据增强提升鲁棒性
 
@@ -226,7 +226,7 @@ $$\frac{d\mathbf{x}_t}{dt} = f(t)\mathbf{x}_t + \frac{g^2(t)}{2\sigma_t}\nabla_{
    度量两个分布之间的"运输成本"。
 
 2. **最优传输映射**：
-   寻找从数据分布到噪声分布的最优映射 $T^*$：
+   寻找从数据分布到噪声分布的最优映射 $T^*$ ：
    $$T^* = \arg\min_{T: T_\#\mu = \nu} \int \|\mathbf{x} - T(\mathbf{x})\|^2 d\mu(\mathbf{x})$$
 
 3. **动态最优传输**：
@@ -325,7 +325,7 @@ $$\max_{p(\mathbf{z}|\mathbf{x}_t)} I(\mathbf{z}; \mathbf{x}_0) - \beta I(\mathb
 2. **SDE/ODE统一**：
    $$d\mathbf{x}_t = f(t)\mathbf{x}_t dt + g(t)d\mathbf{w}_t$$
    
-   通过调整 $f$ 和 $g$，可以得到不同的生成模型。
+   通过调整 $f$ 和 $g$ ，可以得到不同的生成模型。
 
 3. **能量视角统一**：
    所有生成模型都在学习能量函数：
@@ -396,7 +396,7 @@ $$\max_{p(\mathbf{z}|\mathbf{x}_t)} I(\mathbf{z}; \mathbf{x}_0) - \beta I(\mathb
 **基础问题**：
 
 1. **样本复杂度**：
-   生成 $\epsilon$-近似分布需要多少样本？
+   生成 $\epsilon$ -近似分布需要多少样本？
    $$n = \Omega\left(\frac{d}{\epsilon^2}\right) ?$$
 
 2. **计算复杂度**：
@@ -428,7 +428,7 @@ $$\max_{p(\mathbf{z}|\mathbf{x}_t)} I(\mathbf{z}; \mathbf{x}_0) - \beta I(\mathb
 **1. 状态空间模型（SSM）在扩散中的应用**：
 
 Mamba等架构带来的新可能：
-- **线性复杂度**：$O(L)$ vs Transformer的 $O(L^2)$
+- **线性复杂度**： $O(L)$ vs Transformer的 $O(L^2)$
 - **长序列建模**：处理超长序列（>100k tokens）
 - **选择性机制**：动态调整信息流
 
@@ -478,7 +478,7 @@ Mamba等架构带来的新可能：
 - **结构化稀疏**：
   - 块稀疏：以块为单位的稀疏模式
   - 低秩分解：注意力矩阵的低秩近似
-  - 蝶形变换：$O(N\log N)$ 复杂度
+  - 蝶形变换： $O(N\log N)$ 复杂度
 
 **2. 混合精度与量化**：
 

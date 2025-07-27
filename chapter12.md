@@ -100,7 +100,7 @@
 
 2. **BLEU分数**：
    $$\text{BLEU} = \text{BP} \cdot \exp\left(\sum_{n=1}^4 w_n \log p_n\right)$$
-   其中$p_n$是n-gram精确率
+   其中 $p_n$ 是n-gram精确率
 
 3. **语义相似度**：
    - BERTScore
@@ -240,20 +240,20 @@ D3PM（Discrete Denoising Diffusion Probabilistic Models）通过将连续扩散
 
 **前向过程定义**：
 
-对于离散状态 $x \in \{1, 2, ..., K\}$（K是词汇表大小），前向过程定义为：
+对于离散状态 $x \in \{1, 2, ..., K\}$ （K是词汇表大小），前向过程定义为：
 $$q(x_t|x_{t-1}) = \text{Cat}(x_t; \mathbf{Q}_t x_{t-1})$$
 
-其中 $\mathbf{Q}_t \in \mathbb{R}^{K \times K}$ 是转移矩阵，$\text{Cat}$ 表示分类分布。
+其中 $\mathbf{Q}_t \in \mathbb{R}^{K \times K}$ 是转移矩阵， $\text{Cat}$ 表示分类分布。
 
 **转移矩阵的性质**：
-1. **行随机矩阵**：$\sum_j Q_{ij} = 1$
+1. **行随机矩阵**： $\sum_j Q_{ij} = 1$
 2. **可逆性**：早期时刻的 $\mathbf{Q}_t$ 接近单位矩阵
-3. **收敛性**：$\mathbf{Q}_T$ 使分布收敛到先验
+3. **收敛性**： $\mathbf{Q}_T$ 使分布收敛到先验
 
 **累积转移矩阵**：
 $$\bar{\mathbf{Q}}_t = \mathbf{Q}_1 \mathbf{Q}_2 \cdots \mathbf{Q}_t$$
 
-这允许我们直接从 $x_0$ 采样 $x_t$：
+这允许我们直接从 $x_0$ 采样 $x_t$ ：
 $$q(x_t|x_0) = \text{Cat}(x_t; \bar{\mathbf{Q}}_t x_0)$$
 
 💡 **设计原则：平衡信息保留与噪声添加**  
@@ -266,7 +266,7 @@ D3PM提供了几种转移矩阵的设计方案：
 **1. 均匀转移（Uniform Transition）**：
 $$\mathbf{Q}_t = (1-\beta_t)\mathbf{I} + \beta_t \mathbf{1}\mathbf{1}^T/K$$
 
-其中 $\beta_t$ 是噪声调度，$\mathbf{1}$ 是全1向量。这种设计以概率 $\beta_t$ 将状态替换为均匀随机状态。
+其中 $\beta_t$ 是噪声调度， $\mathbf{1}$ 是全1向量。这种设计以概率 $\beta_t$ 将状态替换为均匀随机状态。
 
 **2. 吸收态转移（Absorbing State）**：
 $$Q_{ij} = \begin{cases}
@@ -282,10 +282,10 @@ $$Q_{ij} = \begin{cases}
 基于词嵌入相似度设计转移概率：
 $$Q_{ij} \propto \exp(-\|\mathbf{e}_i - \mathbf{e}_j\|^2/\tau_t)$$
 
-其中 $\mathbf{e}_i$ 是词嵌入，$\tau_t$ 是温度参数。
+其中 $\mathbf{e}_i$ 是词嵌入， $\tau_t$ 是温度参数。
 
 🔬 **研究方向：自适应转移矩阵**  
-能否学习数据依赖的转移矩阵？例如，频繁共现的词之间有更高的转移概率。这可能需要神经网络来参数化 $\mathbf{Q}_t$。
+能否学习数据依赖的转移矩阵？例如，频繁共现的词之间有更高的转移概率。这可能需要神经网络来参数化 $\mathbf{Q}_t$ 。
 
 ### 12.2.3 反向过程与变分下界
 
@@ -430,11 +430,11 @@ Diffusion-LM通过在连续嵌入空间中进行扩散来避免离散性带来�
 
 **数学框架**：
 
-设词嵌入矩阵为 $\mathbf{E} \in \mathbb{R}^{K \times d}$，其中K是词汇表大小，d是嵌入维度。
+设词嵌入矩阵为 $\mathbf{E} \in \mathbb{R}^{K \times d}$ ，其中K是词汇表大小，d是嵌入维度。
 
-- **嵌入步骤**：$\mathbf{e}_0 = \mathbf{E}[x_0]$（索引操作）
-- **前向扩散**：$q(\mathbf{e}_t|\mathbf{e}_{t-1}) = \mathcal{N}(\mathbf{e}_t; \sqrt{1-\beta_t}\mathbf{e}_{t-1}, \beta_t\mathbf{I})$
-- **反向去噪**：$p_\theta(\mathbf{e}_{t-1}|\mathbf{e}_t) = \mathcal{N}(\mathbf{e}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{e}_t, t), \boldsymbol{\Sigma}_\theta(\mathbf{e}_t, t))$
+- **嵌入步骤**： $\mathbf{e}_0 = \mathbf{E}[x_0]$ （索引操作）
+- **前向扩散**： $q(\mathbf{e}_t|\mathbf{e}_{t-1}) = \mathcal{N}(\mathbf{e}_t; \sqrt{1-\beta_t}\mathbf{e}_{t-1}, \beta_t\mathbf{I})$
+- **反向去噪**： $p_\theta(\mathbf{e}_{t-1}|\mathbf{e}_t) = \mathcal{N}(\mathbf{e}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{e}_t, t), \boldsymbol{\Sigma}_\theta(\mathbf{e}_t, t))$
 
 **关键挑战**：如何从连续嵌入恢复离散token？
 
@@ -474,7 +474,7 @@ $$p(x_i|\hat{\mathbf{e}}_0) = \frac{\exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|
 
 **3. Gumbel-Softmax重参数化**：
 $$\hat{x}_0 = \text{softmax}((\log \pi + g)/\tau)$$
-其中 $\pi_i \propto \exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|^2)$，$g$ 是Gumbel噪声。
+其中 $\pi_i \propto \exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|^2)$ ， $g$ 是Gumbel噪声。
 
 **4. 强化学习方法**：
 将离散化视为策略，使用REINFORCE或其他策略梯度方法。
@@ -551,9 +551,9 @@ $$\mathbf{E}_\text{anchor} = \text{frozen}, \quad \mathbf{E}_\text{rest} = \text
 $$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L}_\text{reconstruct} + \lambda_2 \mathcal{L}_\text{regularize}$$
 
 其中：
-- $\mathcal{L}_\text{diffusion}$：标准扩散损失
-- $\mathcal{L}_\text{reconstruct}$：离散重建损失
-- $\mathcal{L}_\text{regularize}$：嵌入正则化损失
+- $\mathcal{L}_\text{diffusion}$ ：标准扩散损失
+- $\mathcal{L}_\text{reconstruct}$ ：离散重建损失
+- $\mathcal{L}_\text{regularize}$ ：嵌入正则化损失
 
 **优化技巧**：
 - 使用较小的学习率for嵌入矩阵
@@ -654,7 +654,7 @@ $$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L
 **长度预测与控制**：
 
 1. **显式长度条件**：
-   - 将目标长度作为额外条件：$p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, t, L)$
+   - 将目标长度作为额外条件： $p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, t, L)$
    - 训练时使用真实长度，推理时指定
 
 2. **特殊标记方法**：
@@ -663,7 +663,7 @@ $$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L
    - 在扩散过程中保持这些标记的语义
 
 3. **动态长度生成**：
-   - 先生成长度：$L \sim p_\theta(L|\mathbf{c})$
+   - 先生成长度： $L \sim p_\theta(L|\mathbf{c})$
    - 然后生成对应长度的内容
 
 **位置编码策略**：

@@ -747,7 +747,7 @@ highly detailed, artstation trending, by Greg Rutkowski"
 
 **2. 基于点云的扩散**：
 
-点云表示：$\mathcal{P} = \{(x_i, y_i, z_i)\}_{i=1}^N$
+点云表示： $\mathcal{P} = \{(x_i, y_i, z_i)\}_{i=1}^N$
 
 扩散过程：
 - 位置扩散：添加高斯噪声到坐标
