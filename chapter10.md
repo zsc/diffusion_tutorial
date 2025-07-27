@@ -273,6 +273,315 @@ def analyze_latent_space(autoencoder, dataloader):
 🌟 **开放问题：最优潜在空间设计**  
 如何设计具有特定属性的潜在空间？能否学习解耦的表示？这涉及到表示学习和因果推断的前沿研究。
 
+## 10.3 潜在空间中的扩散
+
+### 10.3.1 潜在扩散过程的数学描述
+
+在潜在空间中进行扩散需要重新定义前向和反向过程：
+
+**前向过程**：
+$$q(\mathbf{z}_t | \mathbf{z}_0) = \mathcal{N}(\mathbf{z}_t; \sqrt{\bar{\alpha}_t}\mathbf{z}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
+
+其中 $\mathbf{z}_0 = \mathcal{E}(\mathbf{x})$ 是编码后的潜在表示。
+
+**关键差异**：
+1. **维度降低**：从 $\mathbb{R}^{3 \times H \times W}$ 到 $\mathbb{R}^{C \times h \times w}$
+2. **分布变化**：潜在空间可能不完全符合高斯分布
+3. **尺度差异**：需要适当的归一化
+
+**反向过程**：
+$$p_\theta(\mathbf{z}_{t-1} | \mathbf{z}_t) = \mathcal{N}(\mathbf{z}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{z}_t, t), \sigma_t^2\mathbf{I})$$
+
+扩散模型学习预测噪声 $\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t)$ ，用于计算均值：
+$$\boldsymbol{\mu}_\theta(\mathbf{z}_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{z}_t - \frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t)\right)$$
+
+### 10.3.2 噪声调度的适配
+
+潜在空间的统计特性与像素空间不同，需要调整噪声调度：
+
+**1. 信噪比分析**：
+```python
+def analyze_latent_snr(autoencoder, dataloader):
+    latents = []
+    with torch.no_grad():
+        for x, _ in dataloader:
+            z = autoencoder.encode(x)
+            latents.append(z)
+    
+    latents = torch.cat(latents)
+    
+    # 计算信号功率
+    signal_power = (latents ** 2).mean()
+    
+    # 分析不同噪声水平的SNR
+    for t in [0.1, 0.5, 0.9]:
+        noise_power = (1 - t) * signal_power
+        snr = 10 * torch.log10(signal_power / noise_power)
+        print(f"t={t}: SNR={snr:.2f} dB")
+```
+
+**2. 自适应调度**：
+```python
+class AdaptiveNoiseSchedule:
+    def __init__(self, latent_stats):
+        self.mean = latent_stats['mean']
+        self.std = latent_stats['std']
+        
+    def get_betas(self, num_steps):
+        # 根据潜在空间统计调整beta
+        # 确保最终SNR接近0
+        target_final_snr = 0.001
+        beta_start = 0.0001 * self.std
+        beta_end = 0.02 * self.std
+        
+        return torch.linspace(beta_start, beta_end, num_steps)
+```
+
+💡 **实践技巧：预计算统计量**  
+在大规模数据集上预计算潜在空间的均值和方差，用于归一化和噪声调度设计。
+
+### 10.3.3 条件机制在潜在空间的实现
+
+LDM中的条件信息通过多种方式注入：
+
+**1. 交叉注意力机制**：
+```python
+class CrossAttentionBlock(nn.Module):
+    def __init__(self, dim, context_dim, num_heads=8):
+        super().__init__()
+        self.attention = nn.MultiheadAttention(
+            dim, num_heads, kdim=context_dim, vdim=context_dim
+        )
+        self.norm1 = nn.LayerNorm(dim)
+        self.norm2 = nn.LayerNorm(dim)
+        
+    def forward(self, x, context):
+        # x: [B, H*W, C] 潜在特征
+        # context: [B, L, D] 条件编码（如文本）
+        
+        x_norm = self.norm1(x)
+        attn_out = self.attention(x_norm, context, context)[0]
+        x = x + attn_out
+        return x
+```
+
+**2. 特征调制（FiLM）**：
+```python
+class FiLMLayer(nn.Module):
+    def __init__(self, latent_dim, condition_dim):
+        super().__init__()
+        self.scale_net = nn.Linear(condition_dim, latent_dim)
+        self.shift_net = nn.Linear(condition_dim, latent_dim)
+        
+    def forward(self, x, condition):
+        scale = self.scale_net(condition).unsqueeze(2).unsqueeze(3)
+        shift = self.shift_net(condition).unsqueeze(2).unsqueeze(3)
+        return x * (1 + scale) + shift
+```
+
+**3. 空间条件控制**：
+```python
+def add_spatial_conditioning(z_t, spatial_cond, method='concat'):
+    if method == 'concat':
+        # 直接拼接
+        return torch.cat([z_t, spatial_cond], dim=1)
+    elif method == 'add':
+        # 加性融合（需要维度匹配）
+        return z_t + spatial_cond
+    elif method == 'gated':
+        # 门控融合
+        gate = torch.sigmoid(spatial_cond)
+        return z_t * gate + spatial_cond * (1 - gate)
+```
+
+🔬 **研究方向：条件注入的最优位置**  
+应该在U-Net的哪些层注入条件信息？早期层影响全局结构，后期层控制细节。系统研究这种权衡可以指导架构设计。
+
+### 10.3.4 训练策略与技巧
+
+**1. 渐进式训练**：
+```python
+class ProgressiveLatentDiffusion:
+    def __init__(self, autoencoder, diffusion_model):
+        self.autoencoder = autoencoder
+        self.diffusion = diffusion_model
+        self.current_resolution = 32
+        
+    def train_step(self, x, epoch):
+        # 渐进提高分辨率
+        if epoch > 100 and self.current_resolution < 64:
+            self.current_resolution = 64
+            self.update_model_resolution()
+        
+        # 动态调整潜在空间
+        with torch.no_grad():
+            z = self.autoencoder.encode(x)
+            if self.current_resolution < z.shape[-1]:
+                z = F.interpolate(z, size=self.current_resolution)
+        
+        # 标准扩散训练
+        return self.diffusion.training_step(z)
+```
+
+**2. 混合精度训练**：
+```python
+# 使用自动混合精度加速训练
+scaler = torch.cuda.amp.GradScaler()
+
+def train_with_amp(model, data, optimizer):
+    with torch.cuda.amp.autocast():
+        # 前向传播在半精度
+        loss = model.compute_loss(data)
+    
+    # 反向传播和优化在全精度
+    scaler.scale(loss).backward()
+    scaler.step(optimizer)
+    scaler.update()
+```
+
+**3. 梯度累积**：
+```python
+accumulation_steps = 4
+for i, batch in enumerate(dataloader):
+    loss = compute_loss(batch) / accumulation_steps
+    loss.backward()
+    
+    if (i + 1) % accumulation_steps == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+```
+
+### 10.3.5 质量与效率的权衡
+
+**压缩率 vs 重建质量**：
+
+| 下采样因子 | 压缩率 | 速度提升 | FID | 适用场景 |
+|-----------|--------|----------|-----|---------|
+| 4x | 16x | 10-15x | ~5 | 高质量生成 |
+| 8x | 64x | 40-60x | ~10 | 平衡选择 |
+| 16x | 256x | 150-200x | ~25 | 快速预览 |
+
+**动态质量调整**：
+```python
+class AdaptiveQualityLDM:
+    def __init__(self, models_dict):
+        # models_dict: {4: model_4x, 8: model_8x, 16: model_16x}
+        self.models = models_dict
+        
+    def generate(self, prompt, quality='balanced'):
+        if quality == 'draft':
+            model = self.models[16]
+            steps = 10
+        elif quality == 'balanced':
+            model = self.models[8]
+            steps = 25
+        else:  # quality == 'high'
+            model = self.models[4]
+            steps = 50
+            
+        return model.sample(prompt, num_steps=steps)
+```
+
+<details>
+<summary>**练习 10.3：潜在空间扩散实验**</summary>
+
+探索潜在空间扩散的各个方面。
+
+1. **压缩率影响分析**：
+   - 训练不同压缩率的LDM（4x, 8x, 16x）
+   - 比较生成质量、多样性和速度
+   - 绘制压缩率-质量曲线
+
+2. **噪声调度优化**：
+   - 实现基于SNR的自适应调度
+   - 比较线性、余弦和学习的调度
+   - 分析对收敛速度的影响
+
+3. **条件注入研究**：
+   - 实现不同的条件注入方法
+   - 测试在不同层注入的效果
+   - 评估对可控性的影响
+
+4. **创新探索**：
+   - 设计多尺度潜在空间（层次化LDM）
+   - 研究向量量化的潜在扩散
+   - 探索自适应压缩率选择
+
+</details>
+
+### 10.3.6 调试与可视化
+
+**监控训练过程**：
+```python
+class LDMMonitor:
+    def __init__(self, autoencoder):
+        self.autoencoder = autoencoder
+        
+    def visualize_diffusion_process(self, model, x0, steps=[0, 250, 500, 750, 999]):
+        """可视化扩散和去噪过程"""
+        # 编码到潜在空间
+        z0 = self.autoencoder.encode(x0)
+        
+        # 前向扩散
+        zs_forward = []
+        for t in steps:
+            zt = add_noise(z0, t)
+            zs_forward.append(zt)
+        
+        # 反向去噪
+        zs_reverse = []
+        zt = torch.randn_like(z0)
+        for t in reversed(range(1000)):
+            zt = denoise_step(model, zt, t)
+            if t in steps:
+                zs_reverse.append(zt)
+        
+        # 解码并可视化
+        imgs_forward = [self.autoencoder.decode(z) for z in zs_forward]
+        imgs_reverse = [self.autoencoder.decode(z) for z in zs_reverse]
+        
+        return imgs_forward, imgs_reverse
+```
+
+**诊断工具**：
+```python
+def diagnose_latent_diffusion(model, autoencoder, test_batch):
+    """诊断潜在扩散模型的常见问题"""
+    
+    # 1. 检查潜在空间分布
+    z = autoencoder.encode(test_batch)
+    print(f"Latent stats - Mean: {z.mean():.3f}, Std: {z.std():.3f}")
+    
+    # 2. 检查重建质量
+    x_recon = autoencoder.decode(z)
+    recon_error = F.mse_loss(test_batch, x_recon)
+    print(f"Reconstruction error: {recon_error:.4f}")
+    
+    # 3. 检查噪声预测
+    t = torch.randint(0, 1000, (z.shape[0],))
+    noise = torch.randn_like(z)
+    z_noisy = add_noise(z, noise, t)
+    pred_noise = model(z_noisy, t)
+    noise_error = F.mse_loss(pred_noise, noise)
+    print(f"Noise prediction error: {noise_error:.4f}")
+    
+    # 4. 检查生成样本
+    z_sample = torch.randn_like(z)
+    for t in reversed(range(0, 1000, 100)):
+        z_sample = denoise_step(model, z_sample, t)
+    x_sample = autoencoder.decode(z_sample)
+    
+    return {
+        'latent_stats': (z.mean().item(), z.std().item()),
+        'recon_error': recon_error.item(),
+        'noise_error': noise_error.item(),
+        'sample': x_sample
+    }
+```
+
+🌟 **最佳实践：多阶段调试**  
+先确保自编码器工作正常，再训练扩散模型。使用小数据集快速迭代，验证流程正确后再扩展到大规模训练。
+
 ## 10.2 自编码器设计
 
 ### 10.2.1 VQ-VAE vs KL-VAE
