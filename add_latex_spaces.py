@@ -4,7 +4,7 @@
 import re
 import sys
 
-def add_spaces_around_latex(content):
+def add_spaces_around_latex(content, escape_underscores=False):
     """Add spaces around single dollar LaTeX expressions and ensure newline before $$ blocks.
     
     Examples:
@@ -12,8 +12,8 @@ def add_spaces_around_latex(content):
     "其中$x$是" -> "其中 $x$ 是"
     "文字$$公式$$" -> "文字\n$$公式$$"
     
-    Also escapes underscores in LaTeX contexts:
-    "$x_i$" -> "$x\_i$"
+    If escape_underscores=True, also escapes underscores in LaTeX contexts:
+    "$x_i$" -> "$x\\_i$"
     """
     # First, handle $$ blocks - ensure newline before starting $$
     # New approach: Find all $$ positions and process them correctly
@@ -71,61 +71,64 @@ def add_spaces_around_latex(content):
         # Replace in result
         result = result[:start_pos] + replacement + result[end_pos:]
     
-    # Escape underscores within LaTeX contexts
-    # First, handle display math blocks $$...$$
-    display_blocks = []
-    i = 0
-    while i < len(result) - 1:
-        if result[i:i+2] == '$$':
-            start = i
-            i += 2
-            # Find the closing $$
-            while i < len(result) - 1:
-                if result[i:i+2] == '$$':
-                    end = i + 2
-                    display_blocks.append((start, end))
-                    i += 2
-                    break
+    # Optionally escape underscores within LaTeX contexts
+    if escape_underscores:
+        # First, handle display math blocks $$...$$
+        display_blocks = []
+        i = 0
+        while i < len(result) - 1:
+            if result[i:i+2] == '$$':
+                start = i
+                i += 2
+                # Find the closing $$
+                while i < len(result) - 1:
+                    if result[i:i+2] == '$$':
+                        end = i + 2
+                        display_blocks.append((start, end))
+                        i += 2
+                        break
+                    i += 1
+            else:
                 i += 1
-        else:
-            i += 1
-    
-    # Process display blocks from end to beginning to avoid position shifts
-    for start, end in reversed(display_blocks):
-        block_content = result[start+2:end-2]
-        # Replace unescaped underscores
-        escaped_content = re.sub(r'(?<!\\)_', r'\_', block_content)
-        result = result[:start+2] + escaped_content + result[end-2:]
-    
-    # Now handle inline math $...$
-    # Pattern to match inline math expressions
-    inline_pattern = r'(?<!\$)\$([^\$\n]+?)\$(?!\$)'
-    matches = list(re.finditer(inline_pattern, result))
-    
-    # Process from end to beginning to avoid position shifts
-    for match in reversed(matches):
-        start_pos = match.start() + 1  # Position after the opening $
-        end_pos = match.end() - 1      # Position before the closing $
-        math_content = match.group(1)
         
-        # Replace unescaped underscores
-        escaped_content = re.sub(r'(?<!\\)_', r'\_', math_content)
+        # Process display blocks from end to beginning to avoid position shifts
+        for start, end in reversed(display_blocks):
+            block_content = result[start+2:end-2]
+            # Replace unescaped underscores
+            escaped_content = re.sub(r'(?<!\\)_', r'\_', block_content)
+            result = result[:start+2] + escaped_content + result[end-2:]
         
-        # Replace the math content
-        result = result[:start_pos] + escaped_content + result[end_pos:]
+        # Now handle inline math $...$
+        # Pattern to match inline math expressions
+        inline_pattern = r'(?<!\$)\$([^\$\n]+?)\$(?!\$)'
+        matches = list(re.finditer(inline_pattern, result))
+        
+        # Process from end to beginning to avoid position shifts
+        for match in reversed(matches):
+            start_pos = match.start() + 1  # Position after the opening $
+            end_pos = match.end() - 1      # Position before the closing $
+            math_content = match.group(1)
+            
+            # Replace unescaped underscores
+            escaped_content = re.sub(r'(?<!\\)_', r'\_', math_content)
+            
+            # Replace the math content
+            result = result[:start_pos] + escaped_content + result[end_pos:]
     
     result = result.replace('\n$$', '\n\n$$').replace('\n\n\n$$', '\n\n$$')
     return result
 
-def process_file(filepath):
+def process_file(filepath, escape_underscores=False):
     """Process a markdown file to add spaces around LaTeX."""
     print(f"Processing {filepath}...")
+    if escape_underscores:
+        print("  (with underscore escaping)")
     
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
     
     # Add spaces around LaTeX
-    processed_content = add_spaces_around_latex(content)
+    processed_content = add_spaces_around_latex(content, escape_underscores=escape_underscores)
     
     # Write back
     with open(filepath, 'w', encoding='utf-8') as f:
@@ -134,9 +137,14 @@ def process_file(filepath):
     print(f"Completed processing {filepath}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python add_latex_spaces.py <file1.md> [file2.md ...]")
-        sys.exit(1)
+    import argparse
     
-    for filepath in sys.argv[1:]:
-        process_file(filepath)
+    parser = argparse.ArgumentParser(description="Add spaces around LaTeX expressions in markdown files")
+    parser.add_argument('files', nargs='+', help='Markdown files to process')
+    parser.add_argument('--escape-underscores', '-u', action='store_true', 
+                        help='Escape underscores in LaTeX contexts (default: off)')
+    
+    args = parser.parse_args()
+    
+    for filepath in args.files:
+        process_file(filepath, escape_underscores=args.escape_underscores)
