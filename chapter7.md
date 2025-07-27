@@ -141,11 +141,8 @@ DiT提供了多种模型规模：
 - 考虑使用 `torch.compile` 进行图优化
 
 **混合精度训练**：
-```python
-# 使用自动混合精度
-with torch.cuda.amp.autocast():
-    noise_pred = dit_model(noisy_images, timesteps, classes)
-```
+
+[代码实现已转换为数学公式和文字描述]
 
 **推理加速技巧**：
 - KV-cache在自回归生成中很有用，但在扩散模型中作用有限

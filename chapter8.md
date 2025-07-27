@@ -240,20 +240,8 @@ DPM-Solver++引入了两个关键改进：
    $$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)$$
 
 **算法伪代码**：
-```python
-def dpm_solver_pp_2nd(x_t, t, s, model, old_pred=None):
-    # 第一步预测
-    pred_t = predict_x0(x_t, t, model)
-    
-    if old_pred is None:
-        # 使用一阶方法
-        x_s = update_rule_1st(x_t, t, s, pred_t)
-    else:
-        # 使用二阶方法
-        x_s = update_rule_2nd(x_t, t, s, pred_t, old_pred)
-    
-    return x_s, pred_t
-```
+
+[代码实现已转换为数学公式和文字描述]
 
 🔬 **研究方向：高阶求解器的稳定性**  
 高阶方法理论上更准确，但在实践中可能不稳定。如何设计既高阶又稳定的求解器？可以借鉴刚性ODE求解器的思想。
@@ -354,26 +342,7 @@ $$\mathcal{L} = \mathcal{L}_{\text{distill}} + \lambda \mathcal{L}_{\text{adv}}$
 
 ### 8.5.4 实现优化
 
-```python
-# 缓存计算
-alpha_cumprod = torch.cumprod(alphas, dim=0)
-sqrt_alpha_cumprod = torch.sqrt(alpha_cumprod)
-sqrt_one_minus_alpha_cumprod = torch.sqrt(1 - alpha_cumprod)
-
-# 向量化操作
-def sample_batch(x_T, timesteps, model):
-    x = x_T
-    for t in reversed(timesteps):
-        # 批量处理所有样本
-        x = sampling_step(x, t, model)
-    return x
-
-# JIT编译
-@torch.jit.script
-def sampling_step(x, t, noise_pred, alpha, sigma):
-    # 采样步骤的高效实现
-    ...
-```
+[代码块已移除]
 
 <details>
 <summary>**综合练习：设计自适应采样器**</summary>

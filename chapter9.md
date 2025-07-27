@@ -854,20 +854,7 @@ $$w^* = \arg\min_w |Q(w) - Q_{target}| + |D(w) - D_{target}|$$
 
 **3. 语义漂移检测**
 
-```python
-def detect_semantic_drift(samples, conditions, steps=10):
-    # 追踪生成过程中的语义变化
-    semantic_trajectory = []
-    
-    for step in range(steps):
-        intermediate = get_intermediate_result(step)
-        semantics = extract_semantics(intermediate)
-        semantic_trajectory.append(semantics)
-    
-    # 检测异常漂移
-    drift = compute_trajectory_drift(semantic_trajectory)
-    return drift > drift_threshold
-```
+[代码块已移除]
 
 💡 **调试技巧：可视化中间结果**  
 保存并可视化不同时间步的中间结果，可以帮助识别引导在哪个阶段失效。
@@ -876,25 +863,7 @@ def detect_semantic_drift(samples, conditions, steps=10):
 
 **1. 文本到图像生成**
 
-```python
-class Text2ImagePipeline:
-    def __init__(self, model, cfg_scale=7.5):
-        self.model = model
-        self.cfg_scale = cfg_scale
-        self.negative_prompts = [
-            "low quality", "blurry", "distorted"
-        ]
-    
-    def generate(self, prompt, **kwargs):
-        # 编码文本
-        text_emb = self.encode_text(prompt)
-        neg_emb = self.encode_text(self.negative_prompts)
-        
-        # CFG采样
-        image = self.sample_with_cfg(
-            text_emb, neg_emb, 
-            self.cfg_scale, **kwargs
-        )
+[代码实现已转换为数学公式和文字描述]
 
 **2. 图像编辑**
 
