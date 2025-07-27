@@ -12,7 +12,7 @@
 
 扩散模型的数学根源可以追溯到1827年罗伯特·布朗（Robert Brown）对花粉微粒在水中无规则运动的观察。1905年，爱因斯坦（Einstein）在其奇迹之年中不仅发表了相对论，还给出了布朗运动的严格数学描述，通过扩散方程 $\frac{\partial p}{\partial t} = D\nabla^2 p$ 刻画了粒子密度的演化。值得注意的是，这里的扩散过程遵循菲克定律（Fick's law），描述的是浓度梯度驱动的纯扩散现象，而非Navier-Stokes方程中的对流-扩散耦合过程。在机器学习的扩散模型中，我们关注的正是这种纯粹的随机扩散：没有外力驱动的定向流动，只有随机热运动导致的均匀化过程。
 
-三年后，朗之万（Langevin）提出了描述单个粒子轨迹的随机微分方程：$d\mathbf{x}_t = -\nabla U(\mathbf{x}_t)dt + \sqrt{2D}d\mathbf{W}_t$，其中第一项是确定性的漂移项，第二项是随机的扩散项。这个方程奠定了随机过程理论的基础，也成为了现代扩散模型的理论支柱。从朗之万动力学到今天的去噪扩散概率模型（DDPM），核心思想一脉相承：通过在数据上添加精心设计的噪声（对应朗之万方程中的随机项），并学习反向的去噪过程（对应漂移项），我们可以从简单的噪声分布生成复杂的数据分布。这种优雅的对称性不仅在数学上令人着迷，更在实践中展现出了惊人的生成能力。
+三年后，朗之万（Langevin）提出了描述单个粒子轨迹的随机微分方程： $d\mathbf{x}_t = -\nabla U(\mathbf{x}_t)dt + \sqrt{2D}d\mathbf{W}_t$ ，其中第一项是确定性的漂移项，第二项是随机的扩散项。这个方程奠定了随机过程理论的基础，也成为了现代扩散模型的理论支柱。从朗之万动力学到今天的去噪扩散概率模型（DDPM），核心思想一脉相承：通过在数据上添加精心设计的噪声（对应朗之万方程中的随机项），并学习反向的去噪过程（对应漂移项），我们可以从简单的噪声分布生成复杂的数据分布。这种优雅的对称性不仅在数学上令人着迷，更在实践中展现出了惊人的生成能力。
 
 🔬 **研究线索：物理扩散与概率扩散的深层联系**  
 扩散模型与物理扩散方程的联系不仅仅是类比。实际上，Fokker-Planck方程和Schrödinger桥问题揭示了两者的数学等价性。这种联系在最优传输理论中有深刻体现，但目前仍缺乏统一的几何理论框架。PyTorch中的`torchdiffeq.odeint`可用于探索连续时间扩散。
@@ -26,20 +26,20 @@
 
 ### 1.2.1 前向扩散过程
 
-给定数据点 $\mathbf{x}_0 \sim q(\mathbf{x}_0)$，前向过程通过 $T$ 步逐渐添加高斯噪声，定义为一个马尔可夫链：
+给定数据点 $\mathbf{x}_0 \sim q(\mathbf{x}_0)$ ，前向过程通过 $T$ 步逐渐添加高斯噪声，定义为一个马尔可夫链：
 
 $$q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$$
 
 其中 $\{\beta_t\}_{t=1}^T$ 是预先设定的噪声调度（noise schedule），控制每一步添加噪声的量。
 
-通过重参数化技巧（reparameterization trick），我们可以直接从 $\mathbf{x}_0$ 采样任意时刻 $t$ 的 $\mathbf{x}_t$，而无需迭代计算：
+通过重参数化技巧（reparameterization trick），我们可以直接从 $\mathbf{x}_0$ 采样任意时刻 $t$ 的 $\mathbf{x}_t$ ，而无需迭代计算：
 
 $$ \mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$$
 
 这等价于条件概率：
 $$q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
 
-其中 $\alpha_t = 1 - \beta_t$，$\bar{\alpha}_t = \prod_{s=1}^{t}\alpha_s$。当 $t \to T$ 时，若 $\bar{\alpha}_T \to 0$，则 $\mathbf{x}_T$ 的分布将趋向于各向同性的标准高斯分布，与原始数据 $\mathbf{x}_0$ 无关。
+其中 $\alpha_t = 1 - \beta_t$ ， $\bar{\alpha}_t = \prod_{s=1}^{t}\alpha_s$ 。当 $t \to T$ 时，若 $\bar{\alpha}_T \to 0$ ，则 $\mathbf{x}_T$ 的分布将趋向于各向同性的标准高斯分布，与原始数据 $\mathbf{x}_0$ 无关。
 
 💡 **开放问题：最优噪声调度的理论基础**  
 虽然实践中余弦调度效果良好，但缺乏理论指导原则。信息论视角下，噪声调度应该如何与数据的固有维度相适应？是否存在数据相关的自适应调度算法？
@@ -50,12 +50,12 @@ $$q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_
 <details>
 <summary>**练习 1.1：分析噪声调度**</summary>
 
-考虑一个线性噪声调度：$\beta_t = \beta_{min} + \frac{t-1}{T-1}(\beta_{max} - \beta_{min})$，其中 $T=1000$, $\beta_{min}=10^{-4}$, $\beta_{max}=0.02$。
+考虑一个线性噪声调度： $\beta_t = \beta_{min} + \frac{t-1}{T-1}(\beta_{max} - \beta_{min})$ ，其中 $T=1000$ , $\beta_{min}=10^{-4}$ , $\beta_{max}=0.02$ 。
 
 1.  **推导与分析**：推导信噪比 (Signal-to-Noise Ratio, SNR) $\text{SNR}(t) = \frac{\bar{\alpha}_t}{1-\bar{\alpha}_t}$ 的表达式。分析其随时间 $t$ 的变化趋势，并解释为什么在对数尺度下观察SNR更有意义。
 2.  **开放探索**：比较线性和余弦调度对整个扩散过程中信息损失速率的影响。哪种调度在过程的早期/晚期损失更多信息？这如何影响模型的学习难度和最终生成质量？
 3.  **研究思路**：
-    *   **信息瓶颈视角的噪声调度分析**：信息瓶颈（Information Bottleneck）理论最小化 $\mathcal{L} = I(X;Z) - \beta I(Z;Y)$，其中 $Z$ 是压缩表示。在扩散模型中，$\mathbf{x}_t$ 可视为 $\mathbf{x}_0$ 的压缩表示，互信息 $I(\mathbf{x}_0; \mathbf{x}_t) = \frac{1}{2}\log\frac{1}{1-\bar{\alpha}_t}$ 随时间递减。理想的噪声调度应该：(1) 在早期保留语义信息（高层特征），在后期才丢失细节；(2) 使信息损失率 $-\frac{dI}{dt}$ 尽可能恒定，避免某些时刻的学习困难；(3) 考虑数据的固有维度 $d_{intrinsic}$，高维数据可能需要更平缓的调度。这启发我们设计自适应调度：$\beta_t = f(I(\mathbf{x}_0; \mathbf{x}_t), d_{intrinsic})$。
+    *   **信息瓶颈视角的噪声调度分析**：信息瓶颈（Information Bottleneck）理论最小化 $\mathcal{L} = I(X;Z) - \beta I(Z;Y)$ ，其中 $Z$ 是压缩表示。在扩散模型中， $\mathbf{x}_t$ 可视为 $\mathbf{x}_0$ 的压缩表示，互信息 $I(\mathbf{x}_0; \mathbf{x}_t) = \frac{1}{2}\log\frac{1}{1-\bar{\alpha}_t}$ 随时间递减。理想的噪声调度应该：(1) 在早期保留语义信息（高层特征），在后期才丢失细节；(2) 使信息损失率 $-\frac{dI}{dt}$ 尽可能恒定，避免某些时刻的学习困难；(3) 考虑数据的固有维度 $d_{intrinsic}$ ，高维数据可能需要更平缓的调度。这启发我们设计自适应调度： $\beta_t = f(I(\mathbf{x}_0; \mathbf{x}_t), d_{intrinsic})$ 。
     *   研究噪声调度与模型架构（如U-Net的不同层）之间的相互作用。
     *   探索变分方法，将噪声调度本身作为可学习的参数。
 
@@ -63,7 +63,7 @@ $$q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_
 
 ### 1.2.2 反向去噪过程
 
-反向过程的目标是学习条件分布 $p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$，从纯噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$ 开始，逐步去除噪声，最终生成数据样本 $\mathbf{x}_0$。
+反向过程的目标是学习条件分布 $p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$ ，从纯噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$ 开始，逐步去除噪声，最终生成数据样本 $\mathbf{x}_0$ 。
 
 $$p_\theta(\mathbf{x}_{0:T}) = p(\mathbf{x}_T) \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$$
 
@@ -72,14 +72,14 @@ $$p_\theta(\mathbf{x}_{0:T}) = p(\mathbf{x}_T) \prod_{t=1}^T p_\theta(\mathbf{x}
 $$p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
 
 ⚡ **实现挑战：方差参数化的选择**  
-固定方差vs学习方差是一个未解决的权衡问题。DDPM使用固定的、与 $\beta_t$ 相关的方差，而后续工作（如Improved DDPM）则学习方差 $\sigma_t^2$。理论上最优的参数化形式是什么？这涉及到`torch.nn.Parameter`的灵活使用和梯度流的稳定性分析。
+固定方差vs学习方差是一个未解决的权衡问题。DDPM使用固定的、与 $\beta_t$ 相关的方差，而后续工作（如Improved DDPM）则学习方差 $\sigma_t^2$ 。理论上最优的参数化形式是什么？这涉及到`torch.nn.Parameter`的灵活使用和梯度流的稳定性分析。
 
 <details>
 <summary>**练习 1.2：探索扩散过程的数学本质**</summary>
 
-考虑一个简单的一维扩散过程，初始数据为单点 $x_0$。
+考虑一个简单的一维扩散过程，初始数据为单点 $x_0$ 。
 
-1.  **前向过程分析**：推导任意时刻 $t$ 的期望 $\mathbb{E}[x_t | x_0]$ 和方差 $\text{Var}(x_t | x_0)$。
+1.  **前向过程分析**：推导任意时刻 $t$ 的期望 $\mathbb{E}[x_t | x_0]$ 和方差 $\text{Var}(x_t | x_0)$ 。
 2.  **信息论视角**：推导并分析互信息 $I(x_t; x_0)$ 如何随时间 $t$ 衰减。这对于理解扩散过程中的信息损失有何启示？
 3.  **最优反向过程**：证明当 $\beta_t \to 0$ 时，真实的反向过程条件分布 $q(\mathbf{x}_{t-1} | \mathbf{x}_t, \mathbf{x}_0)$ 的均值，可以仅由 $\mathbf{x}_t$ 和 $\nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t)$ （即分数函数）来近似表达。这揭示了扩散模型与分数模型的深刻联系（将在第4章详细讨论）。
 4.  **研究思路**：
@@ -124,9 +124,9 @@ $$p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \bol
 <summary>**综合练习：噪声调度的理论分析**</summary>
 
 考虑三种常见的噪声调度策略：
-- **线性调度**：$\beta_t = \beta_{\text{start}} + \frac{t-1}{T-1}(\beta_{\text{end}} - \beta_{\text{start}})$
-- **余弦调度**：$\bar{\alpha}_t = f(t)/f(0)$，其中 $f(t) = \cos\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right)^2$
-- **二次调度**：$\beta_t$ 的增长率随 $t$ 呈二次关系。
+- **线性调度**： $\beta_t = \beta_{\text{start}} + \frac{t-1}{T-1}(\beta_{\text{end}} - \beta_{\text{start}})$
+- **余弦调度**： $\bar{\alpha}_t = f(t)/f(0)$ ，其中 $f(t) = \cos\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right)^2$
+- **二次调度**： $\beta_t$ 的增长率随 $t$ 呈二次关系。
 
 **理论分析与开放探索：**
 1.  **信噪比分析**：推导并绘制每种调度下信噪比 $\text{SNR}(t) = \bar{\alpha}_t / (1 - \bar{\alpha}_t)$ 的对数曲线。比较不同曲线的形状，并讨论其对模型学习过程可能产生的影响（例如，模型在哪些阶段需要学习更精细的细节？）。
