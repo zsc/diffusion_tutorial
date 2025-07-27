@@ -51,47 +51,47 @@
 从随机微分方程(SDE)和偏微分方程(PDE)角度理解扩散模型，包括概率流ODE、Fokker-Planck方程等连续时间框架。
 
 ### [第6章：流匹配 (Flow Matching)](chapter6.md)
-*计划中*
+*已完成*
 
 连续正则化流、最优传输视角、与扩散模型的联系。
 
 ### [第7章：扩散Transformer (DiT)](chapter7.md)
-*计划中*
+*已完成*
 
 Diffusion Transformer架构、与U-Net的对比、可扩展性分析。
 
 ### [第8章：采样算法与加速技术](chapter8.md)
-*计划中*
+*已完成*
 
 学习DDIM、DPM-Solver等快速采样方法，以及如何优化生成质量与速度的平衡。
 
 ### [第9章：条件生成与引导技术](chapter9.md)
-*计划中*
+*已完成*
 
 掌握classifier guidance、classifier-free guidance等条件生成技术，实现可控生成。
 
 ### [第10章：潜在扩散模型 (LDM)](chapter10.md)
-*计划中*
+*已完成*
 
 理解Stable Diffusion的架构，学习如何在潜在空间中进行高效的扩散建模。
 
 ### [第11章：视频扩散模型](chapter11.md)
-*计划中*
+*已完成*
 
 时序建模、3D U-Net、视频生成的挑战与方法。
 
 ### [第12章：文本扩散模型](chapter12.md)
-*计划中*
+*已完成*
 
 探索离散域上的扩散模型，包括D3PM、Diffusion-LM等文本生成方法，以及embedding空间的扩散技术。
 
 ### [第13章：扩散模型的应用](chapter13.md)
-*计划中*
+*已完成*
 
 探索图像生成、图像编辑、超分辨率、3D生成等实际应用场景。
 
 ### [第14章：前沿研究与未来方向](chapter14.md)
-*计划中*
+*已完成*
 
 了解最新研究进展，包括一致性模型、扩散模型的未来发展趋势。
 
