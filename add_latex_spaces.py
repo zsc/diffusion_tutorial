@@ -13,20 +13,30 @@ def add_spaces_around_latex(content):
     "文字$$公式$$" -> "文字\n$$公式$$"
     """
     # First, handle $$ blocks - ensure newline before starting $$
-    # Pattern to match $$ at the start of a display equation (not at the end)
-    # This looks for $$ that is NOT preceded by another $ and is followed by non-$ content
-    display_pattern = r'([^\n])(\$\$)(?!\$)([^\$]+?\$\$)'
+    # New approach: Find all $$ positions and process them correctly
+    # We need to identify which $$ are starts and which are ends
     
-    def ensure_newline_before_display(match):
-        before_char = match.group(1)
-        display_start = match.group(2)
-        rest = match.group(3)
-        
-        # Add newline before $$ if not already there
-        return f"{before_char}\n{display_start}{rest}"
+    result = content
     
-    # Apply display math fix
-    result = re.sub(display_pattern, ensure_newline_before_display, content)
+    # Find all $$ positions
+    dollar_positions = []
+    i = 0
+    while i < len(result) - 1:
+        if result[i:i+2] == '$$':
+            dollar_positions.append(i)
+            i += 2
+        else:
+            i += 1
+    
+    # Process $$ pairs from right to left (to avoid position shifts)
+    # Every odd-indexed $$ is a start, even-indexed is an end
+    for idx in range(len(dollar_positions) - 1, -1, -1):
+        if idx % 2 == 0:  # This is a start $$
+            pos = dollar_positions[idx]
+            # Check if there's a newline before this $$
+            if pos > 0 and result[pos-1] != '\n':
+                # Insert newline before $$
+                result = result[:pos] + '\n' + result[pos:]
     
     # Now handle single $ inline math
     # Pattern to match single dollar signs with content between them
