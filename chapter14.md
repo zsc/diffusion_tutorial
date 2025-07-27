@@ -224,19 +224,22 @@ $$
 **核心概念**：
 
 1. **Wasserstein距离**：
-   $$W_2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \left(\int \|\mathbf{x} - \mathbf{y}\|^2 d\pi(\mathbf{x}, \mathbf{y})\right)^{1/2}$$
+   
+$$W_2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \left(\int \|\mathbf{x} - \mathbf{y}\|^2 d\pi(\mathbf{x}, \mathbf{y})\right)^{1/2}$$
    
    度量两个分布之间的"运输成本"。
 
 2. **最优传输映射**：
    寻找从数据分布到噪声分布的最优映射 $T^*$ ：
    
-$$T^* = \arg\min_{T: T_\#\mu = \nu} \int \|\mathbf{x} - T(\mathbf{x})\|^2 d\mu(\mathbf{x})$$
+$$T^* = \arg\min_{T: T_\#\mu = \nu} \int \|\mathbf{x} - T(\mathbf{x})\|^2 d\mu(\mathbf{x})
+$$
 
 3. **动态最优传输**：
    考虑随时间演化的传输路径：
    
-$$\inf_{\rho_t, \mathbf{v}_t} \int_0^1 \int \|\mathbf{v}_t(\mathbf{x})\|^2 \rho_t(\mathbf{x}) d\mathbf{x} dt$$
+$$\inf_{\rho_t, \mathbf{v}_t} \int_0^1 \int \|\mathbf{v}_t(\mathbf{x})\|^2 \rho_t(\mathbf{x}) d\mathbf{x} dt
+$$
 
 **与扩散模型的联系**：
 
@@ -246,7 +249,8 @@ $$\inf_{\rho_t, \mathbf{v}_t} \int_0^1 \int \|\mathbf{v}_t(\mathbf{x})\|^2 \rho_
 2. **Schrödinger桥**：
    扩散过程是熵正则化的最优传输：
    
-$$\min_{\mathbb{P}} \mathbb{E}_\mathbb{P}[\mathcal{A}] + \epsilon \text{KL}(\mathbb{P} \| \mathbb{Q})$$
+$$\min_{\mathbb{P}} \mathbb{E}_\mathbb{P}[\mathcal{A}] + \epsilon \text{KL}(\mathbb{P} \| \mathbb{Q})
+$$
 
 3. **计算优势**：
    - OT提供了新的训练目标
@@ -270,7 +274,8 @@ $$\mathcal{L}_\text{FM}(\theta) = \mathbb{E}_{t,\mathbf{x}_t}\left[\|\mathbf{v}_
 
 2. **条件流匹配**：
    
-$$\mathbf{u}_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1) = \frac{\mathbf{x}_1 - \mathbf{x}_0}{1 - 0} = \mathbf{x}_1 - \mathbf{x}_0$$
+$$\mathbf{u}_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1) = \frac{\mathbf{x}_1 - \mathbf{x}_0}{1 - 0} = \mathbf{x}_1 - \mathbf{x}_0
+$$
    
    提供了简单的训练目标。
 
@@ -333,7 +338,8 @@ $$
    - GAN：隐式变分界
 
 2. **SDE/ODE统一**：
-   $$d\mathbf{x}_t = f(t)\mathbf{x}_t dt + g(t)d\mathbf{w}_t$$
+   
+$$d\mathbf{x}_t = f(t)\mathbf{x}_t dt + g(t)d\mathbf{w}_t$$
    
    通过调整 $f$ 和 $g$ ，可以得到不同的生成模型。
 
@@ -409,7 +415,8 @@ $$p(\mathbf{x}) \propto \exp(-E_\theta(\mathbf{x}))$$
 1. **样本复杂度**：
    生成 $\epsilon$ -近似分布需要多少样本？
    
-$$n = \Omega\left(\frac{d}{\epsilon^2}\right) ?$$
+$$n = \Omega\left(\frac{d}{\epsilon^2}\right) ?
+$$
 
 2. **计算复杂度**：
    - 训练复杂度
@@ -423,7 +430,8 @@ $$n = \Omega\left(\frac{d}{\epsilon^2}\right) ?$$
 
 1. **收敛速度**：
    
-$$\text{KL}(p_\theta \| p_\text{data}) \leq O(1/\sqrt{n})$$
+$$\text{KL}(p_\theta \| p_\text{data}) \leq O(1/\sqrt{n})
+$$
 
 2. **泛化界**：
    

@@ -238,11 +238,13 @@ DPM-Solver++引入了两个关键改进：
 
 1. **数据预测参数化**：预测 $\mathbf{x}_0$ 而非 $\boldsymbol{\epsilon}$
    
-$$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sigma_t\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\alpha_t}$$
+$$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sigma_t\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\alpha_t}
+$$
 
 2. **thresholding**：动态裁剪防止数值不稳定
    
-$$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)$$
+$$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)
+$$
 
 **算法伪代码**：
 
