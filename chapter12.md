@@ -248,7 +248,7 @@ D3PM（Discrete Denoising Diffusion Probabilistic Models）通过将连续扩散
 
 对于离散状态 $x \in \{1, 2, ..., K\}$ （K是词汇表大小），前向过程定义为：
 
-$$q(x_t|x_{t-1}) = \text{Cat}(x_t; \mathbf{Q}_t x_{t-1})$$
+$$q(x\_t|x_{t-1}) = \text{Cat}(x\_t; \mathbf{Q}\_t x\_{t-1})$$
 
 其中 $\mathbf{Q}_t \in \mathbb{R}^{K \times K}$ 是转移矩阵， $\text{Cat}$ 表示分类分布。
 
