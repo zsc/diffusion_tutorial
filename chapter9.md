@@ -745,21 +745,14 @@ $$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w
     w_spatial = compute_spatial_weights(attention_maps)
     
     return noise_u + w_spatial * (noise_c - noise_u)
-```
+
 
 **3. 元引导**
-```python
-class MetaGuidance:
-    def __init__(self):
-        self.guidance_predictor = nn.Module()  # 预测最优引导策略
-    
-    def apply(self, x_t, t, context):
-        # 预测当前最优引导参数
-        guidance_params = self.guidance_predictor(x_t, t, context)
-        
-        # 应用预测的引导
-        return apply_guidance_with_params(x_t, t, guidance_params)
-```
+
+元引导是一种高级技术，使用学习的模型来预测最优引导策略：
+- **引导预测器**：一个神经网络，根据当前状态预测最佳引导参数
+- **上下文意识**：根据不同的生成上下文调整引导策略
+- **动态适应**：在生成过程中实时调整引导参数
 
 🔬 **研究前沿：可学习的引导**  
 能否训练一个网络来学习最优的引导策略？这可能需要元学习或强化学习方法。
@@ -791,13 +784,10 @@ class MetaGuidance:
 
 **1. 分类准确率**
 
-对于类别条件：
-```python
-def classification_accuracy(generated_images, target_classes, classifier):
-    predictions = classifier(generated_images)
-    accuracy = (predictions.argmax(1) == target_classes).float().mean()
-    return accuracy
-```
+对于类别条件，可以使用预训练的分类器评估生成图像的类别一致性：
+$$\text{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\arg\max_j p(y_j|\mathbf{x}_i) = c_i]$$
+
+其中 $p(y_j|\mathbf{x}_i)$ 是分类器对生成图像 $\mathbf{x}_i$ 的预测概率，$c_i$ 是目标类别。
 
 **2. CLIP Score**
 
@@ -831,66 +821,29 @@ $$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
 
 **2. 质量-多样性前沿**
 
-```python
-def quality_diversity_frontier(model, conditions, guidance_weights):
-    results = []
-    
-    for w in guidance_weights:
-        # 生成样本
-        samples = generate_with_guidance(model, conditions, w)
-        
-        # 评估
-        quality = compute_quality(samples)
-        diversity = compute_diversity(samples)
-        
-        results.append({
-            'guidance_weight': w,
-            'quality': quality,
-            'diversity': diversity
-        })
-    
-    return results
-```
+通过测试不同的引导权重，可以绘制质量-多样性的权衡曲线。通常：
+- 低引导权重：高多样性、低质量
+- 高引导权重：低多样性、高质量
+- 最佳点：在两者之间找到平衡
 
 **3. 自动权衡选择**
 
-```python
-def auto_select_guidance(target_quality, target_diversity):
-    # 基于历史数据拟合关系
-    quality_fn = fit_quality_curve(historical_data)
-    diversity_fn = fit_diversity_curve(historical_data)
-    
-    # 优化目标
-    def objective(w):
-        q = quality_fn(w)
-        d = diversity_fn(w)
-        return abs(q - target_quality) + abs(d - target_diversity)
-    
-    optimal_w = minimize(objective, x0=7.5)
-    return optimal_w
-```
+可以基于历史数据拟合质量和多样性与引导权重的关系，然后根据目标质量和多样性自动选择最佳引导权重：
+$$w^* = \arg\min_w |Q(w) - Q_{target}| + |D(w) - D_{target}|$$
+
+其中 $Q(w)$ 和 $D(w)$ 分别是质量和多样性关于引导权重的函数。
 
 ### 9.5.3 引导失效的诊断
 
 **1. 常见失效模式**
 
-```python
-class GuidanceFailureDetector:
-    def __init__(self):
-        self.failure_patterns = {
-            'over_guidance': self.detect_over_guidance,
-            'under_guidance': self.detect_under_guidance,
-            'mode_collapse': self.detect_mode_collapse,
-            'semantic_drift': self.detect_semantic_drift
-        }
-    
-    def diagnose(self, samples, conditions):
-        issues = []
-        for name, detector in self.failure_patterns.items():
-            if detector(samples, conditions):
-                issues.append(name)
-        return issues
-```
+条件引导可能出现的失效模式包括：
+- **过度引导**：生成结果过于饫和或失真
+- **引导不足**：条件与生成内容不匹配
+- **模式崩塌**：所有生成结果趋同
+- **语义漂移**：生成过程中偏离原始条件
+
+可以设计一个诊断系统来自动检测这些失效模式。
 
 **2. 过度引导检测**
 
