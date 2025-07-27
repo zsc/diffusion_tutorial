@@ -481,35 +481,20 @@ class PixelShuffleUp(nn.Module):
 
 #### 实验证据：权重共享的实际效果
 
+权重共享是一个有趣的理论问题。实验设计要点：
 
+**权重共享U-Net：**
+- 解码器使用编码器权重的转置
+- 使用`F.conv_transpose2d`实现转置卷积
+- 需要仔细处理维度匹配问题
 
+**独立权重U-Net（标准）：**
+- 编码器和解码器完全独立
+- 参数量翻倍但表达能力更强
+- 当前所有SOTA模型的选择
 
-# 实验：比较权重共享与独立权重的U-Net
-
-class TiedUNet(nn.Module):
- """权重共享的U-Net实现"""
- def __init__(self):
- super().__init__()
- # 编码器层
- self.enc1 = nn.Conv2d(3, 64, 3, padding=1)
- self.enc2 = nn.Conv2d(64, 128, 3, padding=1)
-
- # 解码器使用编码器的转置
- # 注意：这里需要仔细处理维度匹配
-
- def decode_with_tied_weights(self, x, layer_idx):
- # 使用编码器权重的转置
- weight = getattr(self, f'enc{layer_idx}').weight
- # PyTorch的F.conv_transpose2d允许我们使用转置的权重
- return F.conv_transpose2d(x, weight, padding=1)
-
-class IndependentUNet(nn.Module):
- """独立权重的U-Net实现（标准做法）"""
- def __init__(self):
- super().__init__()
- # 编码器和解码器完全独立
- self.enc1 = nn.Conv2d(3, 64, 3, padding=1)
- self.dec1 = nn.Conv2d(64, 3, 3, padding=1) # 独立的解码器权重
+💡 **研究方向：自适应权重共享**  
+能否设计一种"软"权重共享机制，在训练过程中自适应地调整共享程度？这可能结合`nn.Parameter`的灵活使用和正则化技术。
 
 
  根据社区的实验和论文报告，权重共享在扩散模型中的表现：
@@ -539,20 +524,17 @@ class IndependentUNet(nn.Module):
 
 
 
-# 部分权重共享：只在某些层共享
-class PartiallyTiedUNet(nn.Module):
- def __init__(self):
- super().__init__()
- # 底层（高分辨率）独立
- self.enc_high = nn.Conv2d(3, 64, 3, padding=1)
- self.dec_high = nn.Conv2d(64, 3, 3, padding=1)
+部分权重共享是一种折中方案：
 
- # 中层（中等分辨率）共享
- self.shared_mid = nn.Conv2d(128, 256, 3, padding=1)
+**设计原则：**
+- 高分辨率层（细节）：独立权重
+- 中间层（通用特征）：共享权重  
+- 低分辨率层（语义）：独立权重
 
- # 深层（低分辨率）独立 - 这里语义差异最大
- self.enc_low = nn.Conv2d(256, 512, 3, padding=1)
- self.dec_low = nn.Conv2d(512, 256, 3, padding=1)
+这种设计基于不同层次特征的语义差异。中间层学习的特征较为通用，适合共享；而浅层和深层的任务差异较大。
+
+🔬 **研究线索：层级特定的归纳偏置**  
+不同深度的层是否需要不同的架构设计？如何根据层的语义级别自适应调整架构？这涉及到神经架构搜索（NAS）在扩散模型中的应用。
 
 
  这种设计的直觉是：中间层学习的是较为通用的特征变换，可以共享；而浅层和深层由于任务差异较大，应该独立。

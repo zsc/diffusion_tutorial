@@ -14,6 +14,9 @@
 
 扩散模型（Diffusion Models）是一类强大的生成模型，它通过学习数据的逐步去噪过程来生成高质量的样本。这个过程可以类比为物理学中的扩散现象：就像墨水在水中逐渐扩散直至均匀分布，扩散模型将数据逐步添加噪声直至变成纯噪声，然后学习如何反转这个过程。
 
+🔬 **研究线索：物理扩散与概率扩散的深层联系**  
+扩散模型与物理扩散方程的联系不仅仅是类比。实际上，Fokker-Planck方程和Schrödinger桥问题揭示了两者的数学等价性。这种联系在最优传输理论中有深刻体现，但目前仍缺乏统一的几何理论框架。PyTorch中的`torchdiffeq.odeint`可用于探索连续时间扩散。
+
 
 
 > **定义**
@@ -39,15 +42,12 @@
 
 给定数据点 $\mathbf{x}_0 \sim q(\mathbf{x}_0)$，前向过程通过 $T$ 步逐渐添加高斯噪声：
 
+$$q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$$
 
+其中 $\beta_t$ 是第 $t$ 步的噪声调度（noise schedule），控制每一步添加噪声的量。
 
-
- $$q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$$
-
-
-
-
-其中 $\beta_t$ 是第 $t$ 步的噪声调度（noise schedule），控制每一步添加噪声的量。通过重参数化技巧，我们可以直接从 $\mathbf{x}_0$ 采样任意时刻 $t$ 的 $\mathbf{x}_t$：
+💡 **开放问题：最优噪声调度的理论基础**  
+虽然实践中余弦调度效果良好，但缺乏理论指导原则。信息论视角下，噪声调度应该如何与数据的固有维度相适应？是否存在数据相关的自适应调度算法？这涉及到`torch.nn.functional.cosine_similarity`等度量的使用。通过重参数化技巧，我们可以直接从 $\mathbf{x}_0$ 采样任意时刻 $t$ 的 $\mathbf{x}_t$：
 
 
 
@@ -90,10 +90,10 @@
 
 反向过程的目标是学习条件分布 $p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$，使其能够逐步去除噪声。我们通常将其参数化为：
 
+$$p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
 
-
-
- $$p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
+⚡ **实现挑战：方差参数化的选择**  
+固定方差vs学习方差是一个未解决的权衡问题。DDPM使用固定方差，而改进版本学习方差。理论上最优的参数化形式是什么？这涉及到`torch.nn.Parameter`的灵活使用和梯度流的稳定性分析。
 
 
 
@@ -113,95 +113,29 @@
 
 ## 1.4 实践：可视化扩散过程
 
+让我们通过一个简单的例子来直观理解扩散过程。考虑一个2D高斯分布的前向扩散过程：
 
+**前向扩散的数学表达：**
+$$\mathbf{x}_t = \sqrt{\bar{\alpha}_t} \mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t} \boldsymbol{\epsilon}$$
 
-让我们通过一个简单的例子来直观理解扩散过程。下面的代码展示了如何对一个2D高斯分布进行前向扩散：
+其中 $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$。通过选择不同的时间步 $t \in \{0, 25, 50, 75, 100\}$，我们可以观察数据分布如何从初始的聚集状态逐渐扩散为标准正态分布。
 
-
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-# 生成初始数据：2D高斯分布
-np.random.seed(42)
-x0 = np.random.randn(1000, 2) * 0.5 + np.array([2, 2])
-
-# 定义噪声调度
-T = 100
-betas = np.linspace(0.001, 0.02, T)
-alphas = 1 - betas
-alphas_bar = np.cumprod(alphas)
-
-# 可视化不同时间步的数据分布
-fig, axes = plt.subplots(1, 5, figsize=(15, 3))
-time_steps = [0, 25, 50, 75, 99]
-
-for i, t in enumerate(time_steps):
- if t == 0:
- xt = x0
- else:
- # 前向扩散：x_t = sqrt(alpha_bar_t) * x_0 + sqrt(1 - alpha_bar_t) * epsilon
- epsilon = np.random.randn(*x0.shape)
- xt = np.sqrt(alphas_bar[t-1]) * x0 + np.sqrt(1 - alphas_bar[t-1]) * epsilon
-
- axes[i].scatter(xt[:, 0], xt[:, 1], alpha=0.5, s=10)
- axes[i].set_xlim(-4, 4)
- axes[i].set_ylim(-4, 4)
- axes[i].set_title(f't = {t}')
- axes[i].grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.show()
+🌟 **理论空白：扩散速度的几何含义**  
+前向扩散过程在数据流形上的速度场有何几何意义？与Ricci流的联系如何？这种几何视角可能揭示新的采样算法。相关实现会用到`torch.nn.functional.normalize`进行流形投影。
 
 
 
 
-练习 1.2：实现简单的1D扩散
- 实现一个1D扩散过程的完整前向和反向过程。给定初始数据为单点 $x_0 = 5$：
+练习 1.2：理解1D扩散的数学本质
 
+给定初始数据为单点 $x_0 = 5$，分析1D扩散过程：
 
+1. **前向过程分析**：推导 $\mathbb{E}[x_t]$ 和 $\text{Var}(x_t)$ 随时间的变化
+2. **信息论视角**：计算每一步的信息损失 $I(x_0; x_t)$
+3. **最优反向过程**：证明最优反向过程的漂移项与分数函数的关系
 
- - 实现前向扩散过程，记录每一步的值
- - 假设你知道真实的反向过程，实现去噪过程
- - 绘制前向和反向过程的轨迹
-
-**参考代码：**
-
-
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-# 初始化
-x0 = 5.0
-T = 50
-betas = np.linspace(0.01, 0.2, T)
-
-# 前向过程
-x_forward = [x0]
-for t in range(T):
- noise = np.random.randn()
- x_next = np.sqrt(1 - betas[t]) * x_forward[-1] + np.sqrt(betas[t]) * noise
- x_forward.append(x_next)
-
-# 反向过程（假设知道真实的去噪方向）
-x_reverse = [x_forward[-1]]
-for t in range(T-1, -1, -1):
- # 这里简化处理，实际需要学习
- predicted_x0 = x0 # 假设知道目标
- direction = (predicted_x0 - x_reverse[-1]) / (t + 1)
- x_reverse.append(x_reverse[-1] + direction * 0.1 + np.random.randn() * 0.01)
-
-# 绘图
-plt.figure(figsize=(10, 5))
-plt.plot(x_forward, 'b-', label='Forward Process', alpha=0.7)
-plt.plot(x_reverse, 'r-', label='Reverse Process', alpha=0.7)
-plt.xlabel('Time Step')
-plt.ylabel('Value')
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.show()
+💡 **研究方向：1D情况下的解析解**  
+在1D高斯情况下，扩散过程存在闭式解。这为理解高维情况提供了直觉。如何将1D的洞察推广到高维？相关计算会用到`torch.distributions.Normal`和信息论度量。
 
 
 
@@ -209,16 +143,15 @@ plt.show()
 
 ## 1.5 历史发展与里程碑
 
+扩散模型的发展经历了几个重要阶段：
 
- 扩散模型的发展经历了几个重要阶段：
+- **2015年**：Sohl-Dickstein等人提出了基于非平衡热力学的深度无监督学习方法
+- **2020年**：Ho等人提出DDPM（Denoising Diffusion Probabilistic Models），简化了训练过程
+- **2021年**：Song等人提出DDIM，大幅加速了采样过程
+- **2022年**：Stable Diffusion的发布，使文本到图像生成达到了新高度
 
-
-
-
- - **2015年**：Sohl-Dickstein等人提出了基于非平衡热力学的深度无监督学习方法
- - **2020年**：Ho等人提出DDPM（Denoising Diffusion Probabilistic Models），简化了训练过程
- - **2021年**：Song等人提出DDIM，大幅加速了采样过程
- - **2022年**：Stable Diffusion的发布，使文本到图像生成达到了新高度
+🔬 **历史视角的研究机会**  
+早期基于热力学的方法与现代DDPM的联系尚未完全理解。非平衡统计物理中的涨落定理（Fluctuation Theorems）如何应用于扩散模型？这可能带来新的理论洞察和算法改进。
 
 
 
@@ -245,25 +178,20 @@ plt.show()
 
 
 
-综合练习：比较不同噪声调度
+综合练习：噪声调度的理论分析
 
-实现并比较三种不同的噪声调度策略：
+考虑三种噪声调度策略：
+- 线性调度：$\beta_t = \beta_{\text{start}} + \frac{t}{T}(\beta_{\text{end}} - \beta_{\text{start}})$
+- 余弦调度：$\bar{\alpha}_t = \cos\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right)^2$
+- 二次调度：$\beta_t = \beta_{\text{start}} + \left(\frac{t}{T}\right)^2(\beta_{\text{end}} - \beta_{\text{start}})$
 
+**理论分析任务：**
+1. 推导每种调度下的信噪比 $\text{SNR}(t) = \bar{\alpha}_t / (1 - \bar{\alpha}_t)$ 的变化率
+2. 分析哪种调度最小化了总的信息损失
+3. 探讨与最优传输理论的联系
 
+⚡ **实现挑战：自适应噪声调度**  
+能否设计一个根据数据特性自动调整的噪声调度？这需要在线估计数据的局部几何性质。`torch.autograd.functional.jacobian`可用于计算局部几何量。
 
- - 线性调度：$\beta_t = \beta_{\text{start}} + \frac{t}{T}(\beta_{\text{end}} - \beta_{\text{start}})$
- - 余弦调度：基于余弦函数的平滑调度
- - 二次调度：$\beta_t = \beta_{\text{start}} + \left(\frac{t}{T}\right)^2(\beta_{\text{end}} - \beta_{\text{start}})$
-
-
-
-绘制 $\bar{\alpha}_t$ 随时间的变化曲线，并讨论它们的优缺点。
-
-**提示：**
-
-
-
- - 线性调度简单直观，但可能在早期步骤添加噪声过快
- - 余弦调度在中间阶段更平滑，有助于保留更多信息
- - 二次调度在早期添加噪声较慢，后期加速
- - 选择哪种调度取决于具体任务和数据特性
+🌟 **理论空白：噪声调度与采样效率**  
+不同噪声调度对DDIM等快速采样算法的影响机制尚不清楚。是否存在专门为快速采样优化的噪声调度？这涉及到离散化误差的精细分析。
