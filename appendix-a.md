@@ -77,6 +77,7 @@
 > **定理 A.3 (伊藤公式)**
 > 设 `X_t` 满足SDE `dX_t = μ_t dt + σ_t dB_t`，`f(x, t)` 是一个足够光滑的函数，则：
 > 
+
 $$df(X_t, t) = \left(\frac{\partial f}{\partial t} + \mu_t \frac{\partial f}{\partial x} + \frac{1}{2}\sigma_t^2 \frac{\partial^2 f}{\partial x^2}\right)dt + \sigma_t \frac{\partial f}{\partial x} dB_t$$
 > 核心区别在于比普通链式法则多出的一项：`1/2 * σ_t^2 * ∂^2f/∂x^2`，这被称为**伊藤修正项**，它正是来源于 `(dB_t)^2 = dt`。
 
@@ -98,6 +99,7 @@ SDE描述了受随机扰动影响的动态系统，是扩散模型的数学语�
 > **定义 A.4 (SDE)**
 > 一个典型的SDE具有形式：
 > 
+
 $$dX_t = b(X_t, t)dt + \sigma(X_t, t)dB_t$$
 > - **漂移项 `b(X_t, t)`**: 描述系统的确定性平均行为。
 > - **扩散项 `σ(X_t, t)`**: 描述随机波动的强度。

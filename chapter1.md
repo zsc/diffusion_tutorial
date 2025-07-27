@@ -35,9 +35,11 @@ $$q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t
 通过重参数化技巧（reparameterization trick），我们可以直接从 $\mathbf{x}_0$ 采样任意时刻 $t$ 的 $\mathbf{x}_t$ ，而无需迭代计算：
 
 $$ \mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})
+
 $$
 
 这等价于条件概率：
+
 $$q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
 
 其中 $\alpha_t = 1 - \beta_t$ ， $\bar{\alpha}_t = \prod_{s=1}^{t}\alpha_s$ 。当 $t \to T$ 时，若 $\bar{\alpha}_T \to 0$ ，则 $\mathbf{x}_T$ 的分布将趋向于各向同性的标准高斯分布，与原始数据 $\mathbf{x}_0$ 无关。

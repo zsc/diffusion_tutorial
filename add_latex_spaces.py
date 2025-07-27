@@ -68,6 +68,7 @@ def add_spaces_around_latex(content):
         # Replace in result
         result = result[:start_pos] + replacement + result[end_pos:]
     
+    result = result.replace('\n$$', '\n\n$$').replace('\n\n\n$$', '\n\n$$')
     return result
 
 def process_file(filepath):

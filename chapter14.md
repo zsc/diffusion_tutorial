@@ -47,12 +47,15 @@
 与扩散模型逐步去噪不同，一致性模型学习一个函数 $f_\theta$ ，直接将任意时刻的噪声数据映射到干净数据：
 
 $$f_\theta(\mathbf{x}_t, t) = \mathbf{x}_0, \quad \forall t \in [0, T]
+
 $$
 
 **自一致性属性**：
 
 关键约束是自一致性（self-consistency）：
+
 $$f_\theta(\mathbf{x}_t, t) = f_\theta(\mathbf{x}_s, s), \quad \forall t, s \in [0, T]
+
 $$
 
 这意味着同一轨迹上的所有点都映射到相同的干净数据。
@@ -60,6 +63,7 @@ $$
 **训练目标**：
 
 一致性损失通过强制相邻时间步的输出一致来训练：
+
 $$\mathcal{L}(\theta) = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|f_\theta(\mathbf{x}_{t+\Delta t}, t+\Delta t) - f_{\theta^-}(\mathbf{x}_t, t)\|^2\right]$$
 
 其中 $\theta^-$ 是目标网络参数（类似于强化学习中的目标网络）。
@@ -120,7 +124,9 @@ $$\mathcal{L}(\theta) = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\
 **3. 理论联系**：
 
 两者都基于相同的概率流ODE：
+
 $$\frac{d\mathbf{x}_t}{dt} = f(t)\mathbf{x}_t + \frac{g^2(t)}{2\sigma_t}\nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)
+
 $$
 
 一致性模型直接学习ODE的解映射。
@@ -225,6 +231,7 @@ $$
 
 1. **Wasserstein距离**：
    
+
 $$W_2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \left(\int \|\mathbf{x} - \mathbf{y}\|^2 d\pi(\mathbf{x}, \mathbf{y})\right)^{1/2}$$
    
    度量两个分布之间的"运输成本"。
@@ -232,13 +239,17 @@ $$W_2(\mu, \nu) = \inf_{\pi \in \Pi(\mu, \nu)} \left(\int \|\mathbf{x} - \mathbf
 2. **最优传输映射**：
    寻找从数据分布到噪声分布的最优映射 $T^*$ ：
    
+
 $$T^* = \arg\min_{T: T_\#\mu = \nu} \int \|\mathbf{x} - T(\mathbf{x})\|^2 d\mu(\mathbf{x})
+
 $$
 
 3. **动态最优传输**：
    考虑随时间演化的传输路径：
    
+
 $$\inf_{\rho_t, \mathbf{v}_t} \int_0^1 \int \|\mathbf{v}_t(\mathbf{x})\|^2 \rho_t(\mathbf{x}) d\mathbf{x} dt
+
 $$
 
 **与扩散模型的联系**：
@@ -249,7 +260,9 @@ $$
 2. **Schrödinger桥**：
    扩散过程是熵正则化的最优传输：
    
+
 $$\min_{\mathbb{P}} \mathbb{E}_\mathbb{P}[\mathcal{A}] + \epsilon \text{KL}(\mathbb{P} \| \mathbb{Q})
+
 $$
 
 3. **计算优势**：
@@ -268,13 +281,16 @@ $$
 
 1. **目标函数**：
    
+
 $$\mathcal{L}_\text{FM}(\theta) = \mathbb{E}_{t,\mathbf{x}_t}\left[\|\mathbf{v}_\theta(\mathbf{x}_t, t) - \mathbf{u}_t(\mathbf{x}_t)\|^2\right]$$
    
    其中 $\mathbf{u}_t$ 是目标向量场。
 
 2. **条件流匹配**：
    
+
 $$\mathbf{u}_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1) = \frac{\mathbf{x}_1 - \mathbf{x}_0}{1 - 0} = \mathbf{x}_1 - \mathbf{x}_0
+
 $$
    
    提供了简单的训练目标。
@@ -304,7 +320,9 @@ $$
 **1. 率失真理论视角**：
 
 生成模型as信息压缩：
+
 $$R(D) = \inf_{p(\hat{\mathbf{x}}|\mathbf{x}): \mathbb{E}[d(\mathbf{x}, \hat{\mathbf{x}})] \leq D} I(\mathbf{x}; \hat{\mathbf{x}})
+
 $$
 
 扩散模型在压缩和重建之间寻找最优平衡。
@@ -312,6 +330,7 @@ $$
 **2. 互信息分析**：
 
 扩散过程中的信息流：
+
 $$I(\mathbf{x}_0; \mathbf{x}_t) = H(\mathbf{x}_0) - H(\mathbf{x}_0|\mathbf{x}_t)$$
 
 随着 $t$ 增加，互信息减少，直到达到独立。
@@ -319,7 +338,9 @@ $$I(\mathbf{x}_0; \mathbf{x}_t) = H(\mathbf{x}_0) - H(\mathbf{x}_0|\mathbf{x}_t)
 **3. 信息瓶颈原理**：
 
 去噪网络学习压缩表示：
+
 $$\max_{p(\mathbf{z}|\mathbf{x}_t)} I(\mathbf{z}; \mathbf{x}_0) - \beta I(\mathbf{z}; \mathbf{x}_t)
+
 $$
 
 这解释了为什么扩散模型能学习有意义的特征。
@@ -339,6 +360,7 @@ $$
 
 2. **SDE/ODE统一**：
    
+
 $$d\mathbf{x}_t = f(t)\mathbf{x}_t dt + g(t)d\mathbf{w}_t$$
    
    通过调整 $f$ 和 $g$ ，可以得到不同的生成模型。
@@ -346,6 +368,7 @@ $$d\mathbf{x}_t = f(t)\mathbf{x}_t dt + g(t)d\mathbf{w}_t$$
 3. **能量视角统一**：
    所有生成模型都在学习能量函数：
    
+
 $$p(\mathbf{x}) \propto \exp(-E_\theta(\mathbf{x}))$$
 
 **新兴统一框架**：
@@ -415,7 +438,9 @@ $$p(\mathbf{x}) \propto \exp(-E_\theta(\mathbf{x}))$$
 1. **样本复杂度**：
    生成 $\epsilon$ -近似分布需要多少样本？
    
+
 $$n = \Omega\left(\frac{d}{\epsilon^2}\right) ?
+
 $$
 
 2. **计算复杂度**：
@@ -430,11 +455,14 @@ $$
 
 1. **收敛速度**：
    
+
 $$\text{KL}(p_\theta \| p_\text{data}) \leq O(1/\sqrt{n})
+
 $$
 
 2. **泛化界**：
    
+
 $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})$$
 
 3. **鲁棒性保证**：

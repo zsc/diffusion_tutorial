@@ -217,6 +217,7 @@ LDM采用两阶段训练，分离压缩和生成：
 在潜在空间中进行扩散需要重新定义前向和反向过程：
 
 **前向过程**：
+
 $$q(\mathbf{z}_t | \mathbf{z}_0) = \mathcal{N}(\mathbf{z}_t; \sqrt{\bar{\alpha}_t}\mathbf{z}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
 
 其中 $\mathbf{z}_0 = \mathcal{E}(\mathbf{x})$ 是编码后的潜在表示。
@@ -227,9 +228,11 @@ $$q(\mathbf{z}_t | \mathbf{z}_0) = \mathcal{N}(\mathbf{z}_t; \sqrt{\bar{\alpha}_
 3. **尺度差异**：需要适当的归一化
 
 **反向过程**：
+
 $$p_\theta(\mathbf{z}_{t-1} | \mathbf{z}_t) = \mathcal{N}(\mathbf{z}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{z}_t, t), \sigma_t^2\mathbf{I})$$
 
 扩散模型学习预测噪声 $\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t)$ ，用于计算均值：
+
 $$\boldsymbol{\mu}_\theta(\mathbf{z}_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{z}_t - \frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t)\right)$$
 
 ### 10.3.2 噪声调度的适配
@@ -271,6 +274,7 @@ LDM中的条件信息通过多种方式注入：
 **2. 特征调制（FiLM）**：
 
 FiLM（Feature-wise Linear Modulation）通过缩放和偏移调制特征：
+
 $$\mathbf{x}_{out} = \mathbf{x} \odot (1 + \gamma(\mathbf{c})) + \beta(\mathbf{c})$$
 
 其中：

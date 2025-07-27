@@ -230,6 +230,7 @@ highly detailed, artstation trending, by Greg Rutkowski"
 
 1. **掩码条件扩散**：
    
+
 $$\mathbf{x}_t = \mathbf{m} \odot \mathbf{x}_t^{\text{known}} + (1-\mathbf{m}) \odot \mathbf{x}_t^{\text{unknown}}$$
    其中 $\mathbf{m}$ 是二值掩码，1表示保留区域，0表示修复区域。
 
@@ -507,6 +508,7 @@ $$\mathbf{x}_t = \mathbf{m} \odot \mathbf{x}_t^{\text{known}} + (1-\mathbf{m}) \
 
 1. **条件扩散框架**：
    
+
 $$p_\theta(\mathbf{x}_\text{HR}|\mathbf{x}_\text{LR}) = \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_\text{LR})$$
 
 2. **退化建模**：
@@ -759,10 +761,12 @@ $$p_\theta(\mathbf{x}_\text{HR}|\mathbf{x}_\text{LR}) = \prod_{t=1}^T p_\theta(\
 **3. 基于隐式表示的扩散**：
 
 神经隐式表示（如DeepSDF、NeRF）：
+
 $$f_\theta(x, y, z) = \begin{cases}
 \text{SDF值} & \text{(形状表示)} \\
 (\mathbf{c}, \sigma) & \text{(NeRF表示)}
 \end{cases}
+
 $$
 
 扩散应用于：
@@ -780,7 +784,9 @@ $$
 代表方法：DreamFusion、Magic3D
 
 核心技术：Score Distillation Sampling (SDS)
+
 $$\nabla_\theta \mathcal{L}_\text{SDS} = \mathbb{E}_{t,\epsilon}\left[w(t)(\epsilon_\phi(\mathbf{x}_t, t, y) - \epsilon)\frac{\partial \mathbf{x}}{\partial \theta}\right]
+
 $$
 
 流程：
@@ -898,6 +904,7 @@ PBR（物理渲染）材质：
 **1. NeRF简介**：
 
 神经辐射场表示3D场景：
+
 $$F_\Theta: (x, y, z, \theta, \phi) \rightarrow (\mathbf{c}, \sigma)$$
 
 - 输入：3D位置 + 观察方向

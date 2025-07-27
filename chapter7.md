@@ -91,11 +91,14 @@ Zero初始化确保模型在训练初期表现得像一个恒等函数，这对�
 
 1. **多头自注意力（Multi-Head Self-Attention）**
    
+
 $$\text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+
 $$
    
 2. **逐点前馈网络（Pointwise Feedforward）**
    
+
 $$\text{FFN}(x) = \text{GELU}(xW_1 + b_1)W_2 + b_2$$
 
 3. **AdaLN调制**

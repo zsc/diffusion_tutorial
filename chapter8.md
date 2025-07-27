@@ -41,6 +41,7 @@
 ### 8.1.1 DDPM采样的局限性
 
 回顾DDPM的反向过程：
+
 $$p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
 
 每一步都需要添加随机噪声 $\sigma_t \boldsymbol{\epsilon}$ ，这导致：
@@ -55,10 +56,13 @@ DDIM通过重新参数化前向过程，巧妙地解决了这些问题。
 DDIM的关键洞察是：存在一族非马尔可夫前向过程，它们具有相同的边缘分布 $q(\mathbf{x}_t|\mathbf{x}_0)$ ，但对应的反向过程可以是确定性的。
 
 具体地，DDIM定义了一个新的前向过程：
+
 $$q_\sigma(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \sigma_t^2\mathbf{I})
+
 $$
 
 其中：
+
 $$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \sqrt{\bar{\alpha}_{t-1}}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_{t-1} - \sigma_t^2} \cdot \frac{\mathbf{x}_t - \sqrt{\bar{\alpha}_t}\mathbf{x}_0}{\sqrt{1 - \bar{\alpha}_t}}$$
 
 当 $\sigma_t = 0$ 时，过程变为完全确定性。
@@ -66,6 +70,7 @@ $$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \sqrt{\bar{\alpha}_{t
 ### 8.1.3 DDIM采样算法
 
 DDIM的采样公式为：
+
 $$\mathbf{x}_{t-1} = \sqrt{\bar{\alpha}_{t-1}}\underbrace{\left(\frac{\mathbf{x}_t - \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sqrt{\bar{\alpha}_t}}\right)}_{\text{预测的 } \mathbf{x}_0} + \underbrace{\sqrt{1 - \bar{\alpha}_{t-1} - \sigma_t^2} \cdot \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}_{\text{方向指向 } \mathbf{x}_t} + \underbrace{\sigma_t \boldsymbol{\epsilon}}_{\text{随机噪声}}$$
 
 关键参数 $\eta$ 控制随机性：
@@ -115,7 +120,9 @@ DDIM最小化了一个修改后的变分下界，其中KL散度项被重新加�
 **2. 数值ODE求解器视角**
 
 当 $\eta = 0$ 时，DDIM等价于求解概率流ODE：
+
 $$\frac{d\mathbf{x}_t}{dt} = -\frac{1}{2}\beta_t\left[\mathbf{x}_t + \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)\right]
+
 $$
 
 **3. 最优传输视角**
@@ -130,6 +137,7 @@ DDIM寻找从噪声到数据的"直线"路径，最小化传输成本。
 ### 8.2.1 从离散到连续：扩散SDE
 
 Song等人(2021)提出了基于随机微分方程(SDE)的统一框架。前向扩散过程可以表示为：
+
 $$d\mathbf{x} = \mathbf{f}(\mathbf{x}, t)dt + g(t)d\mathbf{w}$$
 
 其中：
@@ -138,12 +146,15 @@ $$d\mathbf{x} = \mathbf{f}(\mathbf{x}, t)dt + g(t)d\mathbf{w}$$
 - $\mathbf{w}$ ：标准维纳过程
 
 对于DDPM/DDIM，相应的SDE是：
+
 $$d\mathbf{x} = -\frac{1}{2}\beta(t)\mathbf{x}dt + \sqrt{\beta(t)}d\mathbf{w}
+
 $$
 
 ### 8.2.2 反向时间SDE
 
 Anderson(1982)证明了反向时间SDE的存在性：
+
 $$d\mathbf{x} = [\mathbf{f}(\mathbf{x}, t) - g(t)^2\nabla_\mathbf{x} \log p_t(\mathbf{x})]dt + g(t)d\bar{\mathbf{w}}$$
 
 其中 $\bar{\mathbf{w}}$ 是反向时间的维纳过程， $\nabla_\mathbf{x} \log p_t(\mathbf{x})$ 是分数函数（score function）。
@@ -151,6 +162,7 @@ $$d\mathbf{x} = [\mathbf{f}(\mathbf{x}, t) - g(t)^2\nabla_\mathbf{x} \log p_t(\m
 ### 8.2.3 概率流ODE
 
 去除随机项，得到确定性的ODE：
+
 $$\frac{d\mathbf{x}}{dt} = \mathbf{f}(\mathbf{x}, t) - \frac{1}{2}g(t)^2\nabla_\mathbf{x} \log p_t(\mathbf{x})$$
 
 这个ODE与原始SDE具有相同的边缘分布 $p_t(\mathbf{x})$ 。
@@ -211,6 +223,7 @@ $$\frac{d\mathbf{x}}{dt} = \mathbf{f}(\mathbf{x}, t) - \frac{1}{2}g(t)^2\nabla_\
 ### 8.3.1 动机：利用半线性结构
 
 扩散ODE具有特殊的半线性结构：
+
 $$\frac{d\mathbf{x}}{dt} = \alpha(t)\mathbf{x} + \sigma(t)\boldsymbol{\epsilon}_\theta(\mathbf{x}, t)$$
 
 其中线性部分 $\alpha(t)\mathbf{x}$ 有解析解，这启发了DPM-Solver的设计。
@@ -218,6 +231,7 @@ $$\frac{d\mathbf{x}}{dt} = \alpha(t)\mathbf{x} + \sigma(t)\boldsymbol{\epsilon}_
 ### 8.3.2 指数积分器
 
 利用积分因子法，可以得到精确解：
+
 $$\mathbf{x}_s = e^{\int_t^s \alpha(\tau)d\tau}\mathbf{x}_t + \int_t^s e^{\int_\tau^s \alpha(r)dr}\sigma(\tau)\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau)d\tau$$
 
 关键是如何近似积分中的 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau)$ 。
@@ -225,6 +239,7 @@ $$\mathbf{x}_s = e^{\int_t^s \alpha(\tau)d\tau}\mathbf{x}_t + \int_t^s e^{\int_\
 ### 8.3.3 DPM-Solver的Taylor展开
 
 DPM-Solver使用Taylor展开近似噪声预测：
+
 $$\boldsymbol{\epsilon}_\theta(\mathbf{x}_\tau, \tau) = \sum_{n=0}^{k-1} \frac{(\tau - t)^n}{n!}\frac{d^n\boldsymbol{\epsilon}_\theta}{d\tau^n}\bigg|_{\tau=t} + O((\tau-t)^k)$$
 
 不同阶数的DPM-Solver：
@@ -238,12 +253,16 @@ DPM-Solver++引入了两个关键改进：
 
 1. **数据预测参数化**：预测 $\mathbf{x}_0$ 而非 $\boldsymbol{\epsilon}$
    
+
 $$\mathbf{x}_0 = \frac{\mathbf{x}_t - \sigma_t\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\alpha_t}
+
 $$
 
 2. **thresholding**：动态裁剪防止数值不稳定
    
+
 $$\mathbf{x}_0 = \text{clip}(\mathbf{x}_0, -1, 1)
+
 $$
 
 **算法伪代码**：
@@ -296,6 +315,7 @@ $$h_{new} = h_{old} \cdot \left(\frac{\text{tolerance}}{\text{error}}\right)^{1/
 3. 重复直到达到目标步数
 
 **损失函数**：
+
 $$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|f_\theta(\mathbf{x}_t, t) - \text{sg}[f_{\text{teacher}}(\mathbf{x}_t, t)]\|^2\right]$$
 
 其中 `sg` 表示停止梯度。
@@ -305,9 +325,11 @@ $$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|f_\thet
 一致性模型(Consistency Models)学习映射函数 $f_\theta$ ，使得同一轨迹上的所有点映射到相同的起点：
 
 $$f_\theta(\mathbf{x}_t, t) = f_\theta(\mathbf{x}_s, s), \quad \forall s, t \in [0, T]
+
 $$
 
 **自一致性损失**：
+
 $$\mathcal{L} = \mathbb{E}\left[\|f_\theta(\mathbf{x}_t, t) - f_{\theta^-}(\mathbf{x}_s, s)\|^2\right]$$
 
 其中 $\theta^-$ 是EMA参数。
@@ -317,6 +339,7 @@ $$\mathcal{L} = \mathbb{E}\left[\|f_\theta(\mathbf{x}_t, t) - f_{\theta^-}(\math
 ### 8.4.3 对抗蒸馏
 
 结合GAN的思想，使用判别器指导蒸馏：
+
 $$\mathcal{L} = \mathcal{L}_{\text{distill}} + \lambda \mathcal{L}_{\text{adv}}$$
 
 这可以进一步提升少步采样的质量。

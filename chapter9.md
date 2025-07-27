@@ -118,10 +118,13 @@ $$\mathbf{c}_{train} = \begin{cases}
 \mathbf{c} & \text{with probability } 1-p_{uncond} \\
 \varnothing & \text{with probability } p_{uncond}
 \end{cases}
+
 $$
 
 然后正常计算去噪损失：
+
 $$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{train})\|^2\right]
+
 $$
 
 这是无分类器引导的基础，使模型能够同时进行条件和无条件生成。
@@ -176,6 +179,7 @@ $$\mathcal{L}_{total} = \mathcal{L}_{uncond} + \lambda_1\mathcal{L}_{class} + \l
 **变分下界的条件版本**：
 
 $$\log p_\theta(\mathbf{x}_0|\mathbf{c}) \geq \mathbb{E}_q\left[\log p_\theta(\mathbf{x}_0|\mathbf{x}_1, \mathbf{c}) - \sum_{t=2}^T D_{KL}(q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) \| p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}))\right]
+
 $$
 
 这保证了模型学习的是真实的条件分布。
@@ -183,6 +187,7 @@ $$
 **条件独立性假设**：
 
 在许多实现中，我们假设：
+
 $$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
 
 即前向过程与条件无关。这简化了训练但可能限制了模型能力。
@@ -214,6 +219,7 @@ $$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
 分类器引导的核心思想是使用外部分类器的梯度来引导扩散模型的采样过程。我们从贝叶斯规则开始：
 
 $$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)
+
 $$
 
 第一项是无条件分数，第二项是分类器的梯度。这给出了条件采样的更新规则：
@@ -227,6 +233,7 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 关键挑战是训练一个能在所有噪声水平 $t$ 上工作的分类器。
 
 **训练目标**：
+
 $$\mathcal{L}_{classifier} = \mathbb{E}_{t \sim \mathcal{U}[1,T], \mathbf{x}_0 \sim p_{data}, \boldsymbol{\epsilon} \sim \mathcal{N}(0,\mathbf{I})} \left[-\log p_\phi(\mathbf{c}|\mathbf{x}_t, t)\right]$$
 
 其中 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$ 是加噪后的样本。
@@ -273,6 +280,7 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 不同时间步的梯度量级差异很大，需要自适应缩放。根据噪声水平调整：
 
 $$\nabla_{scaled} = \frac{1}{\sqrt{1-\bar{\alpha}_t}} \cdot \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)
+
 $$
 
 这种缩放补偿了不同噪声水平下的信号强度差异。
@@ -361,6 +369,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \begin{cases}
 使用空间掩码 $\mathbf{M}$ 只对图像的特定区域应用引导：
 
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}(\mathbf{M} \odot \nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t))
+
 $$
 
 这允许精细的空间控制。
@@ -401,9 +410,11 @@ $$\nabla \log p_{ensemble}(\mathbf{c}|\mathbf{x}_t) = \sum_{i=1}^K w_i \nabla \l
 无分类器引导（CFG）解决了分类器引导的主要限制：不需要训练额外的分类器。核心思想是同时训练条件和无条件扩散模型，然后在采样时组合它们的预测。
 
 基本原理基于：
+
 $$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$$
 
 CFG通过隐式估计 $\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$ ：
+
 $$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) - \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t)$$
 
 ### 9.3.2 训练策略：条件Dropout
@@ -415,6 +426,7 @@ $$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{
 3. 损失函数保持不变： $\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{masked})\|^2]$
 
 其中：
+
 $$\mathbf{c}_{masked} = \begin{cases}
 \mathbf{c} & \text{with probability } 1-p_{uncond} \\
 \varnothing & \text{with probability } p_{uncond}
@@ -430,6 +442,7 @@ $$\mathbf{c}_{masked} = \begin{cases}
 ### 9.3.3 采样公式
 
 CFG的采样公式：
+
 $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = (1 + w)\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - w\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$$
 
 其中：
@@ -438,6 +451,7 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = (1 + w)\bo
 - $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$ ：无条件预测
 
 这可以重写为：
+
 $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
 显示了从无条件预测出发，朝条件方向移动的解释。
@@ -480,6 +494,7 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}
 **动态引导调度**：
 
 可以使用时变的引导权重，例如线性插值：
+
 $$w(t) = w_{start} \cdot (1 - t/T) + w_{end} \cdot (t/T)$$
 
 其中早期使用较强的引导（ $w_{start}$ 较大），后期逐渐减弱（ $w_{end}$ 较小），帮助模型在保持条件忠实度的同时提高细节质量。
@@ -492,6 +507,7 @@ $$w(t) = w_{start} \cdot (1 - t/T) + w_{end} \cdot (t/T)$$
 **1. 为什么CFG有效？**
 
 CFG隐式地增强了条件的对数似然：
+
 $$\log \tilde{p}(\mathbf{x}|\mathbf{c}) = \log p(\mathbf{x}|\mathbf{c}) + w\log p(\mathbf{c}|\mathbf{x})$$
 
 这相当于在采样时重新加权条件的重要性。
@@ -541,6 +557,7 @@ CFG可以视为变分推断中的重要性加权：
 **1. 负向提示（Negative Prompting）**
 
 使用负条件来避免特定内容的生成。组合公式为：
+
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
 其中 $\mathbf{c}_{pos}$ 是期望的条件， $\mathbf{c}_{neg}$ 是要避免的条件， $w_{pos}$ 和 $w_{neg}$ 分别控制正向和负向引导的强度。
@@ -557,6 +574,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 根据预测的不确定性调整引导强度。一种方法是基于条件和无条件预测的差异：
 
 $$w_{adaptive} = w_{base} \cdot \exp(-\alpha \cdot ||\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)||)
+
 $$
 
 当预测差异较大时，说明模型对条件的理解存在不确定性，此时减小引导权重可以避免过度放大误差。
@@ -622,7 +640,9 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 **1. 基础负向提示**
 
 组合正向和负向条件的公式：
+
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]
+
 $$
 
 这个公式使得生成朝着正向条件移动，同时远离负向条件。
@@ -630,6 +650,7 @@ $$
 **2. 多负向提示**
 
 当需要避免多个不希望的属性时，可以使用多负向提示：
+
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - \sum_{i=1}^{n} w_{neg,i}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg,i}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
 每个负向条件可以有不同的权重 $w_{neg,i}$ 。
@@ -637,6 +658,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 **3. 自适应负向强度**
 
 根据正负向条件的相似度调整负向强度：
+
 $$w_{neg} = w_{neg,base} \cdot (1 + \alpha \cdot \text{sim}(\mathbf{c}_{pos}, \mathbf{c}_{neg}))$$
 
 其中 $\text{sim}(\cdot,\cdot)$ 是余弦相似度。当正负向条件相似度高时（如“高质量”与“低质量”），增强负向强度更有必要。
@@ -651,7 +673,9 @@ $$w_{neg} = w_{neg,base} \cdot (1 + \alpha \cdot \text{sim}(\mathbf{c}_{pos}, \m
 **1. 时间相关的引导**
 
 使用余弦调度的引导权重：
+
 $$w(t) = w_{min} + (w_{max} - w_{min}) \cdot \frac{1 + \cos(\pi \cdot t/T)}{2}
+
 $$
 
 这种调度在初期和末期使用较弱的引导，中期使用较强的引导，形成平滑的过渡。
@@ -659,6 +683,7 @@ $$
 **2. 内容相关的引导**
 
 基于当前生成内容与条件的对齐度调整引导强度。可以提取中间特征并计算与条件的对齐分数：
+
 $$w = \begin{cases}
 w_{strong} & \text{if } \text{alignment}(\mathbf{x}_t, \mathbf{c}) < \tau \\
 w_{normal} & \text{otherwise}
@@ -693,6 +718,7 @@ ControlNet通过复制基础模型的编码器结构，并使用零初始化的�
 **2. 多控制组合**
 
 同时使用多个控制信号（如深度图、边缘图、姿态图）时，可以通过加权组合各个控制网络的输出：
+
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \cdot \boldsymbol{\epsilon}_{control_i}$$
 
 其中 $\boldsymbol{\epsilon}_{text}$ 是文本引导的预测， $\boldsymbol{\epsilon}_{control_i}$ 是第 $i$ 个控制网络的输出， $w_i$ 是对应的权重。
@@ -700,6 +726,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \c
 **3. 适配器方法**
 
 适配器（Adapter）是一种轻量级的条件注入方法，使用下投影-激活-上投影的结构：
+
 $$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
 
 其中：
@@ -741,7 +768,9 @@ $$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
 **1. 级联引导**
 
 级联引导通过逐步应用不同的条件来细化生成结果。每个阶段应用一个条件，并可选择地在阶段之间执行部分去噪：
+
 $$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w_i)
+
 $$
 
 这种方法特别适合处理层次化的条件，如先应用全局布局条件，再应用局部细节条件。
@@ -795,6 +824,7 @@ $$
 **1. 分类准确率**
 
 对于类别条件，可以使用预训练的分类器评估生成图像的类别一致性：
+
 $$\text{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\arg\max_j p(y_j|\mathbf{x}_i) = c_i]$$
 
 其中 $p(y_j|\mathbf{x}_i)$ 是分类器对生成图像 $\mathbf{x}_i$ 的预测概率， $c_i$ 是目标类别。
@@ -802,6 +832,7 @@ $$\text{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\arg\max_j p(y_j|\math
 **2. CLIP Score**
 
 对于文本条件，使用CLIP模型计算图像-文本的对齐度：
+
 $$\text{CLIP Score} = \mathbb{E}[\cos(\mathbf{f}_I(\mathbf{x}), \mathbf{f}_T(\mathbf{c}))]$$
 
 其中 $\mathbf{f}_I$ 和 $\mathbf{f}_T$ 分别是CLIP的图像和文本编码器， $\cos(\cdot,\cdot)$ 是余弦相似度。更高的CLIP分数表示更好的图像-文本对齐。
@@ -809,6 +840,7 @@ $$\text{CLIP Score} = \mathbb{E}[\cos(\mathbf{f}_I(\mathbf{x}), \mathbf{f}_T(\ma
 **3. 结构相似度**
 
 对于空间控制（如ControlNet），可以使用结构相似性指标（SSIM）或边缘检测来评估：
+
 $$\text{SSIM} = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}$$
 
 其中 $\mu$ 是均值， $\sigma$ 是标准差， $\sigma_{xy}$ 是协方差， $c_1, c_2$ 是稳定常数。
@@ -816,6 +848,7 @@ $$\text{SSIM} = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^
 **4. 语义一致性**
 
 使用预训练模型评估语义对齐。通过提取图像和条件的语义特征，计算它们之间的距离：
+
 $$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
 
 其中 $\mathbf{s}_I$ 是图像的语义特征， $\mathbf{s}_C$ 是条件的语义特征， $d(\cdot,\cdot)$ 是距离度量（如L2距离）。
@@ -839,6 +872,7 @@ $$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
 **3. 自动权衡选择**
 
 可以基于历史数据拟合质量和多样性与引导权重的关系，然后根据目标质量和多样性自动选择最佳引导权重：
+
 $$w^* = \arg\min_w |Q(w) - Q_{target}| + |D(w) - D_{target}|$$
 
 其中 $Q(w)$ 和 $D(w)$ 分别是质量和多样性关于引导权重的函数。

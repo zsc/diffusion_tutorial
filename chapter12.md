@@ -97,11 +97,14 @@
 **自动评估指标**：
 1. **困惑度（Perplexity）**：
    
+
 $$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x\_i|x_{< i})\right)
+
 $$
 
 2. **BLEU分数**：
    
+
 $$\text{BLEU} = \text{BP} \cdot \exp\left(\sum_{n=1}^4 w_n \log p_n\right)$$
    其中 $p_n$ 是n-gram精确率
 
@@ -244,6 +247,7 @@ D3PM（Discrete Denoising Diffusion Probabilistic Models）通过将连续扩散
 **前向过程定义**：
 
 对于离散状态 $x \in \{1, 2, ..., K\}$ （K是词汇表大小），前向过程定义为：
+
 $$q(x_t|x_{t-1}) = \text{Cat}(x_t; \mathbf{Q}_t x_{t-1})$$
 
 其中 $\mathbf{Q}_t \in \mathbb{R}^{K \times K}$ 是转移矩阵， $\text{Cat}$ 表示分类分布。
@@ -254,10 +258,13 @@ $$q(x_t|x_{t-1}) = \text{Cat}(x_t; \mathbf{Q}_t x_{t-1})$$
 3. **收敛性**： $\mathbf{Q}_T$ 使分布收敛到先验
 
 **累积转移矩阵**：
+
 $$\bar{\mathbf{Q}}_t = \mathbf{Q}_1 \mathbf{Q}_2 \cdots \mathbf{Q}_t$$
 
 这允许我们直接从 $x_0$ 采样 $x_t$ ：
+
 $$q(x_t|x_0) = \text{Cat}(x_t; \bar{\mathbf{Q}}_t x_0)
+
 $$
 
 💡 **设计原则：平衡信息保留与噪声添加**  
@@ -268,11 +275,13 @@ $$
 D3PM提供了几种转移矩阵的设计方案：
 
 **1. 均匀转移（Uniform Transition）**：
+
 $$\mathbf{Q}_t = (1-\beta_t)\mathbf{I} + \beta_t \mathbf{1}\mathbf{1}^T/K$$
 
 其中 $\beta_t$ 是噪声调度， $\mathbf{1}$ 是全1向量。这种设计以概率 $\beta_t$ 将状态替换为均匀随机状态。
 
 **2. 吸收态转移（Absorbing State）**：
+
 $$Q_{ij} = \begin{cases}
 1-\beta_t & \text{if } i=j \neq m \\
 \beta_t & \text{if } j=m \\
@@ -284,6 +293,7 @@ $$Q_{ij} = \begin{cases}
 
 **3. 语义感知转移**：
 基于词嵌入相似度设计转移概率：
+
 $$Q_{ij} \propto \exp(-\|\mathbf{e}_i - \mathbf{e}_j\|^2/\tau_t)$$
 
 其中 $\mathbf{e}_i$ 是词嵌入， $\tau_t$ 是温度参数。
@@ -294,25 +304,33 @@ $$Q_{ij} \propto \exp(-\|\mathbf{e}_i - \mathbf{e}_j\|^2/\tau_t)$$
 ### 12.2.3 反向过程与变分下界
 
 **反向过程参数化**：
+
 $$p_\theta(x_{t-1}|x_t) = \text{Cat}(x_{t-1}; \boldsymbol{\mu}_\theta(x_t, t))$$
 
 其中 $\boldsymbol{\mu}_\theta$ 是神经网络预测的分布。
 
 **后验分布**（当 $x_0$ 已知时）：
+
 $$q(x_{t-1}|x_t, x_0) = \frac{q(x_t|x_{t-1})q(x_{t-1}|x_0)}{q(x_t|x_0)}
+
 $$
 
 对于离散情况，这可以通过矩阵运算精确计算：
+
 $$q(x_{t-1}|x_t, x_0) \propto \mathbf{Q}_t^T \odot \bar{\mathbf{Q}}_{t-1}$$
 
 其中 $\odot$ 表示逐元素乘积。
 
 **变分下界（VLB）**：
+
 $$\mathcal{L}_\text{VLB} = \mathbb{E}_q\left[\sum_{t=2}^T D_\text{KL}(q(x_{t-1}|x_t,x_0) \| p_\theta(x_{t-1}|x_t)) + \log p_\theta(x_0|x_1)\right]
+
 $$
 
 其中KL散度对于离散分布有闭式解：
+
 $$D_\text{KL}(p\|q) = \sum_i p_i \log \frac{p_i}{q_i}
+
 $$
 
 ### 12.2.4 训练算法与实现细节
@@ -322,10 +340,13 @@ $$
 1. **VLB损失**：理论最优但可能不稳定
 2. **交叉熵损失**：
    
+
 $$\mathcal{L}_\text{CE} = -\mathbb{E}_{x_0,t}\left[\log p_\theta(x_0|x_t)\right]
+
 $$
 3. **混合损失**：
    
+
 $$\mathcal{L} = \mathcal{L}_\text{CE} + \lambda \mathcal{L}_\text{VLB}$$
 
 **训练算法**：
@@ -456,7 +477,9 @@ Diffusion-LM通过在连续嵌入空间中进行扩散来避免离散性带来�
 **挑战1：离散化误差**
 
 从连续嵌入 $\hat{\mathbf{e}}_0$ 恢复离散token最直接的方法是最近邻搜索：
+
 $$\hat{x}_0 = \arg\min_{i \in [K]} \|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|^2
+
 $$
 
 但这种硬舍入会导致：
@@ -475,6 +498,7 @@ $$
 ### 12.3.3 舍入策略与梯度估计
 
 **1. 软最大值（Soft-max）重建**：
+
 $$p(x_i|\hat{\mathbf{e}}_0) = \frac{\exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|^2/\tau)}{\sum_j \exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[j]\|^2/\tau)}$$
 
 这保持了可微性，但计算开销大。
@@ -484,6 +508,7 @@ $$p(x_i|\hat{\mathbf{e}}_0) = \frac{\exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|
 - 反向：假装没有舍入，直接传递梯度
 
 **3. Gumbel-Softmax重参数化**：
+
 $$\hat{x}_0 = \text{softmax}((\log \pi + g)/\tau)$$
 其中 $\pi_i \propto \exp(-\|\hat{\mathbf{e}}_0 - \mathbf{E}[i]\|^2)$ ， $g$ 是Gumbel噪声。
 
@@ -498,11 +523,14 @@ $$\hat{x}_0 = \text{softmax}((\log \pi + g)/\tau)$$
 **1. 嵌入正则化**：
 
 - **对比学习损失**：
+
 $$\mathcal{L}_\text{contrast} = -\log \frac{\exp(\text{sim}(\mathbf{e}_i, \mathbf{e}_j^+))}{\sum_k \exp(\text{sim}(\mathbf{e}_i, \mathbf{e}_k))}$$
 其中 $\mathbf{e}_j^+$ 是正样本（语义相似）。
 
 - **均匀性损失**：
+
 $$\mathcal{L}_\text{uniform} = \log \mathbb{E}_{i,j}\left[\exp(-2\|\mathbf{e}_i - \mathbf{e}_j\|^2)\right]
+
 $$
 防止嵌入崩塌。
 
@@ -516,7 +544,9 @@ $$
 **3. 锚点嵌入**：
 
 固定一些高频词的嵌入作为锚点，保持空间结构：
+
 $$\mathbf{E}_\text{anchor} = \text{frozen}, \quad \mathbf{E}_\text{rest} = \text{learnable}
+
 $$
 
 <details>
@@ -561,6 +591,7 @@ $$
    - 微调嵌入和扩散模型
 
 **损失函数设计**：
+
 $$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L}_\text{reconstruct} + \lambda_2 \mathcal{L}_\text{regularize}$$
 
 其中：
@@ -715,6 +746,7 @@ $$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L
 
 3. **FiLM调制（Feature-wise Linear Modulation）**：
    
+
 $$\mathbf{h} = \gamma(\mathbf{c}) \odot \mathbf{h} + \beta(\mathbf{c})$$
    - 计算高效
    - 全局调制效果
