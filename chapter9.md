@@ -52,44 +52,31 @@
 
 **1. 拼接（Concatenation）**
 
-最直接的方式是将条件信息与输入拼接：
-```python
-# 对于图像条件
-x_with_cond = torch.cat([x_t, c_image], dim=1)
-# 对于向量条件
-c_embed = condition_encoder(c)
-x_with_cond = torch.cat([x_t, c_embed.unsqueeze(-1).unsqueeze(-1).expand(...)])
-```
+最直接的方式是将条件信息与输入拼接。对于图像条件，可以在通道维度上拼接 $[\mathbf{x}_t, \mathbf{c}_{image}]$。对于向量条件，先通过条件编码器得到嵌入 $\mathbf{c}_{embed}$，然后扩展到空间维度后拼接。这种方法简单有效，但会增加第一层的参数量。
 
 **2. 自适应归一化（Adaptive Normalization）**
 
-通过条件信息调制归一化参数：
-```python
-# AdaIN, AdaGN, AdaLN等
-gamma, beta = mlp(c_embed)
-h = normalize(h)
-h = gamma * h + beta
-```
+通过条件信息调制归一化参数，包括AdaIN、AdaGN、AdaLN等变体。核心思想是：
+
+$$\mathbf{h} = \gamma(\mathbf{c}) \odot \text{Normalize}(\mathbf{h}) + \beta(\mathbf{c})$$
+
+其中 $\gamma$ 和 $\beta$ 是通过MLP从条件嵌入预测得到的缩放和偏移参数。
 
 **3. 交叉注意力（Cross-Attention）**
 
-特别适合序列条件（如文本）：
-```python
-# Q来自图像特征，K,V来自文本编码
-attn_output = CrossAttention(
-    query=image_features,
-    key=text_features,
-    value=text_features
-)
-```
+特别适合序列条件（如文本）。查询（Query）来自图像特征，键（Key）和值（Value）来自文本编码：
+
+$$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}$$
+
+其中 $\mathbf{Q} = \mathbf{h}_{image}W_Q$，$\mathbf{K} = \mathbf{h}_{text}W_K$，$\mathbf{V} = \mathbf{h}_{text}W_V$。
 
 **4. 特征调制（Feature-wise Modulation）**
 
-FiLM层通过条件信息缩放和偏移特征：
-```python
-gamma, beta = film_generator(c)
-h = gamma * h + beta
-```
+FiLM（Feature-wise Linear Modulation）层通过条件信息缩放和偏移特征：
+
+$$\mathbf{h}_{out} = \gamma(\mathbf{c}) \odot \mathbf{h}_{in} + \beta(\mathbf{c})$$
+
+这种方法参数效率高，且能有效控制特征的激活模式。
 
 🔬 **研究线索：最优注入位置**  
 应该在网络的哪些层注入条件信息？早期层vs后期层？所有层vs特定层？这可能依赖于条件类型和任务。
@@ -99,72 +86,61 @@ h = gamma * h + beta
 **1. 条件编码器设计**
 
 不同类型的条件需要不同的编码器：
-- **类别标签**：嵌入层 + MLP
-- **文本**：预训练语言模型（CLIP, T5等）
-- **图像**：预训练视觉模型或专用CNN
-- **音频**：频谱图编码器
+- **类别标签**：通过嵌入层映射到高维空间，再经过MLP进一步处理
+- **文本**：使用预训练语言模型（如CLIP文本编码器、T5编码器）提取语义特征
+- **图像**：预训练视觉模型（如ResNet、ViT）或专门设计的卷积编码器
+- **音频**：先转换为频谱图，然后使用专门的时频编码器
 
 **2. 多尺度条件注入**
 
-在U-Net的不同分辨率注入条件：
-```python
-class ConditionalUNet(nn.Module):
-    def forward(self, x, t, c):
-        # 编码路径
-        h1 = self.down1(x, t, c)  # 高分辨率条件
-        h2 = self.down2(h1, t, c)  # 中分辨率条件
-        h3 = self.down3(h2, t, c)  # 低分辨率条件
-        
-        # 解码路径也注入条件
-        ...
-```
+在U-Net的不同分辨率层级注入条件信息，使得：
+- 高分辨率层获得细节控制（如纹理、边缘）
+- 中分辨率层获得结构控制（如物体形状）
+- 低分辨率层获得语义控制（如整体布局）
+
+每个下采样块和上采样块都接收条件信息：$\mathbf{h}_i = f_i(\mathbf{h}_{i-1}, t, \mathbf{c})$
 
 **3. 时间-条件交互**
 
-时间步和条件信息可能需要交互：
-```python
-# 联合编码
-t_embed = self.time_embed(t)
-c_embed = self.cond_embed(c)
-joint_embed = self.joint_mlp(t_embed + c_embed)
-```
+时间步 $t$ 和条件信息 $\mathbf{c}$ 可能需要交互建模。一种常见方法是联合编码：
+
+$$\mathbf{e}_{joint} = \text{MLP}(\mathbf{e}_t + \mathbf{e}_c)$$
+
+其中 $\mathbf{e}_t$ 是时间嵌入，$\mathbf{e}_c$ 是条件嵌入。这种交互允许模型根据去噪阶段调整条件的影响方式。
 
 ### 9.1.4 训练策略
 
 **1. 条件dropout**
 
-随机丢弃条件信息，训练模型同时处理条件和无条件生成：
-```python
-def training_step(x, c):
-    # 以概率p_uncond丢弃条件
-    if random.random() < p_uncond:
-        c = null_condition
-    
-    # 正常训练
-    noise = torch.randn_like(x)
-    x_t = add_noise(x, noise, t)
-    pred_noise = model(x_t, t, c)
-    loss = F.mse_loss(pred_noise, noise)
-```
+随机丢弃条件信息，训练模型同时处理条件和无条件生成。在训练时，以概率 $p_{uncond}$ 将条件 $\mathbf{c}$ 替换为空条件 $\varnothing$：
 
-这是无分类器引导的基础。
+$$\mathbf{c}_{train} = \begin{cases}
+\mathbf{c} & \text{with probability } 1-p_{uncond} \\
+\varnothing & \text{with probability } p_{uncond}
+\end{cases}$$
+
+然后正常计算去噪损失：
+$$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{train})\|^2\right]$$
+
+这是无分类器引导的基础，使模型能够同时进行条件和无条件生成。
 
 **2. 条件增强**
 
-对条件信息进行数据增强：
-- 文本：同义词替换、改写
-- 图像：几何变换、颜色扰动
-- 类别：标签平滑、混合
+对条件信息进行数据增强以提高泛化能力：
+- **文本条件**：同义词替换、句子改写、随机删除/添加修饰词
+- **图像条件**：几何变换（旋转、缩放）、颜色扰动、随机裁剪
+- **类别条件**：标签平滑、Mixup混合策略
 
 **3. 多任务学习**
 
-同时训练多种条件：
-```python
-loss = loss_uncond + λ1*loss_class + λ2*loss_text + λ3*loss_image
-```
+同时训练多种条件类型，总损失为各任务损失的加权和：
+
+$$\mathcal{L}_{total} = \mathcal{L}_{uncond} + \lambda_1\mathcal{L}_{class} + \lambda_2\mathcal{L}_{text} + \lambda_3\mathcal{L}_{image}$$
+
+其中 $\lambda_i$ 是各任务的权重系数。
 
 💡 **实践技巧：条件缩放**  
-不同条件的强度可能需要不同的缩放。使用可学习的缩放因子：`c_scaled = c * self.condition_scale`
+不同条件的强度可能需要不同的缩放。使用可学习的缩放因子：$\mathbf{c}_{scaled} = s_c \cdot \mathbf{c}$，其中 $s_c$ 是可学习参数。
 
 <details>
 <summary>**练习 9.1：实现多模态条件扩散模型**</summary>
@@ -213,34 +189,20 @@ $$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
 
 ### 9.1.6 实现细节与优化
 
-**内存优化**：
-```python
-# 使用gradient checkpointing节省内存
-class ConditionalBlock(nn.Module):
-    @torch.utils.checkpoint.checkpoint
-    def forward(self, x, c):
-        # 计算密集的操作
-        ...
-```
+**内存优化策略**：
+- **梯度检查点**：对计算密集但内存占用大的条件块使用 `torch.utils.checkpoint`
+- **混合精度训练**：条件编码器使用FP16，关键层保持FP32
+- **动态批处理**：根据条件复杂度动态调整批大小
 
-**计算优化**：
-```python
-# 缓存条件编码
-class CachedConditionEncoder:
-    def __init__(self):
-        self.cache = {}
-    
-    def encode(self, c):
-        if c not in self.cache:
-            self.cache[c] = self.encoder(c)
-        return self.cache[c]
-```
+**计算优化技巧**：
+- **条件编码缓存**：对于离散条件（如类别），缓存编码结果
+- **批量编码**：将相同类型的条件批量处理
+- **编码器共享**：多个条件类型共享底层特征提取器
 
-**数值稳定性**：
-```python
-# 防止条件编码的数值问题
-c_encoded = F.normalize(c_encoded, dim=-1) * self.scale
-```
+**数值稳定性保障**：
+- **条件归一化**：$\mathbf{c}_{encoded} = s \cdot \mathbf{c}_{encoded} / \|\mathbf{c}_{encoded}\|_2$
+- **残差缩放**：条件注入时使用小的初始权重
+- **梯度裁剪**：防止条件相关的梯度爆炸
 
 ## 9.2 分类器引导（Classifier Guidance）
 
@@ -258,29 +220,22 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 
 ### 9.2.2 噪声条件分类器
 
-关键挑战是训练一个能在所有噪声水平 $t$ 上工作的分类器。训练过程：
+关键挑战是训练一个能在所有噪声水平 $t$ 上工作的分类器。
 
-```python
-def train_noise_conditional_classifier(classifier, diffusion, dataloader):
-    for x, c in dataloader:
-        # 随机采样时间步
-        t = torch.randint(0, diffusion.num_timesteps, (x.shape[0],))
-        
-        # 添加相应的噪声
-        noise = torch.randn_like(x)
-        x_t = diffusion.q_sample(x, t, noise)
-        
-        # 分类器预测
-        logits = classifier(x_t, t)
-        loss = F.cross_entropy(logits, c)
-        
-        loss.backward()
-```
+**训练目标**：
+$$\mathcal{L}_{classifier} = \mathbb{E}_{t \sim \mathcal{U}[1,T], \mathbf{x}_0 \sim p_{data}, \boldsymbol{\epsilon} \sim \mathcal{N}(0,\mathbf{I})} \left[-\log p_\phi(\mathbf{c}|\mathbf{x}_t, t)\right]$$
 
-分类器架构需要：
-1. 时间条件：了解当前噪声水平
-2. 鲁棒性：在高噪声下仍能提取有用特征
-3. 梯度质量：提供有意义的引导信号
+其中 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$ 是加噪后的样本。
+
+**分类器架构要求**：
+1. **时间条件**：通过时间嵌入了解当前噪声水平，通常使用正弦编码
+2. **鲁棒性**：在高噪声下仍能提取有用特征，需要强大的特征提取能力
+3. **梯度质量**：提供平滑且有意义的梯度信号用于引导
+
+**架构设计原则**：
+- 使用与扩散模型相似的骨干网络（如U-Net）
+- 在多个尺度提取特征以增强鲁棒性
+- 使用残差连接和归一化层稳定训练
 
 ### 9.2.3 引导强度与采样
 
@@ -293,62 +248,48 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 - $s > 1$ ：强化条件，可能降低多样性
 - $s < 0$ ：负向引导，远离条件
 
-**采样算法**：
-```python
-def classifier_guided_sampling(x_T, model, classifier, c, s=1.0):
-    x = x_T
-    for t in reversed(range(T)):
-        # 无条件预测
-        epsilon = model(x, t)
-        
-        # 计算分类器梯度
-        x.requires_grad_(True)
-        logits = classifier(x, t)
-        log_prob = F.log_softmax(logits, dim=-1)[range(len(c)), c]
-        grad = torch.autograd.grad(log_prob.sum(), x)[0]
-        x.requires_grad_(False)
-        
-        # 组合预测
-        epsilon_tilde = epsilon - s * sqrt(1 - alphas_cumprod[t]) * grad
-        
-        # 采样步骤
-        x = sampling_step(x, epsilon_tilde, t)
-    
-    return x
-```
+**采样算法流程**：
+
+1. 从标准高斯分布采样初始噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$
+2. 对于每个时间步 $t = T, T-1, ..., 1$：
+   - 使用扩散模型预测无条件噪声：$\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$
+   - 计算分类器对数概率的梯度：$\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+   - 组合得到引导后的噪声预测：$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+   - 执行去噪步骤得到 $\mathbf{x}_{t-1}$
+
+**梯度计算细节**：
+- 需要对 $\mathbf{x}_t$ 启用梯度计算
+- 通过自动微分计算分类器输出相对于输入的梯度
+- 计算完成后关闭梯度计算以节省内存
 
 ### 9.2.4 梯度计算的实践考虑
 
 **1. 梯度缩放**
 
-不同时间步的梯度量级差异很大，需要自适应缩放：
-```python
-# 根据噪声水平调整梯度
-grad_scale = 1.0 / (1 - alphas_cumprod[t]).sqrt()
-scaled_grad = grad * grad_scale
-```
+不同时间步的梯度量级差异很大，需要自适应缩放。根据噪声水平调整：
+
+$$\nabla_{scaled} = \frac{1}{\sqrt{1-\bar{\alpha}_t}} \cdot \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$
+
+这种缩放补偿了不同噪声水平下的信号强度差异。
 
 **2. 梯度裁剪**
 
-防止梯度爆炸：
-```python
-grad_norm = grad.flatten(1).norm(dim=1, keepdim=True)
-grad = grad / grad_norm.clamp(min=1e-8)
-```
+防止梯度爆炸，对梯度进行归一化：
 
-**3. 多步梯度**
+$$\nabla_{clipped} = \frac{\nabla}{\max(1, \|\nabla\|_2 / \lambda)}$$
 
-使用多步梯度累积获得更稳定的方向：
-```python
-grad_accum = 0
-for _ in range(n_grad_steps):
-    grad = compute_classifier_grad(x + noise_scale * torch.randn_like(x))
-    grad_accum += grad
-grad = grad_accum / n_grad_steps
-```
+其中 $\lambda$ 是梯度范数的阈值。
+
+**3. 多步梯度累积**
+
+通过对带噪声扰动的输入计算多次梯度并平均，获得更稳定的梯度估计：
+
+$$\nabla_{stable} = \frac{1}{N} \sum_{i=1}^N \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t + \sigma\boldsymbol{\epsilon}_i)$$
+
+其中 $\boldsymbol{\epsilon}_i \sim \mathcal{N}(0, \mathbf{I})$，$\sigma$ 是小的噪声尺度。
 
 💡 **实践技巧：温度调节**  
-对分类器输出使用温度缩放可以控制引导的锐度：`logits = classifier(x, t) / temperature`
+对分类器输出使用温度缩放可以控制引导的锐度：$p_\phi(\mathbf{c}|\mathbf{x}_t) \propto \exp(\text{logits}/\tau)$，其中 $\tau$ 是温度参数。
 
 ### 9.2.5 局限性分析
 
@@ -403,30 +344,28 @@ grad = grad_accum / n_grad_steps
 
 **1. 截断引导**
 
-只在特定时间范围内应用引导：
-```python
-if t > T_start and t < T_end:
-    epsilon = epsilon - s * grad
-```
+只在特定时间范围内应用引导，避免在噪声过大或过小时的不良影响：
+
+$$\tilde{\boldsymbol{\epsilon}} = \begin{cases}
+\boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t) & \text{if } T_{start} < t < T_{end} \\
+\boldsymbol{\epsilon}_\theta & \text{otherwise}
+\end{cases}$$
 
 **2. 局部引导**
 
-只对图像的特定区域应用引导：
-```python
-mask = compute_attention_mask(x, c)
-epsilon = epsilon - s * grad * mask
-```
+使用空间掩码 $\mathbf{M}$ 只对图像的特定区域应用引导：
+
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}(\mathbf{M} \odot \nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t))$$
+
+这允许精细的空间控制。
 
 **3. 多分类器集成**
 
-使用多个分类器的组合：
-```python
-grad_ensemble = 0
-for classifier in classifiers:
-    grad_ensemble += compute_grad(classifier, x, t, c)
-grad = grad_ensemble / len(classifiers)
-```
+组合多个分类器提供更稳健的引导：
 
+$$\nabla \log p_{ensemble}(\mathbf{c}|\mathbf{x}_t) = \sum_{i=1}^K w_i \nabla \log p_{\phi_i}(\mathbf{c}|\mathbf{x}_t)$$
+
+其中 $w_i$ 是各分类器的权重。
 🔬 **研究方向：隐式分类器**  
 能否从扩散模型本身提取分类器，避免训练额外模型？这涉及到对扩散模型内部表示的深入理解。
 
@@ -463,28 +402,24 @@ $$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{
 
 ### 9.3.2 训练策略：条件Dropout
 
-关键创新是在训练时随机丢弃条件：
+关键创新是在训练时随机丢弃条件。具体过程：
 
-```python
-def train_classifier_free(model, x, c, p_uncond=0.1):
-    # 随机决定是否使用条件
-    if torch.rand(1).item() < p_uncond:
-        # 无条件训练
-        c = null_token  # 特殊的空条件标记
-    
-    # 标准扩散模型训练
-    t = torch.randint(0, num_timesteps, (x.shape[0],))
-    noise = torch.randn_like(x)
-    x_t = add_noise(x, noise, t)
-    
-    # 预测噪声
-    pred_noise = model(x_t, t, c)
-    loss = F.mse_loss(pred_noise, noise)
-    
-    return loss
-```
+1. 对于每个训练样本，以概率 $p_{uncond}$ 将条件替换为空条件 $\varnothing$
+2. 使用修改后的条件进行标准扩散模型训练
+3. 损失函数保持不变：$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{masked})\|^2]$
 
-这使得单个模型能够处理条件和无条件生成。
+其中：
+$$\mathbf{c}_{masked} = \begin{cases}
+\mathbf{c} & \text{with probability } 1-p_{uncond} \\
+\varnothing & \text{with probability } p_{uncond}
+\end{cases}$$
+
+这使得单个模型能够同时学习条件分布 $p(\mathbf{x}|\mathbf{c})$ 和边缘分布 $p(\mathbf{x})$。
+
+**空条件的表示**：
+- 对于文本条件：使用空字符串或特殊的 `[NULL]` token
+- 对于类别条件：使用额外的"无条件"类别
+- 对于图像条件：使用零张量或学习的空嵌入
 
 ### 9.3.3 采样公式
 
@@ -503,46 +438,25 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}
 
 ### 9.3.4 实现细节
 
-**高效采样实现**：
-```python
-def cfg_sampling(model, shape, c, w=7.5, eta=0):
-    # 初始噪声
-    x = torch.randn(shape)
-    
-    # 准备条件和无条件输入
-    c_in = torch.cat([c, null_token])  # 批量处理
-    
-    for t in tqdm(reversed(range(num_timesteps))):
-        # 单次前向传播获得两个预测
-        x_in = torch.cat([x, x])
-        t_in = torch.cat([t, t])
-        noise_pred = model(x_in, t_in, c_in)
-        
-        # 分离条件和无条件预测
-        noise_c, noise_u = noise_pred.chunk(2)
-        
-        # CFG组合
-        noise_pred = noise_u + w * (noise_c - noise_u)
-        
-        # DDIM/DDPM采样步骤
-        x = sampling_step(x, noise_pred, t, eta)
-    
-    return x
-```
+**高效采样策略**：
 
-**内存优化版本**：
-```python
-def memory_efficient_cfg(model, x, t, c, w):
-    # 使用gradient checkpointing
-    with torch.no_grad():
-        # 无条件预测
-        noise_u = model(x, t, null_token)
-    
-    # 只对条件预测计算梯度（如果需要）
-    noise_c = model(x, t, c)
-    
-    return noise_u + w * (noise_c - noise_u)
-```
+为了避免两次独立的模型前向传播，可以批量处理条件和无条件预测：
+
+1. 将输入 $\mathbf{x}_t$ 复制一份：$[\mathbf{x}_t, \mathbf{x}_t]$
+2. 准备条件批次：$[\mathbf{c}, \varnothing]$
+3. 单次前向传播得到：$[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}), \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
+4. 应用CFG公式组合预测
+
+**内存优化**：
+- 对于大模型，可以顺序计算条件和无条件预测
+- 使用梯度检查点减少激活内存
+- 在低精度（FP16）下运行推理
+**采样算法完整流程**：
+1. 初始化：$\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$
+2. 对每个时间步 $t = T, T-1, ..., 1$：
+   - 计算条件和无条件预测
+   - 应用CFG公式：$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
+   - 执行采样步骤（DDPM或DDIM）
 
 ### 9.3.5 引导权重的选择
 
@@ -558,13 +472,11 @@ def memory_efficient_cfg(model, x, t, c, w):
 | >20 | 极端引导 | 可能过饱和 |
 
 **动态引导调度**：
-```python
-def dynamic_guidance_weight(t, T):
-    # 早期使用强引导，后期减弱
-    progress = t / T
-    w = w_start * (1 - progress) + w_end * progress
-    return w
-```
+
+可以使用时变的引导权重，例如线性插值：
+$$w(t) = w_{start} \cdot (1 - t/T) + w_{end} \cdot (t/T)$$
+
+其中早期使用较强的引导（$w_{start}$较大），后期逐渐减弱（$w_{end}$较小），帮助模型在保持条件忠实度的同时提高细节质量。
 
 💡 **实践洞察：引导权重与条件类型**  
 不同条件类型需要不同的引导强度。文本条件通常需要 w=7.5，而类别条件可能只需要 w=3。
@@ -622,44 +534,25 @@ CFG可以视为变分推断中的重要性加权：
 
 **1. 负向提示（Negative Prompting）**
 
-使用负条件来避免特定内容：
-```python
-def cfg_with_negative(x_t, t, c_pos, c_neg, w_pos=7.5, w_neg=7.5):
-    noise_uncond = model(x_t, t, null_token)
-    noise_pos = model(x_t, t, c_pos)
-    noise_neg = model(x_t, t, c_neg)
-    
-    # 组合公式
-    noise = noise_uncond + w_pos * (noise_pos - noise_uncond) - w_neg * (noise_neg - noise_uncond)
-    return noise
-```
+使用负条件来避免特定内容的生成。组合公式为：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+
+其中 $\mathbf{c}_{pos}$ 是期望的条件，$\mathbf{c}_{neg}$ 是要避免的条件，$w_{pos}$ 和 $w_{neg}$ 分别控制正向和负向引导的强度。
 
 **2. 多尺度引导**
 
-在不同时间步使用不同的引导策略：
-```python
-def multiscale_cfg(t, T):
-    if t > 0.8 * T:  # 早期：强语义引导
-        return cfg_semantic(w=10)
-    elif t > 0.3 * T:  # 中期：平衡引导
-        return cfg_balanced(w=7.5)
-    else:  # 后期：细节引导
-        return cfg_detail(w=3)
-```
+在不同时间步使用不同的引导策略。例如：
+- 早期阶段（$t > 0.8T$）：使用强语义引导（$w=10$），确保整体结构正确
+- 中期阶段（$0.3T < t \leq 0.8T$）：使用平衡引导（$w=7.5$）
+- 后期阶段（$t \leq 0.3T$）：使用较弱引导（$w=3$），保留细节多样性
 
 **3. 自适应CFG**
 
-根据预测的不确定性调整引导：
-```python
-def adaptive_cfg(noise_c, noise_u):
-    # 计算预测差异
-    diff = (noise_c - noise_u).abs().mean()
-    
-    # 差异大时减小引导权重
-    w = base_weight * torch.exp(-alpha * diff)
-    
-    return noise_u + w * (noise_c - noise_u)
-```
+根据预测的不确定性调整引导强度。一种方法是基于条件和无条件预测的差异：
+
+$$w_{adaptive} = w_{base} \cdot \exp(-\alpha \cdot ||\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)||)$$
+
+当预测差异较大时，说明模型对条件的理解存在不确定性，此时减小引导权重可以避免过度放大误差。
 
 🔬 **研究方向：理论最优的引导**  
 当前的线性组合是否是最优的？是否存在非线性的组合方式能产生更好的结果？这需要从信息论角度深入分析。
@@ -697,97 +590,48 @@ CFG的成功启发了许多后续工作。未来可能出现统一的引导理�
 
 **1. 线性组合**
 
-最简单的方法是线性加权：
-```python
-def multi_condition_cfg(x_t, t, conditions, weights):
-    # 无条件预测
-    noise_uncond = model(x_t, t, null_token)
-    
-    # 组合多个条件
-    combined_direction = 0
-    for c, w in zip(conditions, weights):
-        noise_c = model(x_t, t, c)
-        combined_direction += w * (noise_c - noise_uncond)
-    
-    return noise_uncond + combined_direction
-```
+最简单的方法是对多个条件进行线性加权：
+
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + \sum_{i=1}^{n} w_i [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_i) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+
+其中 $\mathbf{c}_i$ 是第 $i$ 个条件，$w_i$ 是对应的权重。权重需要满足 $\sum_i w_i = 1$ 以保持引导的整体强度。
 
 **2. 层次化条件**
 
-不同条件在不同尺度起作用：
-```python
-class HierarchicalConditioning:
-    def __init__(self):
-        self.global_conditions = []  # 影响整体
-        self.local_conditions = []   # 影响细节
-    
-    def apply(self, x_t, t, T):
-        if t > 0.5 * T:  # 早期：全局条件
-            return apply_conditions(self.global_conditions)
-        else:  # 后期：局部条件
-            return apply_conditions(self.local_conditions)
-```
+不同条件在不同尺度起作用。层次化条件策略可以将条件分为：
+- 全局条件：影响整体结构和布局
+- 局部条件：影响细节和纹理
+
+在早期阶段（$t > 0.5T$）应用全局条件，后期阶段（$t \leq 0.5T$）应用局部条件。这种方法可以确保先建立正确的整体结构，再添加细节。
 
 **3. 条件图结构**
 
-使用图定义条件之间的关系：
-```python
-class ConditionalGraph:
-    def __init__(self):
-        self.nodes = {}  # 条件节点
-        self.edges = {}  # 条件关系
-    
-    def propagate(self, x_t, t):
-        # 根据图结构传播条件影响
-        for node in topological_sort(self.nodes):
-            parents = self.get_parents(node)
-            node.update(parents, x_t, t)
-```
+使用图结构定义条件之间的依赖关系。每个条件节点可以有父节点，其影响传播遵循拓扑排序。这样可以实现复杂的条件依赖，如：“如果有人物，则添加背景”或“风格受主题影响”等。
 
 ### 9.4.2 负向提示技术
 
 负向提示（Negative Prompting）是避免特定内容的强大工具。
 
 **1. 基础负向提示**
-```python
-def negative_prompting(x_t, t, pos_prompt, neg_prompt, w_pos=7.5, w_neg=3.0):
-    noise_uncond = model(x_t, t, null_token)
-    noise_pos = model(x_t, t, pos_prompt)
-    noise_neg = model(x_t, t, neg_prompt)
-    
-    # 朝正向移动，远离负向
-    direction = w_pos * (noise_pos - noise_uncond) - w_neg * (noise_neg - noise_uncond)
-    return noise_uncond + direction
-```
+
+组合正向和负向条件的公式：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+
+这个公式使得生成朝着正向条件移动，同时远离负向条件。
 
 **2. 多负向提示**
-```python
-def multi_negative_prompting(x_t, t, pos, neg_list, w_pos, w_neg_list):
-    noise_uncond = model(x_t, t, null_token)
-    noise_pos = model(x_t, t, pos)
-    
-    # 正向
-    direction = w_pos * (noise_pos - noise_uncond)
-    
-    # 多个负向
-    for neg, w_neg in zip(neg_list, w_neg_list):
-        noise_neg = model(x_t, t, neg)
-        direction -= w_neg * (noise_neg - noise_uncond)
-    
-    return noise_uncond + direction
-```
+
+当需要避免多个不希望的属性时，可以使用多负向提示：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - \sum_{i=1}^{n} w_{neg,i}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg,i}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+
+每个负向条件可以有不同的权重 $w_{neg,i}$。
 
 **3. 自适应负向强度**
-```python
-def adaptive_negative(x_t, t, pos, neg):
-    # 计算正负向的相似度
-    sim = cosine_similarity(encode(pos), encode(neg))
-    
-    # 相似度高时增强负向强度
-    w_neg = base_w_neg * (1 + alpha * sim)
-    
-    return negative_prompting(x_t, t, pos, neg, w_pos, w_neg)
-```
+
+根据正负向条件的相似度调整负向强度：
+$$w_{neg} = w_{neg,base} \cdot (1 + \alpha \cdot \text{sim}(\mathbf{c}_{pos}, \mathbf{c}_{neg}))$$
+
+其中 $\text{sim}(\cdot,\cdot)$ 是余弦相似度。当正负向条件相似度高时（如“高质量”与“低质量”），增强负向强度更有必要。
 
 💡 **实践技巧：负向提示的艺术**  
 好的负向提示应该具体但不过于限制。例如，"低质量"比"模糊"更通用，"过度饱和"比"太亮"更精确。
@@ -797,32 +641,25 @@ def adaptive_negative(x_t, t, pos, neg):
 固定的引导强度可能不是最优的。动态调整可以获得更好的结果。
 
 **1. 时间相关的引导**
-```python
-def time_dependent_guidance(t, T):
-    # 余弦调度
-    progress = t / T
-    w = w_min + (w_max - w_min) * (1 + np.cos(np.pi * progress)) / 2
-    return w
-```
+
+使用余弦调度的引导权重：
+$$w(t) = w_{min} + (w_{max} - w_{min}) \cdot \frac{1 + \cos(\pi \cdot t/T)}{2}$$
+
+这种调度在初期和末期使用较弱的引导，中期使用较强的引导，形成平滑的过渡。
 
 **2. 内容相关的引导**
-```python
-def content_aware_guidance(x_t, t, c):
-    # 基于当前生成内容调整
-    content_features = extract_features(x_t)
-    
-    # 检测是否需要强引导
-    needs_strong_guidance = check_alignment(content_features, c)
-    
-    w = w_strong if needs_strong_guidance else w_normal
-    return w
-```
+
+基于当前生成内容与条件的对齐度调整引导强度。可以提取中间特征并计算与条件的对齐分数：
+$$w = \begin{cases}
+w_{strong} & \text{if } \text{alignment}(\mathbf{x}_t, \mathbf{c}) < \tau \\
+w_{normal} & \text{otherwise}
+\end{cases}$$
+
+其中 $\tau$ 是对齐阈值。
 
 **3. 不确定性相关的引导**
-```python
-def uncertainty_based_guidance(model, x_t, t, c, n_samples=5):
-    # 多次采样估计不确定性
-    predictions = []
+
+通过多次采样估计模型预测的不确定性，并据此调整引导强度。当不确定性高时，减小引导强度以避免放大误差。
     for _ in range(n_samples):
         noise = model(x_t + small_noise(), t, c)
         predictions.append(noise)
@@ -838,67 +675,30 @@ def uncertainty_based_guidance(model, x_t, t, c, n_samples=5):
 ControlNet提供了精确的空间控制，通过额外的条件输入（如边缘图、深度图）引导生成。
 
 **1. ControlNet基础架构**
-```python
-class ControlNet(nn.Module):
-    def __init__(self, base_model):
-        super().__init__()
-        # 复制基础模型的编码器
-        self.control_encoder = copy.deepcopy(base_model.encoder)
-        # 零初始化的投影层
-        self.zero_convs = nn.ModuleList([
-            zero_module(nn.Conv2d(...)) for _ in range(n_layers)
-        ])
-    
-    def forward(self, x, t, c, control):
-        # 处理控制信号
-        control_feats = self.control_encoder(control, t)
-        
-        # 注入到基础模型
-        for i, feat in enumerate(control_feats):
-            base_feats[i] += self.zero_convs[i](feat)
-```
+
+ControlNet通过复制基础模型的编码器结构，并使用零初始化的投影层将控制信号注入到基础模型中。关键设计点：
+- 控制编码器：复制基础模型的编码器权重
+- 零卷积：使用零初始化的卷积层确保训练初期不影响基础模型
+- 特征注入：在多个层级将控制特征添加到基础特征中
 
 **2. 多控制组合**
-```python
-def multi_control_generation(x_t, t, text, controls):
-    # controls = {"depth": depth_map, "edge": edge_map, "pose": pose_map}
-    
-    # 基础文本引导
-    noise_text = model(x_t, t, text)
-    
-    # 添加多个控制
-    noise_combined = noise_text
-    for control_type, control_input in controls.items():
-        control_noise = control_nets[control_type](x_t, t, text, control_input)
-        noise_combined += control_weights[control_type] * control_noise
-    
-    return noise_combined
-```
+
+同时使用多个控制信号（如深度图、边缘图、姿态图）时，可以通过加权组合各个控制网络的输出：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \cdot \boldsymbol{\epsilon}_{control_i}$$
+
+其中 $\boldsymbol{\epsilon}_{text}$ 是文本引导的预测，$\boldsymbol{\epsilon}_{control_i}$ 是第 $i$ 个控制网络的输出，$w_i$ 是对应的权重。
 
 **3. 适配器方法**
 
-轻量级的条件注入：
-```python
-class Adapter(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
-        super().__init__()
-        self.down = nn.Linear(in_dim, hidden_dim)
-        self.up = nn.Linear(hidden_dim, out_dim)
-        self.act = nn.GELU()
-        
-        # 零初始化
-        nn.init.zeros_(self.up.weight)
-        nn.init.zeros_(self.up.bias)
-    
-    def forward(self, x, condition):
-        # 下投影
-        h = self.down(condition)
-        h = self.act(h)
-        # 上投影
-        h = self.up(h)
-        # 残差连接
-        return x + h
-```
+适配器（Adapter）是一种轻量级的条件注入方法，使用下投影-激活-上投影的结构：
+$$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
+
+其中：
+- $\text{DOWN}$：降维投影，$\mathbb{R}^{d} \to \mathbb{R}^{d'}$，$d' < d$
+- $\text{UP}$：升维投影，$\mathbb{R}^{d'} \to \mathbb{R}^{d}$，零初始化
+- $\text{GELU}$：非线性激活函数
+
+这种设计保持了参数效率，同时通过零初始化确保训练稳定性。
 
 <details>
 <summary>**练习 9.4：设计复杂的引导系统**</summary>
@@ -930,23 +730,15 @@ class Adapter(nn.Module):
 ### 9.4.5 引导技术的组合策略
 
 **1. 级联引导**
-```python
-def cascade_guidance(x_t, t, conditions):
-    # 逐步细化
-    x = x_t
-    for i, (condition, strength) in enumerate(conditions):
-        x = apply_guidance(x, t, condition, strength)
-        # 可选：中间去噪步骤
-        if i < len(conditions) - 1:
-            x = denoise_step(x, t)
-    return x
-```
+
+级联引导通过逐步应用不同的条件来细化生成结果。每个阶段应用一个条件，并可选择地在阶段之间执行部分去噪：
+$$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w_i)$$
+
+这种方法特别适合处理层次化的条件，如先应用全局布局条件，再应用局部细节条件。
 
 **2. 注意力引导的引导**
-```python
-def attention_guided_cfg(x_t, t, c, attention_maps):
-    # 使用注意力图调制引导强度
-    noise_c = model(x_t, t, c)
+
+使用模型内部的注意力图来调制引导强度。在注意力集中的区域使用更强的引导，在其他区域保持较弱的引导，以保护细节和多样性。
     noise_u = model(x_t, t, null_token)
     
     # 空间变化的引导权重
@@ -1009,66 +801,33 @@ def classification_accuracy(generated_images, target_classes, classifier):
 
 **2. CLIP Score**
 
-对于文本条件：
-```python
-def clip_score(images, texts, clip_model):
-    # 编码图像和文本
-    image_features = clip_model.encode_image(images)
-    text_features = clip_model.encode_text(texts)
-    
-    # 计算余弦相似度
-    similarity = F.cosine_similarity(image_features, text_features)
-    return similarity.mean()
-```
+对于文本条件，使用CLIP模型计算图像-文本的对齐度：
+$$\text{CLIP Score} = \mathbb{E}[\cos(\mathbf{f}_I(\mathbf{x}), \mathbf{f}_T(\mathbf{c}))]$$
+
+其中 $\mathbf{f}_I$ 和 $\mathbf{f}_T$ 分别是CLIP的图像和文本编码器，$\cos(\cdot,\cdot)$ 是余弦相似度。更高的CLIP分数表示更好的图像-文本对齐。
 
 **3. 结构相似度**
 
-对于空间控制（如ControlNet）：
-```python
-def structural_similarity(generated, control_signal):
-    # 提取结构特征
-    gen_edges = edge_detector(generated)
-    
-    # 计算相似度
-    ssim = structural_similarity_index(gen_edges, control_signal)
-    return ssim
-```
+对于空间控制（如ControlNet），可以使用结构相似性指标（SSIM）或边缘检测来评估：
+$$\text{SSIM} = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}$$
+
+其中 $\mu$ 是均值，$\sigma$ 是标准差，$\sigma_{xy}$ 是协方差，$c_1, c_2$ 是稳定常数。
 
 **4. 语义一致性**
 
-使用预训练模型评估语义对齐：
-```python
-def semantic_consistency(images, conditions, semantic_model):
-    # 提取语义特征
-    image_semantics = semantic_model.extract_semantics(images)
-    condition_semantics = semantic_model.encode_conditions(conditions)
-    
-    # 计算语义距离
-    distance = semantic_distance(image_semantics, condition_semantics)
-    return 1 / (1 + distance)  # 转换为相似度
-```
+使用预训练模型评估语义对齐。通过提取图像和条件的语义特征，计算它们之间的距离：
+$$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
+
+其中 $\mathbf{s}_I$ 是图像的语义特征，$\mathbf{s}_C$ 是条件的语义特征，$d(\cdot,\cdot)$ 是距离度量（如L2距离）。
 
 ### 9.5.2 多样性与质量权衡
 
 **1. 多样性度量**
 
-```python
-def diversity_metrics(generated_samples):
-    metrics = {}
-    
-    # 特征空间多样性
-    features = extract_features(generated_samples)
-    metrics['feature_diversity'] = compute_variance(features)
-    
-    # 成对距离
-    pairwise_dist = pdist(features)
-    metrics['avg_distance'] = pairwise_dist.mean()
-    
-    # 覆盖度
-    metrics['coverage'] = compute_coverage(features, reference_features)
-    
-    return metrics
-```
+评估生成样本的多样性可以使用多种指标：
+- **特征空间多样性**：计算生成样本在特征空间中的方差
+- **成对距离**：计算所有样本对之间的平均距离
+- **覆盖度**：评估生成分布对参考分布的覆盖程度
 
 **2. 质量-多样性前沿**
 
@@ -1135,20 +894,10 @@ class GuidanceFailureDetector:
 
 **2. 过度引导检测**
 
-```python
-def detect_over_guidance(samples):
-    # 检查饱和度
-    saturation = compute_saturation(samples)
-    if saturation > threshold_high:
-        return True
-    
-    # 检查多样性
-    diversity = compute_diversity(samples)
-    if diversity < threshold_low:
-        return True
-    
-    return False
-```
+检测过度引导的指标包括：
+- **饱和度异常**：检查图像的颜色饱和度是否过高
+- **多样性下降**：评估多个生成样本之间的差异是否过小
+- **细节丢失**：检查高频信息是否被过度平滑
 
 **3. 语义漂移检测**
 
@@ -1193,59 +942,22 @@ class Text2ImagePipeline:
             text_emb, neg_emb, 
             self.cfg_scale, **kwargs
         )
-        
-        return image
-```
 
 **2. 图像编辑**
 
-```python
-class ImageEditingPipeline:
-    def __init__(self, model, controlnet):
-        self.model = model
-        self.controlnet = controlnet
-    
-    def edit(self, image, edit_instruction, mask=None):
-        # 提取控制信号
-        control = self.extract_control(image)
-        
-        # 编码编辑指令
-        instruction_emb = self.encode_instruction(edit_instruction)
-        
-        # 条件生成
-        if mask is not None:
-            # 局部编辑
-            edited = self.local_edit(image, mask, instruction_emb, control)
-        else:
-            # 全局编辑
-            edited = self.global_edit(image, instruction_emb, control)
-        
-        return edited
-```
+图像编辑管道的关键组件：
+- **控制信号提取**：从原始图像中提取结构信息（如边缘、深度）
+- **编辑指令编码**：将文本编辑指令转换为条件向量
+- **局部/全局编辑**：根据是否有掩码选择编辑模式
+- **条件生成**：结合ControlNet保持结构一致性
 
 **3. 多模态生成**
 
-```python
-class MultiModalGenerator:
-    def __init__(self, models):
-        self.models = models
-        self.fusion_module = CrossModalFusion()
-    
-    def generate(self, conditions):
-        # conditions = {"text": ..., "audio": ..., "sketch": ...}
-        
-        # 编码各模态
-        embeddings = {}
-        for modality, condition in conditions.items():
-            embeddings[modality] = self.models[modality].encode(condition)
-        
-        # 跨模态融合
-        fused_condition = self.fusion_module(embeddings)
-        
-        # 生成
-        output = self.sample_with_fusion(fused_condition)
-        return output
-```
+多模态生成系统的核心要素：
+- **模态编码器**：每个模态（文本、音频、草图等）需要专门的编码器
+- **跨模态融合**：将不同模态的条件融合成统一表示
+- **权重分配**：不同模态可能需要不同的影响权重
+- **一致性保持**：确保多个模态条件不会产生冲突
 
 <details>
 <summary>**综合练习：构建生产级条件生成系统**</summary>
