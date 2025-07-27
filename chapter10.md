@@ -154,11 +154,11 @@ LDM采用两阶段训练，分离压缩和生成：
 **第一阶段：训练自编码器**
 
 自编码器训练的关键要素：
-- **编码-解码流程**：$\mathbf{x} \to \mathbf{z} = \mathcal{E}(\mathbf{x}) \to \mathbf{x}_{recon} = \mathcal{D}(\mathbf{z})$
-- **重建损失**：$\mathcal{L}_{recon} = ||\mathbf{x} - \mathbf{x}_{recon}||_1$
-- **感知损失**：$\mathcal{L}_{percep} = ||\phi(\mathbf{x}) - \phi(\mathbf{x}_{recon})||_2$，其中 $\phi$ 是感知网络
-- **KL正则化**（VAE情况）：$\mathcal{L}_{KL} = \text{KL}(q(\mathbf{z}|\mathbf{x})||p(\mathbf{z}))$
-- **总损失**：$\mathcal{L} = \mathcal{L}_{recon} + \lambda_1 \mathcal{L}_{percep} + \lambda_2 \mathcal{L}_{KL}$
+- **编码-解码流程**： $\mathbf{x} \to \mathbf{z} = \mathcal{E}(\mathbf{x}) \to \mathbf{x}_{recon} = \mathcal{D}(\mathbf{z})$
+- **重建损失**： $\mathcal{L}_{recon} = ||\mathbf{x} - \mathbf{x}_{recon}||_1$
+- **感知损失**： $\mathcal{L}_{percep} = ||\phi(\mathbf{x}) - \phi(\mathbf{x}_{recon})||_2$ ，其中 $\phi$ 是感知网络
+- **KL正则化**（VAE情况）： $\mathcal{L}_{KL} = \text{KL}(q(\mathbf{z}|\mathbf{x})||p(\mathbf{z}))$
+- **总损失**： $\mathcal{L} = \mathcal{L}_{recon} + \lambda_1 \mathcal{L}_{percep} + \lambda_2 \mathcal{L}_{KL}$
 
 **第二阶段：训练扩散模型**
 
@@ -167,9 +167,9 @@ LDM采用两阶段训练，分离压缩和生成：
 - **编码数据**：将图像 $\mathbf{x}$ 编码为 $\mathbf{z} = \mathcal{E}(\mathbf{x})$
 - **标准扩散训练**：
   - 采样时间步 $t \sim \mathcal{U}[0, T]$
-  - 添加噪声：$\mathbf{z}_t = \sqrt{\bar{\alpha}_t}\mathbf{z}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$
-  - 预测噪声：$\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t, \mathbf{c})$
-  - 损失函数：$\mathcal{L} = \mathbb{E}_{t,\mathbf{z}_0,\boldsymbol{\epsilon}}[||\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t, \mathbf{c})||^2]$
+  - 添加噪声： $\mathbf{z}_t = \sqrt{\bar{\alpha}_t}\mathbf{z}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$
+  - 预测噪声： $\boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t, \mathbf{c})$
+  - 损失函数： $\mathcal{L} = \mathbb{E}_{t,\mathbf{z}_0,\boldsymbol{\epsilon}}[||\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{z}_t, t, \mathbf{c})||^2]$
 
 💡 **实践技巧：预训练策略**  
 可以使用大规模数据集预训练通用自编码器，然后在特定领域微调。这大大减少了训练成本。
@@ -239,9 +239,9 @@ $$\boldsymbol{\mu}_\theta(\mathbf{z}_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(\mat
 **1. 信噪比分析**：
 
 分析潜在空间的信噪比特性：
-- **信号功率**：$P_{signal} = \mathbb{E}[||\mathbf{z}||^2]$
-- **噪声功率**：$P_{noise} = (1-\bar{\alpha}_t) \cdot P_{signal}$
-- **信噪比**：$\text{SNR}(t) = 10\log_{10}(P_{signal}/P_{noise})$ dB
+- **信号功率**： $P_{signal} = \mathbb{E}[||\mathbf{z}||^2]$
+- **噪声功率**： $P_{noise} = (1-\bar{\alpha}_t) \cdot P_{signal}$
+- **信噪比**： $\text{SNR}(t) = 10\log_{10}(P_{signal}/P_{noise})$ dB
 
 通过分析不同时间步的SNR，可以了解噪声调度的合理性。
 
@@ -249,7 +249,7 @@ $$\boldsymbol{\mu}_\theta(\mathbf{z}_t, t) = \frac{1}{\sqrt{\alpha_t}}\left(\mat
 
 根据潜在空间的统计特性设计噪声调度：
 - **考虑潜在空间均值和方差**：使用数据集的统计量
-- **调整 $\beta$ 范围**：$\beta_{start} = 0.0001 \cdot \sigma_z$，$\beta_{end} = 0.02 \cdot \sigma_z$
+- **调整 $\beta$ 范围**： $\beta_{start} = 0.0001 \cdot \sigma_z$ ， $\beta_{end} = 0.02 \cdot \sigma_z$
 - **目标最终SNR**：确保 $T$ 步后 SNR $\approx -20$ dB
 - **线性或余弦调度**：根据潜在空间分布选择
 
@@ -263,10 +263,10 @@ LDM中的条件信息通过多种方式注入：
 **1. 交叉注意力机制**：
 
 交叉注意力允许潜在特征与条件信息交互：
-- **输入**：潜在特征 $\mathbf{x} \in \mathbb{R}^{B \times HW \times C}$，条件编码 $\mathbf{c} \in \mathbb{R}^{B \times L \times D}$
-- **注意力计算**：$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}})\mathbf{V}$
-- **其中**：$\mathbf{Q} = \mathbf{x}\mathbf{W}_Q$，$\mathbf{K} = \mathbf{c}\mathbf{W}_K$，$\mathbf{V} = \mathbf{c}\mathbf{W}_V$
-- **残差连接**：$\mathbf{x}_{out} = \mathbf{x} + \text{Attention}(\mathbf{x}, \mathbf{c}, \mathbf{c})$
+- **输入**：潜在特征 $\mathbf{x} \in \mathbb{R}^{B \times HW \times C}$ ，条件编码 $\mathbf{c} \in \mathbb{R}^{B \times L \times D}$
+- **注意力计算**： $\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}})\mathbf{V}$
+- **其中**： $\mathbf{Q} = \mathbf{x}\mathbf{W}_Q$ ， $\mathbf{K} = \mathbf{c}\mathbf{W}_K$ ， $\mathbf{V} = \mathbf{c}\mathbf{W}_V$
+- **残差连接**： $\mathbf{x}_{out} = \mathbf{x} + \text{Attention}(\mathbf{x}, \mathbf{c}, \mathbf{c})$
 
 **2. 特征调制（FiLM）**：
 
@@ -274,18 +274,18 @@ FiLM（Feature-wise Linear Modulation）通过缩放和偏移调制特征：
 $$\mathbf{x}_{out} = \mathbf{x} \odot (1 + \gamma(\mathbf{c})) + \beta(\mathbf{c})$$
 
 其中：
-- $\gamma(\mathbf{c})$：条件相关的缩放参数
-- $\beta(\mathbf{c})$：条件相关的偏移参数
-- $\odot$：逐元素乘法
+- $\gamma(\mathbf{c})$ ：条件相关的缩放参数
+- $\beta(\mathbf{c})$ ：条件相关的偏移参数
+- $\odot$ ：逐元素乘法
 
 **3. 空间条件控制**：
 
 处理空间条件（如掩码、边缘图）的方法：
-- **拼接方法**：$\mathbf{z}_{cond} = [\mathbf{z}_t, \mathbf{s}]$，沿通道维度拼接
-- **加法融合**：$\mathbf{z}_{cond} = \mathbf{z}_t + \mathbf{s}$，需要维度匹配
-- **门控融合**：$\mathbf{z}_{cond} = \mathbf{z}_t \odot \sigma(\mathbf{s}) + \mathbf{s} \odot (1-\sigma(\mathbf{s}))$
+- **拼接方法**： $\mathbf{z}_{cond} = [\mathbf{z}_t, \mathbf{s}]$ ，沿通道维度拼接
+- **加法融合**： $\mathbf{z}_{cond} = \mathbf{z}_t + \mathbf{s}$ ，需要维度匹配
+- **门控融合**： $\mathbf{z}_{cond} = \mathbf{z}_t \odot \sigma(\mathbf{s}) + \mathbf{s} \odot (1-\sigma(\mathbf{s}))$
 
-其中 $\mathbf{s}$ 是空间条件，$\sigma$ 是sigmoid函数。
+其中 $\mathbf{s}$ 是空间条件， $\sigma$ 是sigmoid函数。
 
 🔬 **研究方向：条件注入的最优位置**  
 应该在U-Net的哪些层注入条件信息？早期层影响全局结构，后期层控制细节。系统研究这种权衡可以指导架构设计。
@@ -372,7 +372,7 @@ $$\mathbf{x}_{out} = \mathbf{x} \odot (1 + \gamma(\mathbf{c})) + \beta(\mathbf{c
 3. **反向去噪**：从纯噪声开始，逐步去噪恢复清晰的潜在表示
 4. **解码可视化**：将各个阶段的潜在表示解码回图像空间
 
-选择关键时间步（如 $t \in \{0, 250, 500, 750, 999\}$）进行可视化。
+选择关键时间步（如 $t \in \{0, 250, 500, 750, 999\}$ ）进行可视化。
 
 **诊断工具**：
 
@@ -382,7 +382,7 @@ $$\mathbf{x}_{out} = \mathbf{x} \odot (1 + \gamma(\mathbf{c})) + \beta(\mathbf{c
    - 检查是否存在异常值或分布偏移
 
 2. **重建质量评估**：
-   - 计算重建误差：$\mathcal{L}_{recon} = ||\mathbf{x} - \mathcal{D}(\mathcal{E}(\mathbf{x}))||^2$
+   - 计算重建误差： $\mathcal{L}_{recon} = ||\mathbf{x} - \mathcal{D}(\mathcal{E}(\mathbf{x}))||^2$
    - 检查感知质量和细节保留
 
 3. **噪声预测准确性**：
@@ -420,7 +420,7 @@ VQ-VAE使用离散的潜在表示：
 - **编码器**：将图像编码为连续特征 $\mathbf{z}_e = \text{Encoder}(\mathbf{x})$
 - **向量量化**：将连续特征映射到最近的码本 $\mathbf{z}_q = \text{Quantize}(\mathbf{z}_e)$
 - **码本（Codebook）**：包含 $K$ 个可学习的向量，通常 $K=8192$
-- **承诺损失**：$\mathcal{L}_{commit} = ||\mathbf{z}_e - \text{sg}[\mathbf{z}_q]||^2$，鼓励编码器输出接近码本
+- **承诺损失**： $\mathcal{L}_{commit} = ||\mathbf{z}_e - \text{sg}[\mathbf{z}_q]||^2$ ，鼓励编码器输出接近码本
 - **优点**：离散表示、压缩率高
 - **缺点**：码本崩塌、重建质量受限
 
@@ -428,9 +428,9 @@ VQ-VAE使用离散的潜在表示：
 
 KL-VAE使用连续的潜在表示和概率分布：
 - **编码器输出**：均值 $\boldsymbol{\mu}$ 和对数方差 $\log\boldsymbol{\sigma}^2$
-- **重参数化技巧**：$\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\epsilon}$，其中 $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$
-- **KL损失**：$\mathcal{L}_{KL} = \text{KL}(q(\mathbf{z}|\mathbf{x})||p(\mathbf{z}))$，促使潜在分布接近标准正态
-- **KL权重**：通常设置为很小的值（如 $10^{-6}$），以保持重建质量
+- **重参数化技巧**： $\mathbf{z} = \boldsymbol{\mu} + \boldsymbol{\sigma} \odot \boldsymbol{\epsilon}$ ，其中 $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$
+- **KL损失**： $\mathcal{L}_{KL} = \text{KL}(q(\mathbf{z}|\mathbf{x})||p(\mathbf{z}))$ ，促使潜在分布接近标准正态
+- **KL权重**：通常设置为很小的值（如 $10^{-6}$ ），以保持重建质量
 - **优点**：连续表示、训练稳定、适合扩散模型
 - **缺点**：压缩率受限、可能出现后验崩塌
 
@@ -451,24 +451,24 @@ KL-VAE使用连续的潜在表示和概率分布：
 
 LDM使用组合损失函数来训练自编码器：
 
-1. **重建损失**：$\mathcal{L}_{rec} = ||\mathbf{x} - \mathbf{x}_{recon}||_1$
+1. **重建损失**： $\mathcal{L}_{rec} = ||\mathbf{x} - \mathbf{x}_{recon}||_1$
    - 保证基本的像素级重建
 
-2. **感知损失**：$\mathcal{L}_{percep} = ||\phi(\mathbf{x}) - \phi(\mathbf{x}_{recon})||_2$
+2. **感知损失**： $\mathcal{L}_{percep} = ||\phi(\mathbf{x}) - \phi(\mathbf{x}_{recon})||_2$
    - 使用预训练VGG网络的特征
    - 保持高级语义信息
 
-3. **KL正则化**：$\mathcal{L}_{KL} = -\frac{1}{2}\sum(1 + \log\sigma^2 - \mu^2 - \sigma^2)$
+3. **KL正则化**： $\mathcal{L}_{KL} = -\frac{1}{2}\sum(1 + \log\sigma^2 - \mu^2 - \sigma^2)$
    - 约束潜在分布接近标准正态
 
-4. **对抗损失**：$\mathcal{L}_{adv} = -\mathbb{E}[D(\mathbf{x}_{recon})]$
+4. **对抗损失**： $\mathcal{L}_{adv} = -\mathbb{E}[D(\mathbf{x}_{recon})]$
    - 延迟启动（通常在50k步后）
    - 提高细节真实性
         # 组合
         loss = rec_loss + self.perceptual_weight * p_loss + \
                self.kl_weight * kl_loss + self.disc_weight * g_loss
 
-**总损失**：$\mathcal{L}_{total} = \mathcal{L}_{rec} + \lambda_1\mathcal{L}_{percep} + \lambda_2\mathcal{L}_{KL} + \lambda_3\mathcal{L}_{adv}$
+**总损失**： $\mathcal{L}_{total} = \mathcal{L}_{rec} + \lambda_1\mathcal{L}_{percep} + \lambda_2\mathcal{L}_{KL} + \lambda_3\mathcal{L}_{adv}$
 
 **判别器设计**：
 
@@ -476,7 +476,7 @@ PatchGAN判别器的特点：
 - **局部判别**：输出特征图而非单一标量
 - **多尺度卷积**：逐步下采样，提取不同尺度特征
 - **LeakyReLU激活**：更适合判别器训练
-- **最终输出**：$H/16 \times W/16$ 的特征图，每个位置判别对应的局部区域
+- **最终输出**： $H/16 \times W/16$ 的特征图，每个位置判别对应的局部区域
 
 ### 10.2.3 潜在空间的正则化
 
@@ -498,8 +498,8 @@ PatchGAN判别器的特点：
 
 梯度惩罚（Gradient Penalty）是WGAN-GP的核心技术：
 - **原理**：在真实和生成样本之间插值，约束梯度范数接近1
-- **插值公式**：$\mathbf{x}_{interp} = \epsilon\mathbf{x}_{real} + (1-\epsilon)\mathbf{x}_{fake}$
-- **惩罚项**：$\mathcal{L}_{GP} = \mathbb{E}[(||\nabla_{\mathbf{x}_{interp}}D(\mathbf{x}_{interp})||_2 - 1)^2]$
+- **插值公式**： $\mathbf{x}_{interp} = \epsilon\mathbf{x}_{real} + (1-\epsilon)\mathbf{x}_{fake}$
+- **惩罚项**： $\mathcal{L}_{GP} = \mathbb{E}[(||\nabla_{\mathbf{x}_{interp}}D(\mathbf{x}_{interp})||_2 - 1)^2]$
 - **优点**：更稳定的训练，避免模式崩塌
     gradient_norm = gradients.norm(2, dim=1)
     penalty = ((gradient_norm - 1) ** 2).mean()
@@ -517,7 +517,7 @@ PatchGAN判别器的特点：
 编码器的层次结构：
 1. **初始卷积**：3×3卷积将RGB图像映射到特征空间
 2. **下采样阶段**：
-   - 使用多个分辨率级别，通道数逐级增加：$(1, 2, 4, 8) \times ch$
+   - 使用多个分辨率级别，通道数逐级增加： $(1, 2, 4, 8) \times ch$
    - 每个级别包含多个ResNet块
    - 级别之间使用2倍下采样
 3. **中间处理**：

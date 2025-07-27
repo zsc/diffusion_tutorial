@@ -52,7 +52,7 @@
 
 **1. 拼接（Concatenation）**
 
-最直接的方式是将条件信息与输入拼接。对于图像条件，可以在通道维度上拼接 $[\mathbf{x}_t, \mathbf{c}_{image}]$。对于向量条件，先通过条件编码器得到嵌入 $\mathbf{c}_{embed}$，然后扩展到空间维度后拼接。这种方法简单有效，但会增加第一层的参数量。
+最直接的方式是将条件信息与输入拼接。对于图像条件，可以在通道维度上拼接 $[\mathbf{x}_t, \mathbf{c}_{image}]$ 。对于向量条件，先通过条件编码器得到嵌入 $\mathbf{c}_{embed}$ ，然后扩展到空间维度后拼接。这种方法简单有效，但会增加第一层的参数量。
 
 **2. 自适应归一化（Adaptive Normalization）**
 
@@ -68,7 +68,7 @@ $$\mathbf{h} = \gamma(\mathbf{c}) \odot \text{Normalize}(\mathbf{h}) + \beta(\ma
 
 $$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}$$
 
-其中 $\mathbf{Q} = \mathbf{h}_{image}W_Q$，$\mathbf{K} = \mathbf{h}_{text}W_K$，$\mathbf{V} = \mathbf{h}_{text}W_V$。
+其中 $\mathbf{Q} = \mathbf{h}_{image}W_Q$ ， $\mathbf{K} = \mathbf{h}_{text}W_K$ ， $\mathbf{V} = \mathbf{h}_{text}W_V$ 。
 
 **4. 特征调制（Feature-wise Modulation）**
 
@@ -98,7 +98,7 @@ $$\mathbf{h}_{out} = \gamma(\mathbf{c}) \odot \mathbf{h}_{in} + \beta(\mathbf{c}
 - 中分辨率层获得结构控制（如物体形状）
 - 低分辨率层获得语义控制（如整体布局）
 
-每个下采样块和上采样块都接收条件信息：$\mathbf{h}_i = f_i(\mathbf{h}_{i-1}, t, \mathbf{c})$
+每个下采样块和上采样块都接收条件信息： $\mathbf{h}_i = f_i(\mathbf{h}_{i-1}, t, \mathbf{c})$
 
 **3. 时间-条件交互**
 
@@ -106,13 +106,13 @@ $$\mathbf{h}_{out} = \gamma(\mathbf{c}) \odot \mathbf{h}_{in} + \beta(\mathbf{c}
 
 $$\mathbf{e}_{joint} = \text{MLP}(\mathbf{e}_t + \mathbf{e}_c)$$
 
-其中 $\mathbf{e}_t$ 是时间嵌入，$\mathbf{e}_c$ 是条件嵌入。这种交互允许模型根据去噪阶段调整条件的影响方式。
+其中 $\mathbf{e}_t$ 是时间嵌入， $\mathbf{e}_c$ 是条件嵌入。这种交互允许模型根据去噪阶段调整条件的影响方式。
 
 ### 9.1.4 训练策略
 
 **1. 条件dropout**
 
-随机丢弃条件信息，训练模型同时处理条件和无条件生成。在训练时，以概率 $p_{uncond}$ 将条件 $\mathbf{c}$ 替换为空条件 $\varnothing$：
+随机丢弃条件信息，训练模型同时处理条件和无条件生成。在训练时，以概率 $p_{uncond}$ 将条件 $\mathbf{c}$ 替换为空条件 $\varnothing$ ：
 
 $$\mathbf{c}_{train} = \begin{cases}
 \mathbf{c} & \text{with probability } 1-p_{uncond} \\
@@ -140,7 +140,7 @@ $$\mathcal{L}_{total} = \mathcal{L}_{uncond} + \lambda_1\mathcal{L}_{class} + \l
 其中 $\lambda_i$ 是各任务的权重系数。
 
 💡 **实践技巧：条件缩放**  
-不同条件的强度可能需要不同的缩放。使用可学习的缩放因子：$\mathbf{c}_{scaled} = s_c \cdot \mathbf{c}$，其中 $s_c$ 是可学习参数。
+不同条件的强度可能需要不同的缩放。使用可学习的缩放因子： $\mathbf{c}_{scaled} = s_c \cdot \mathbf{c}$ ，其中 $s_c$ 是可学习参数。
 
 <details>
 <summary>**练习 9.1：实现多模态条件扩散模型**</summary>
@@ -200,7 +200,7 @@ $$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
 - **编码器共享**：多个条件类型共享底层特征提取器
 
 **数值稳定性保障**：
-- **条件归一化**：$\mathbf{c}_{encoded} = s \cdot \mathbf{c}_{encoded} / \|\mathbf{c}_{encoded}\|_2$
+- **条件归一化**： $\mathbf{c}_{encoded} = s \cdot \mathbf{c}_{encoded} / \|\mathbf{c}_{encoded}\|_2$
 - **残差缩放**：条件注入时使用小的初始权重
 - **梯度裁剪**：防止条件相关的梯度爆炸
 
@@ -251,10 +251,10 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbo
 **采样算法流程**：
 
 1. 从标准高斯分布采样初始噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$
-2. 对于每个时间步 $t = T, T-1, ..., 1$：
-   - 使用扩散模型预测无条件噪声：$\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$
-   - 计算分类器对数概率的梯度：$\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
-   - 组合得到引导后的噪声预测：$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+2. 对于每个时间步 $t = T, T-1, ..., 1$ ：
+   - 使用扩散模型预测无条件噪声： $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$
+   - 计算分类器对数概率的梯度： $\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+   - 组合得到引导后的噪声预测： $\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
    - 执行去噪步骤得到 $\mathbf{x}_{t-1}$
 
 **梯度计算细节**：
@@ -286,10 +286,10 @@ $$\nabla_{clipped} = \frac{\nabla}{\max(1, \|\nabla\|_2 / \lambda)}$$
 
 $$\nabla_{stable} = \frac{1}{N} \sum_{i=1}^N \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t + \sigma\boldsymbol{\epsilon}_i)$$
 
-其中 $\boldsymbol{\epsilon}_i \sim \mathcal{N}(0, \mathbf{I})$，$\sigma$ 是小的噪声尺度。
+其中 $\boldsymbol{\epsilon}_i \sim \mathcal{N}(0, \mathbf{I})$ ， $\sigma$ 是小的噪声尺度。
 
 💡 **实践技巧：温度调节**  
-对分类器输出使用温度缩放可以控制引导的锐度：$p_\phi(\mathbf{c}|\mathbf{x}_t) \propto \exp(\text{logits}/\tau)$，其中 $\tau$ 是温度参数。
+对分类器输出使用温度缩放可以控制引导的锐度： $p_\phi(\mathbf{c}|\mathbf{x}_t) \propto \exp(\text{logits}/\tau)$ ，其中 $\tau$ 是温度参数。
 
 ### 9.2.5 局限性分析
 
@@ -406,7 +406,7 @@ $$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{
 
 1. 对于每个训练样本，以概率 $p_{uncond}$ 将条件替换为空条件 $\varnothing$
 2. 使用修改后的条件进行标准扩散模型训练
-3. 损失函数保持不变：$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{masked})\|^2]$
+3. 损失函数保持不变： $\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{masked})\|^2]$
 
 其中：
 $$\mathbf{c}_{masked} = \begin{cases}
@@ -414,7 +414,7 @@ $$\mathbf{c}_{masked} = \begin{cases}
 \varnothing & \text{with probability } p_{uncond}
 \end{cases}$$
 
-这使得单个模型能够同时学习条件分布 $p(\mathbf{x}|\mathbf{c})$ 和边缘分布 $p(\mathbf{x})$。
+这使得单个模型能够同时学习条件分布 $p(\mathbf{x}|\mathbf{c})$ 和边缘分布 $p(\mathbf{x})$ 。
 
 **空条件的表示**：
 - 对于文本条件：使用空字符串或特殊的 `[NULL]` token
@@ -442,9 +442,9 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}
 
 为了避免两次独立的模型前向传播，可以批量处理条件和无条件预测：
 
-1. 将输入 $\mathbf{x}_t$ 复制一份：$[\mathbf{x}_t, \mathbf{x}_t]$
-2. 准备条件批次：$[\mathbf{c}, \varnothing]$
-3. 单次前向传播得到：$[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}), \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
+1. 将输入 $\mathbf{x}_t$ 复制一份： $[\mathbf{x}_t, \mathbf{x}_t]$
+2. 准备条件批次： $[\mathbf{c}, \varnothing]$
+3. 单次前向传播得到： $[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}), \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
 4. 应用CFG公式组合预测
 
 **内存优化**：
@@ -452,10 +452,10 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}
 - 使用梯度检查点减少激活内存
 - 在低精度（FP16）下运行推理
 **采样算法完整流程**：
-1. 初始化：$\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$
-2. 对每个时间步 $t = T, T-1, ..., 1$：
+1. 初始化： $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$
+2. 对每个时间步 $t = T, T-1, ..., 1$ ：
    - 计算条件和无条件预测
-   - 应用CFG公式：$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
+   - 应用CFG公式： $\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
    - 执行采样步骤（DDPM或DDIM）
 
 ### 9.3.5 引导权重的选择
@@ -476,7 +476,7 @@ $$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}
 可以使用时变的引导权重，例如线性插值：
 $$w(t) = w_{start} \cdot (1 - t/T) + w_{end} \cdot (t/T)$$
 
-其中早期使用较强的引导（$w_{start}$较大），后期逐渐减弱（$w_{end}$较小），帮助模型在保持条件忠实度的同时提高细节质量。
+其中早期使用较强的引导（ $w_{start}$ 较大），后期逐渐减弱（ $w_{end}$ 较小），帮助模型在保持条件忠实度的同时提高细节质量。
 
 💡 **实践洞察：引导权重与条件类型**  
 不同条件类型需要不同的引导强度。文本条件通常需要 w=7.5，而类别条件可能只需要 w=3。
@@ -537,14 +537,14 @@ CFG可以视为变分推断中的重要性加权：
 使用负条件来避免特定内容的生成。组合公式为：
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
-其中 $\mathbf{c}_{pos}$ 是期望的条件，$\mathbf{c}_{neg}$ 是要避免的条件，$w_{pos}$ 和 $w_{neg}$ 分别控制正向和负向引导的强度。
+其中 $\mathbf{c}_{pos}$ 是期望的条件， $\mathbf{c}_{neg}$ 是要避免的条件， $w_{pos}$ 和 $w_{neg}$ 分别控制正向和负向引导的强度。
 
 **2. 多尺度引导**
 
 在不同时间步使用不同的引导策略。例如：
-- 早期阶段（$t > 0.8T$）：使用强语义引导（$w=10$），确保整体结构正确
-- 中期阶段（$0.3T < t \leq 0.8T$）：使用平衡引导（$w=7.5$）
-- 后期阶段（$t \leq 0.3T$）：使用较弱引导（$w=3$），保留细节多样性
+- 早期阶段（ $t > 0.8T$ ）：使用强语义引导（ $w=10$ ），确保整体结构正确
+- 中期阶段（ $0.3T < t \leq 0.8T$ ）：使用平衡引导（ $w=7.5$ ）
+- 后期阶段（ $t \leq 0.3T$ ）：使用较弱引导（ $w=3$ ），保留细节多样性
 
 **3. 自适应CFG**
 
@@ -594,7 +594,7 @@ CFG的成功启发了许多后续工作。未来可能出现统一的引导理�
 
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + \sum_{i=1}^{n} w_i [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_i) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
-其中 $\mathbf{c}_i$ 是第 $i$ 个条件，$w_i$ 是对应的权重。权重需要满足 $\sum_i w_i = 1$ 以保持引导的整体强度。
+其中 $\mathbf{c}_i$ 是第 $i$ 个条件， $w_i$ 是对应的权重。权重需要满足 $\sum_i w_i = 1$ 以保持引导的整体强度。
 
 **2. 层次化条件**
 
@@ -602,7 +602,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 - 全局条件：影响整体结构和布局
 - 局部条件：影响细节和纹理
 
-在早期阶段（$t > 0.5T$）应用全局条件，后期阶段（$t \leq 0.5T$）应用局部条件。这种方法可以确保先建立正确的整体结构，再添加细节。
+在早期阶段（ $t > 0.5T$ ）应用全局条件，后期阶段（ $t \leq 0.5T$ ）应用局部条件。这种方法可以确保先建立正确的整体结构，再添加细节。
 
 **3. 条件图结构**
 
@@ -624,7 +624,7 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, 
 当需要避免多个不希望的属性时，可以使用多负向提示：
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - \sum_{i=1}^{n} w_{neg,i}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg,i}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
 
-每个负向条件可以有不同的权重 $w_{neg,i}$。
+每个负向条件可以有不同的权重 $w_{neg,i}$ 。
 
 **3. 自适应负向强度**
 
@@ -686,7 +686,7 @@ ControlNet通过复制基础模型的编码器结构，并使用零初始化的�
 同时使用多个控制信号（如深度图、边缘图、姿态图）时，可以通过加权组合各个控制网络的输出：
 $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \cdot \boldsymbol{\epsilon}_{control_i}$$
 
-其中 $\boldsymbol{\epsilon}_{text}$ 是文本引导的预测，$\boldsymbol{\epsilon}_{control_i}$ 是第 $i$ 个控制网络的输出，$w_i$ 是对应的权重。
+其中 $\boldsymbol{\epsilon}_{text}$ 是文本引导的预测， $\boldsymbol{\epsilon}_{control_i}$ 是第 $i$ 个控制网络的输出， $w_i$ 是对应的权重。
 
 **3. 适配器方法**
 
@@ -694,9 +694,9 @@ $$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \c
 $$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
 
 其中：
-- $\text{DOWN}$：降维投影，$\mathbb{R}^{d} \to \mathbb{R}^{d'}$，$d' < d$
-- $\text{UP}$：升维投影，$\mathbb{R}^{d'} \to \mathbb{R}^{d}$，零初始化
-- $\text{GELU}$：非线性激活函数
+- $\text{DOWN}$ ：降维投影， $\mathbb{R}^{d} \to \mathbb{R}^{d'}$ ， $d' < d$
+- $\text{UP}$ ：升维投影， $\mathbb{R}^{d'} \to \mathbb{R}^{d}$ ，零初始化
+- $\text{GELU}$ ：非线性激活函数
 
 这种设计保持了参数效率，同时通过零初始化确保训练稳定性。
 
@@ -787,28 +787,28 @@ $$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w
 对于类别条件，可以使用预训练的分类器评估生成图像的类别一致性：
 $$\text{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\arg\max_j p(y_j|\mathbf{x}_i) = c_i]$$
 
-其中 $p(y_j|\mathbf{x}_i)$ 是分类器对生成图像 $\mathbf{x}_i$ 的预测概率，$c_i$ 是目标类别。
+其中 $p(y_j|\mathbf{x}_i)$ 是分类器对生成图像 $\mathbf{x}_i$ 的预测概率， $c_i$ 是目标类别。
 
 **2. CLIP Score**
 
 对于文本条件，使用CLIP模型计算图像-文本的对齐度：
 $$\text{CLIP Score} = \mathbb{E}[\cos(\mathbf{f}_I(\mathbf{x}), \mathbf{f}_T(\mathbf{c}))]$$
 
-其中 $\mathbf{f}_I$ 和 $\mathbf{f}_T$ 分别是CLIP的图像和文本编码器，$\cos(\cdot,\cdot)$ 是余弦相似度。更高的CLIP分数表示更好的图像-文本对齐。
+其中 $\mathbf{f}_I$ 和 $\mathbf{f}_T$ 分别是CLIP的图像和文本编码器， $\cos(\cdot,\cdot)$ 是余弦相似度。更高的CLIP分数表示更好的图像-文本对齐。
 
 **3. 结构相似度**
 
 对于空间控制（如ControlNet），可以使用结构相似性指标（SSIM）或边缘检测来评估：
 $$\text{SSIM} = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}$$
 
-其中 $\mu$ 是均值，$\sigma$ 是标准差，$\sigma_{xy}$ 是协方差，$c_1, c_2$ 是稳定常数。
+其中 $\mu$ 是均值， $\sigma$ 是标准差， $\sigma_{xy}$ 是协方差， $c_1, c_2$ 是稳定常数。
 
 **4. 语义一致性**
 
 使用预训练模型评估语义对齐。通过提取图像和条件的语义特征，计算它们之间的距离：
 $$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
 
-其中 $\mathbf{s}_I$ 是图像的语义特征，$\mathbf{s}_C$ 是条件的语义特征，$d(\cdot,\cdot)$ 是距离度量（如L2距离）。
+其中 $\mathbf{s}_I$ 是图像的语义特征， $\mathbf{s}_C$ 是条件的语义特征， $d(\cdot,\cdot)$ 是距离度量（如L2距离）。
 
 ### 9.5.2 多样性与质量权衡
 

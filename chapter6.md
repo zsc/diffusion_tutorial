@@ -94,11 +94,11 @@ CFM的训练只需要：(1) 采样时间 $t \sim \mathcal{U}[0,1]$ ；(2) 采样
 
 ### 6.2.1 Monge-Kantorovich问题与Wasserstein距离
 
-经典的最优传输问题（Monge问题）旨在寻找一个映射 $T: \mathbb{R}^d \to \mathbb{R}^d$ ，使得如果 $\mathbf{x}_0 \sim p_0$，则 $T(\mathbf{x}_0) \sim p_1$，并且总的“运输成本”最小化：
+经典的最优传输问题（Monge问题）旨在寻找一个映射 $T: \mathbb{R}^d \to \mathbb{R}^d$ ，使得如果 $\mathbf{x}_0 \sim p_0$ ，则 $T(\mathbf{x}_0) \sim p_1$ ，并且总的“运输成本”最小化：
 
 $\inf_T \int_{\mathbb{R}^d} c(\mathbf{x}_0, T(\mathbf{x}_0)) p_0(\mathbf{x}_0) d\mathbf{x}_0$
 
-其中 $c(\mathbf{x}, \mathbf{y})$ 是成本函数，通常取为欧氏距离的平方 $c(\mathbf{x}, \mathbf{y}) = \|\mathbf{x} - \mathbf{y}\|^2$。这个问题的解给出了两个分布之间最有效的“耦合”方式。当成本为距离时，这个最小成本定义了两个分布之间的**Wasserstein距离**，它衡量了分布之间的几何差异。
+其中 $c(\mathbf{x}, \mathbf{y})$ 是成本函数，通常取为欧氏距离的平方 $c(\mathbf{x}, \mathbf{y}) = \|\mathbf{x} - \mathbf{y}\|^2$ 。这个问题的解给出了两个分布之间最有效的“耦合”方式。当成本为距离时，这个最小成本定义了两个分布之间的**Wasserstein距离**，它衡量了分布之间的几何差异。
 
 ### 6.2.2 动态最优传输与Benamou-Brenier公式
 
@@ -110,14 +110,14 @@ Benamou-Brenier公式表明，Wasserstein-2距离的平方等于在所有满足�
 
 $W_2^2(p_0, p_1) = \inf_{p_t, v_t} \int_0^1 \int_{\mathbb{R}^d} \|v_t(\mathbf{x})\|^2 p_t(\mathbf{x}) d\mathbf{x} dt$
 
-这个公式的深刻之处在于，它将一个静态的匹配问题（寻找最优映射 $T$）转化为了一个动态的路径规划问题（寻找最优速度场 $v_t$）。
+这个公式的深刻之处在于，它将一个静态的匹配问题（寻找最优映射 $T$ ）转化为了一个动态的路径规划问题（寻找最优速度场 $v_t$ ）。
 
 ### 6.2.3 流匹配作为最优传输的实现
 
 流匹配的目标函数——最小化模型向量场 $v_\theta$ 与真实向量场 $u_t$ 之间的L2距离——可以被看作是Benamou-Brenier公式的一种近似实现。
 
 - 如果我们选择的概率路径 $p_t$ 正好是最优传输路径，那么学习到的向量场 $v_\theta$ 就是最优传输的速度场。
-- 即使我们使用简单的线性插值路径（这通常不是最优的），流匹配仍然能学习到一个有效的向量场，将 $p_0$ 变换到 $p_1$。
+- 即使我们使用简单的线性插值路径（这通常不是最优的），流匹配仍然能学习到一个有效的向量场，将 $p_0$ 变换到 $p_1$ 。
 
 因此，流匹配为我们提供了一个强大的、可操作的工具，用于学习高维分布之间的传输映射，而无需直接解决复杂的OT问题。
 
@@ -128,21 +128,21 @@ $W_2^2(p_0, p_1) = \inf_{p_t, v_t} \int_0^1 \int_{\mathbb{R}^d} \|v_t(\mathbf{x}
 ### 6.3.1 概率路径与边缘保持性质
 
 让我们更正式地定义这个思想。
-1.  **联合分布**：我们首先定义一个源分布 $p_0$ 和目标分布 $p_1$ 的联合分布（或称“耦合”）$q(\mathbf{x}_0, \mathbf{x}_1)$。最简单的选择是独立耦合 $q(\mathbf{x}_0, \mathbf{x}_1) = p_0(\mathbf{x}_0) p_1(\mathbf{x}_1)$。
-2.  **条件概率路径**：给定一对样本 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$，我们定义一个条件概率路径 $p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$。这是一个随时间 $t$ 演化的分布，满足 $p_0(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_0)$ 和 $p_1(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_1)$。
+1.  **联合分布**：我们首先定义一个源分布 $p_0$ 和目标分布 $p_1$ 的联合分布（或称“耦合”） $q(\mathbf{x}_0, \mathbf{x}_1)$ 。最简单的选择是独立耦合 $q(\mathbf{x}_0, \mathbf{x}_1) = p_0(\mathbf{x}_0) p_1(\mathbf{x}_1)$ 。
+2.  **条件概率路径**：给定一对样本 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$ ，我们定义一个条件概率路径 $p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 。这是一个随时间 $t$ 演化的分布，满足 $p_0(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_0)$ 和 $p_1(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_1)$ 。
 3.  **边缘概率路径**：通过对联合分布 $q$ 进行积分，我们可以得到边缘概率路径：
     $p_t(\mathbf{x}) = \int p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) q(\mathbf{x}_0, \mathbf{x}_1) d\mathbf{x}_0 d\mathbf{x}_1$
     这个边缘路径 $p_t$ 描述了从 $p_0$ 到 $p_1$ 的连续变换。
 
 ### 6.3.2 向量场的推导
 
-与概率路径对应，我们也有条件向量场 $u_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 和边缘向量场 $u_t(\mathbf{x})$。它们通过连续性方程联系在一起。一个关键的数学结论是，边缘向量场是条件向量场在后验分布 $q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)$ 下的期望：
+与概率路径对应，我们也有条件向量场 $u_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 和边缘向量场 $u_t(\mathbf{x})$ 。它们通过连续性方程联系在一起。一个关键的数学结论是，边缘向量场是条件向量场在后验分布 $q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)$ 下的期望：
 
 $u_t(\mathbf{x}_t) = \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)}[u_t(\mathbf{x}_t | \mathbf{x}_0, \mathbf{x}_1)]$
 
 ### 6.3.3 流匹配目标函数
 
-我们的目标是让模型 $v_\theta(t, \mathbf{x})$ 学习边缘向量场 $u_t(\mathbf{x})$。损失函数为：
+我们的目标是让模型 $v_\theta(t, \mathbf{x})$ 学习边缘向量场 $u_t(\mathbf{x})$ 。损失函数为：
 $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[\|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t)\|^2] dt$
 直接优化这个损失函数是困难的，因为我们无法轻易地从 $p_t$ 或 $u_t$ 中采样。
 
@@ -150,13 +150,13 @@ $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[\|v_\theta(t, \mathbf{
 $L_{CFM}(\theta) = \int_0^1 \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1)} \mathbb{E}_{p_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)} [\|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)\|^2] dt$
 
 这个形式的妙处在于，我们可以通过以下方式简单地获得训练样本：
-1. 采样 $t \sim \mathcal{U}[0,1]$。
-2. 采样一对 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$。
-3. 采样 $\mathbf{x}_t \sim p_t(\cdot|\mathbf{x}_0, \mathbf{x}_1)$。
-4. 计算条件向量场 $u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)$。
-5. 用梯度下降优化 $\|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)\|^2$。
+1. 采样 $t \sim \mathcal{U}[0,1]$ 。
+2. 采样一对 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$ 。
+3. 采样 $\mathbf{x}_t \sim p_t(\cdot|\mathbf{x}_0, \mathbf{x}_1)$ 。
+4. 计算条件向量场 $u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)$ 。
+5. 用梯度下降优化 $\|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)\|^2$ 。
 
-对于线性插值路径 $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$，后两步变得极其简单：$\mathbf{x}_t$ 是确定的，向量场就是 $\mathbf{x}_1 - \mathbf{x}_0$。这使得训练过程完全“模拟免费”（simulation-free）。
+对于线性插值路径 $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ ，后两步变得极其简单： $\mathbf{x}_t$ 是确定的，向量场就是 $\mathbf{x}_1 - \mathbf{x}_0$ 。这使得训练过程完全“模拟免费”（simulation-free）。
 
 ## 6.4 与扩散模型的联系
 
@@ -166,10 +166,10 @@ $L_{CFM}(\theta) = \int_0^1 \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1)} \mathbb{E
 
 回想一下，任何扩散SDE都对应一个概率流ODE：
 $dx_t = [f(x_t, t) - \frac{1}{2} g(t)^2 \nabla_{x_t} \log p_t(x_t)] dt$
-这个ODE描述了一个确定性的从噪声到数据的变换路径，它本身就是一个连续正则化流！它的向量场是 $v_t(x_t) = f(x_t, t) - \frac{1}{2} g(t)^2 s_\theta(x_t, t)$。
+这个ODE描述了一个确定性的从噪声到数据的变换路径，它本身就是一个连续正则化流！它的向量场是 $v_t(x_t) = f(x_t, t) - \frac{1}{2} g(t)^2 s_\theta(x_t, t)$ 。
 
 - **扩散模型**通过学习分数函数 $s_\theta(x_t, t) \approx \nabla_{x_t} \log p_t(x_t)$ 来间接定义这个向量场。
-- **流匹配**则直接学习这个向量场 $v_\theta(t, \mathbf{x}_t)$。
+- **流匹配**则直接学习这个向量场 $v_\theta(t, \mathbf{x}_t)$ 。
 
 ### 6.4.2 从分数匹配到流匹配
 
@@ -182,8 +182,8 @@ $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[\|\mathbf{v}_\theta(t,
 ### 6.4.3 计算效率的比较分析
 
 流匹配在训练效率上通常优于传统的扩散模型：
-- **模拟免费**：流匹配的训练不需要像扩散模型那样前向模拟SDE来产生带噪声的样本 $x_t$。它通过简单的插值直接构造训练对，避免了数值误差和计算开销。
-- **路径灵活性**：扩散模型被锁定在由SDE定义的特定概率路径上。流匹配可以选择任意（通常更简单）的路径，如线性插值，这简化了目标向量场的计算（例如，对于线性路径，目标是常数 $\mathbf{x}_1 - \mathbf{x}_0$）。
+- **模拟免费**：流匹配的训练不需要像扩散模型那样前向模拟SDE来产生带噪声的样本 $x_t$ 。它通过简单的插值直接构造训练对，避免了数值误差和计算开销。
+- **路径灵活性**：扩散模型被锁定在由SDE定义的特定概率路径上。流匹配可以选择任意（通常更简单）的路径，如线性插值，这简化了目标向量场的计算（例如，对于线性路径，目标是常数 $\mathbf{x}_1 - \mathbf{x}_0$ ）。
 - **一步到位**：扩散模型通常需要先学习分数，然后构建ODE。流匹配直接学习ODE的向量场，更加直接。
 
 ## 6.5 实践中的流匹配
@@ -191,15 +191,15 @@ $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[\|\mathbf{v}_\theta(t,
 ### 6.5.1 路径选择：线性插值 vs 最优传输
 
 在实践中，如何选择条件概率路径 $p_t(\mathbf{x}|\mathbf{x}_0, \mathbf{x}_1)$ 是一个关键的设计决策。
-- **线性插值**：这是最简单和最常用的选择。路径是确定的直线：$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$。对应的条件向量场是常数 $\mathbf{u}_t = \mathbf{x}_1 - \mathbf{x}_0$。这种方法的优点是极其简单高效。
+- **线性插值**：这是最简单和最常用的选择。路径是确定的直线： $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ 。对应的条件向量场是常数 $\mathbf{u}_t = \mathbf{x}_1 - \mathbf{x}_0$ 。这种方法的优点是极其简单高效。
 - **最优传输引导**：虽然线性插值不是最优传输路径，但研究表明，使用更接近真实OT路径的插值方案可以提高生成质量。例如，"Optimal Transport-Guided Conditional Flow Matching" (OT-CFM) 提出了一种修正线性插值的方法，使其更好地匹配数据流形。
 - **扩散路径**：我们也可以使用扩散SDE本身定义的路径。这表明流匹配可以被用来重新推导和训练扩散模型，突显了其框架的统一性。
 
 ### 6.5.2 采样算法与ODE求解器选择
 
-训练完成后，我们得到了一个向量场 $v_\theta(t, \mathbf{x})$。生成新样本的过程就是求解从 $t=0$ 到 $t=1$ 的ODE：
-1. 从先验分布中采样一个噪声点 $\mathbf{x}_0 \sim p_0$。
-2. 使用数值ODE求解器求解 $\frac{d\mathbf{x}_t}{dt} = v_\theta(t, \mathbf{x}_t)$，从 $\mathbf{x}_0$ 开始，积分到 $t=1$。
+训练完成后，我们得到了一个向量场 $v_\theta(t, \mathbf{x})$ 。生成新样本的过程就是求解从 $t=0$ 到 $t=1$ 的ODE：
+1. 从先验分布中采样一个噪声点 $\mathbf{x}_0 \sim p_0$ 。
+2. 使用数值ODE求解器求解 $\frac{d\mathbf{x}_t}{dt} = v_\theta(t, \mathbf{x}_t)$ ，从 $\mathbf{x}_0$ 开始，积分到 $t=1$ 。
 3. 最终得到的 $\mathbf{x}_1$ 就是一个生成的样本。
 
 由于这是一个标准的ODE，我们可以利用数值分析领域的各种高效求解器：
@@ -220,7 +220,7 @@ $\min_\theta \mathbb{E}_{p(c)} \mathbb{E}_{t, q(\mathbf{x}_0, \mathbf{x}_1|c)} [
 
 假设你的任务是学习一个从二维标准高斯分布 $p_0$ 到一个“月牙”形状的二维分布 $p_1$ 的生成模型。
 
-1. **网络架构**：你会如何设计向量场网络 $v_\theta(t, \mathbf{x})$？输入和输出应该是什么维度？时间 $t$ 应该如何编码并输入到网络中？（提示：参考Transformer中的位置编码思想）
+1. **网络架构**：你会如何设计向量场网络 $v_\theta(t, \mathbf{x})$ ？输入和输出应该是什么维度？时间 $t$ 应该如何编码并输入到网络中？（提示：参考Transformer中的位置编码思想）
 
 2. **训练流程**：写出使用线性插值的CFM训练该模型的伪代码。
 
