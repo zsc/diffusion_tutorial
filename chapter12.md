@@ -97,7 +97,7 @@
 **自动评估指标**：
 1. **困惑度（Perplexity）**：
    
-$$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x_i|x_{<i})\right)
+$$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x\_i|x_{< i})\right)
 $$
 
 2. **BLEU分数**：
