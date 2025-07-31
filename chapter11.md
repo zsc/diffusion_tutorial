@@ -435,7 +435,24 @@ $$\mathcal{L}_{\text{temporal}} = \sum_{t=1}^{T-1} \|\phi(x_t) - \phi(x_{t+1})\|
 
 **3. 分层表示**：
 
-[代码实现已转换为数学公式和文字描述]
+视频的分层结构允许我们在不同粒度上建模：
+
+- **像素级**：原始RGB值，最细粒度的表示
+  $$\mathbf{V}_{\text{pixel}} \in \mathbb{R}^{T \times H \times W \times 3}$$
+
+- **特征级**：通过卷积或Transformer提取的中层特征
+  $$\mathbf{F} = f_{\text{encoder}}(\mathbf{V}_{\text{pixel}})$$
+  其中$f_{\text{encoder}}$可以是预训练的视觉编码器（如CLIP、DINO）
+
+- **语义级**：场景、对象、动作的高层概念
+  $$\mathbf{S} = \{\text{objects}, \text{actions}, \text{scenes}\}$$
+  通过检测器和分类器获得
+
+- **结构级**：视频的叙事结构、事件序列
+  $$\mathbf{E} = \{e_1 \to e_2 \to ... \to e_n\}$$
+  表示视频中的事件流
+
+这种分层表示允许我们在适当的抽象层次上施加约束和进行控制。例如，可以在语义级确保动作的合理性，在特征级保持视觉一致性，在像素级优化细节质量。
 
 🌟 **前沿思考：视频理解与生成的统一**  
 视频理解模型（如VideoMAE）的表示能否直接用于生成？如何设计既能理解又能生成的统一架构？
@@ -457,7 +474,19 @@ $$\mathcal{L}_{\text{temporal}} = \sum_{t=1}^{T-1} \|\phi(x_t) - \phi(x_{t+1})\|
    - 缺点：需要好的视频编码器
 
 4. **混合方法**：
-   [代码块已移除]
+   结合多种方法的优势，根据不同阶段使用不同策略：
+   
+   - **关键帧生成 + 插值**：先生成稀疏的关键帧，然后通过插值或条件生成填充中间帧。这种方法可以确保长程一致性，同时降低计算负担。
+   
+   - **低分辨率时序 + 高分辨率空间**：在低分辨率下建模完整的时序动态，然后通过超分辨率网络提升每帧的质量。这利用了运动信息主要存在于低频的特性。
+   
+   - **潜在动态 + 像素细化**：在压缩的潜在空间中建模视频的主要动态，然后通过解码器恢复像素级细节。这种方法特别适合长视频生成。
+
+   选择合适的技术路线需要考虑：
+   - **应用场景**：实时 vs 离线，短视频 vs 长视频
+   - **质量要求**：分辨率、帧率、视觉保真度
+   - **计算资源**：GPU内存、推理时间限制
+   - **控制需求**：所需的条件类型和控制粒度
 
 接下来，我们将深入探讨具体的模型架构设计...
 
@@ -469,15 +498,52 @@ $$\mathcal{L}_{\text{temporal}} = \sum_{t=1}^{T-1} \|\phi(x_t) - \phi(x_{t+1})\|
 
 **完整3D卷积**：
 
-[代码实现已转换为数学公式和文字描述]
+完整的3D卷积同时在空间和时间维度上操作，使用三维卷积核：
+
+$$y_{t,h,w} = \sum_{t'=-k_t}^{k_t} \sum_{h'=-k_h}^{k_h} \sum_{w'=-k_w}^{k_w} w_{t',h',w'} \cdot x_{t+t',h+h',w+w'}$$
+
+其中$(k_t, k_h, k_w)$分别是时间、高度和宽度方向的卷积核大小。典型配置使用$(3, 3, 3)$的卷积核。
+
+3D卷积的特点：
+- **参数量**：$C_{in} \times C_{out} \times k_t \times k_h \times k_w$
+- **计算复杂度**：$O(T \times H \times W \times C_{in} \times C_{out} \times k_t \times k_h \times k_w)$
+- **感受野**：时空同时扩展，能够捕获复杂的时空模式
+
+在实现时，通常使用`torch.nn.Conv3d`，并配合适当的padding策略保持时空维度。
 
 **因子化卷积（更高效）**：
 
-[代码实现已转换为数学公式和文字描述]
+为了减少参数量和计算成本，可以将3D卷积分解为空间卷积和时间卷积的组合：
+
+$$\text{Factorized3D} = \text{Conv2D}_{\text{spatial}} \circ \text{Conv1D}_{\text{temporal}}$$
+
+具体来说：
+1. 首先应用2D空间卷积：对每个时间步独立处理
+   $$h_t = \text{Conv2D}(x_t), \quad \forall t \in [1, T]$$
+
+2. 然后应用1D时间卷积：沿时间轴聚合信息
+   $$y_{t,h,w} = \sum_{t'=-k_t}^{k_t} w_{t'} \cdot h_{t+t',h,w}$$
+
+这种分解的优势：
+- **参数量减少**：从$O(k_t k_h k_w)$降到$O(k_h k_w + k_t)$
+- **计算效率提升**：可以并行处理空间维度
+- **灵活性**：可以独立调整空间和时间的建模能力
 
 **伪3D卷积（Pseudo-3D）**：
 
-[代码实现已转换为数学公式和文字描述]
+伪3D（P3D）进一步优化了因子化策略，通过残差连接保持信息流：
+
+$$\text{P3D}(x) = \text{Conv1D}_t(\text{Conv2D}_s(x)) + \text{Conv2D}_s(x)$$
+
+这种设计的核心思想是：
+- 空间路径：保持高分辨率的空间信息
+- 时间路径：建模时序动态
+- 残差连接：允许模型自适应地选择需要的时序建模程度
+
+变体包括：
+- **P3D-A**：串行结构，先空间后时间
+- **P3D-B**：并行结构，空间和时间分支独立处理后融合
+- **P3D-C**：瓶颈结构，使用1×1卷积降维
 
 💡 **设计权衡：计算效率 vs 表达能力**  
 
@@ -491,15 +557,62 @@ $$\mathcal{L}_{\text{temporal}} = \sum_{t=1}^{T-1} \|\phi(x_t) - \phi(x_{t+1})\|
 
 **全时空注意力（计算密集）**：
 
-[代码实现已转换为数学公式和文字描述]
+全时空注意力将所有时空位置视为一个序列，计算每个位置与所有其他位置的注意力：
+
+$$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+
+其中序列长度为$L = T \times H \times W$。具体步骤：
+
+1. **展平时空维度**：将输入从$[B, T, C, H, W]$重塑为$[B, T \times H \times W, C]$
+
+2. **计算注意力**：
+   - Query: $Q = xW_Q$，维度$[B, L, d_k]$
+   - Key: $K = xW_K$，维度$[B, L, d_k]$  
+   - Value: $V = xW_V$，维度$[B, L, d_v]$
+
+3. **注意力权重**：$A_{ij} = \frac{\exp(q_i \cdot k_j / \sqrt{d_k})}{\sum_k \exp(q_i \cdot k_k / \sqrt{d_k})}$
+
+计算复杂度为$O(L^2 \cdot d) = O((THW)^2 \cdot d)$，对于典型的视频尺寸（如16×256×256）是不可行的。
 
 **分解的时空注意力（高效）**：
 
-[代码实现已转换为数学公式和文字描述]
+将时空注意力分解为独立的空间注意力和时间注意力，大幅降低计算复杂度：
+
+1. **空间注意力**（在每个时间步内）：
+   $$\text{SpatialAttn}(x_t) = \text{Attention}(x_t, x_t, x_t)$$
+   其中$x_t \in \mathbb{R}^{H \times W \times C}$是第$t$帧
+
+2. **时间注意力**（跨时间步）：
+   $$\text{TemporalAttn}(x_{:,h,w}) = \text{Attention}(x_{:,h,w}, x_{:,h,w}, x_{:,h,w})$$
+   其中$x_{:,h,w} \in \mathbb{R}^{T \times C}$是位置$(h,w)$的时间序列
+
+3. **组合策略**：
+   - 串行：$\text{Output} = \text{TemporalAttn}(\text{SpatialAttn}(x))$
+   - 并行：$\text{Output} = \text{SpatialAttn}(x) + \text{TemporalAttn}(x)$
+   - 交错：在不同层交替使用空间和时间注意力
+
+计算复杂度降低到$O(T \cdot (HW)^2 + HW \cdot T^2)$，当$T \ll HW$时效率显著提升。
 
 **分块时空注意力（内存友好）**：
 
-[代码实现已转换为数学公式和文字描述]
+将视频分成不重叠或部分重叠的时空块，在块内计算注意力：
+
+1. **时空分块**：
+   - 将视频分成大小为$(T_b, H_b, W_b)$的块
+   - 块的数量：$N_b = \lceil T/T_b \rceil \times \lceil H/H_b \rceil \times \lceil W/W_b \rceil$
+
+2. **块内注意力**：
+   $$\text{BlockAttn}(x_{\text{block}}) = \text{Attention}(x_{\text{block}}, x_{\text{block}}, x_{\text{block}})$$
+   
+3. **块间信息传递**：
+   - **重叠块**：相邻块有$(T_o, H_o, W_o)$的重叠区域
+   - **全局token**：每个块额外包含少量全局token用于长程依赖
+   - **层次化**：在不同分辨率上使用不同大小的块
+
+优势：
+- 内存使用从$O(L^2)$降到$O(B_s^2 \times N_b)$，其中$B_s = T_b \times H_b \times W_b$
+- 可以并行处理不同的块
+- 通过调整块大小平衡效率和表达能力
 
 🔬 **研究方向：自适应注意力模式**  
 能否学习数据相关的注意力模式？例如，快速运动区域使用密集时间注意力，静态区域使用稀疏注意力。
@@ -510,11 +623,50 @@ $$\mathcal{L}_{\text{temporal}} = \sum_{t=1}^{T-1} \|\phi(x_t) - \phi(x_{t+1})\|
 
 **循环连接**：
 
-[代码实现已转换为数学公式和文字描述]
+循环神经网络（RNN）风格的连接可以有效地传播时序信息：
+
+1. **前向循环**：
+   $$h_t = f(x_t, h_{t-1})$$
+   其中$h_t$是时刻$t$的隐藏状态，$f$是循环单元（如LSTM、GRU或简单的线性层）
+
+2. **ConvLSTM/ConvGRU**：
+   将循环单元中的全连接操作替换为卷积，保持空间结构：
+   
+   对于ConvLSTM：
+   $$\begin{align}
+   i_t &= \sigma(W_{xi} * x_t + W_{hi} * h_{t-1} + b_i) \\
+   f_t &= \sigma(W_{xf} * x_t + W_{hf} * h_{t-1} + b_f) \\
+   o_t &= \sigma(W_{xo} * x_t + W_{ho} * h_{t-1} + b_o) \\
+   g_t &= \tanh(W_{xg} * x_t + W_{hg} * h_{t-1} + b_g) \\
+   c_t &= f_t \odot c_{t-1} + i_t \odot g_t \\
+   h_t &= o_t \odot \tanh(c_t)
+   \end{align}$$
+   
+   其中$*$表示卷积操作，$\odot$表示逐元素乘法
+
+3. **时序残差连接**：
+   $$h_t = x_t + \alpha \cdot g(h_{t-1})$$
+   其中$\alpha$是可学习的门控参数，$g$是变换函数
 
 **双向传播**：
 
-[代码实现已转换为数学公式和文字描述]
+双向处理可以利用未来帧的信息，提高生成质量：
+
+1. **双向RNN结构**：
+   - 前向：$\overrightarrow{h}_t = f_{\rightarrow}(x_t, \overrightarrow{h}_{t-1})$
+   - 后向：$\overleftarrow{h}_t = f_{\leftarrow}(x_t, \overleftarrow{h}_{t+1})$
+   - 融合：$h_t = g([\overrightarrow{h}_t; \overleftarrow{h}_t])$
+
+2. **时序自注意力（无方向性）**：
+   使用掩码控制信息流向：
+   - 因果掩码：只允许访问过去信息
+   - 双向掩码：可以访问所有时间步
+   - 局部窗口：限制在时间窗口内
+
+3. **层次化双向传播**：
+   - 低层：使用因果连接，保证生成的自回归性
+   - 高层：使用双向连接，提高全局一致性
+   - 通过这种设计平衡生成质量和推理效率
 
 <details>
 <summary>**练习 11.2：设计高效的视频架构**</summary>
