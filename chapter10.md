@@ -234,26 +234,20 @@ LDM采用两阶段训练，分离压缩和生成：
 **分析潜在空间**：
 
 可以通过以下方法分析潜在空间的特性：
-    labels = []
-    
-    with torch.no_grad():
-        for x, y in dataloader:
-            z = autoencoder.encode(x)
-            latents.append(z.cpu())
-            labels.append(y.cpu())
-    
-    latents = torch.cat(latents)
-    labels = torch.cat(labels)
-    
-    # 统计特性
-    print(f"Mean: {latents.mean():.3f}")
-    print(f"Std: {latents.std():.3f}")
-    print(f"Kurtosis: {stats.kurtosis(latents.numpy().flatten()):.3f}")
-    
-    # 可视化（使用t-SNE或UMAP）
-    embedded = TSNE(n_components=2).fit_transform(latents.numpy())
-    plt.scatter(embedded[:, 0], embedded[:, 1], c=labels)
-```
+
+实现潜在空间分析需要：
+- 使用 `torch.no_grad()` 上下文管理器避免梯度计算
+- 遍历数据加载器，对每批图像进行编码
+- 使用自编码器的 `encode` 方法获取潜在表示
+- 收集所有潜在表示和对应的标签
+- 计算统计特性：
+  - 均值（理想接近0）
+  - 标准差（理想接近1）
+  - 峰度（使用 `scipy.stats.kurtosis` 测量分布形状）
+- 使用降维技术可视化：
+  - t-SNE（`sklearn.manifold.TSNE`）将高维潜在空间映射到2D
+  - 根据标签着色散点图，观察类别聚类情况
+  - 也可使用UMAP作为替代的降维方法
 
 🌟 **开放问题：最优潜在空间设计**  
 如何设计具有特定属性的潜在空间？能否学习解耦的表示？这涉及到表示学习和因果推断的前沿研究。
@@ -440,22 +434,13 @@ $$\mathbf{x}_{out} = \mathbf{x} \odot (1 + \gamma(\mathbf{c})) + \beta(\mathbf{c
 3. **噪声预测准确性**：
    - 添加已知噪声并预测
    - 计算预测误差并分析在不同时间步的表现
-    noise_error = F.mse_loss(pred_noise, noise)
-    print(f"Noise prediction error: {noise_error:.4f}")
-    
-    # 4. 检查生成样本
-    z_sample = torch.randn_like(z)
-    for t in reversed(range(0, 1000, 100)):
-        z_sample = denoise_step(model, z_sample, t)
-    x_sample = autoencoder.decode(z_sample)
-    
-    return {
-        'latent_stats': (z.mean().item(), z.std().item()),
-        'recon_error': recon_error.item(),
-        'noise_error': noise_error.item(),
-        'sample': x_sample
-    }
-```
+
+实现诊断工具需要：
+- 编码测试图像并计算潜在表示的统计量（均值、标准差）
+- 对比原始图像和重建图像，使用MSE和感知损失评估质量
+- 在不同时间步计算噪声预测误差，使用 `F.mse_loss` 比较预测噪声和真实噪声
+- 从随机噪声生成样本，通过反向扩散过程逐步去噪
+- 返回包含潜在统计、重建误差、噪声误差和生成样本的诊断结果字典
 
 🌟 **最佳实践：多阶段调试**  
 先确保自编码器工作正常，再训练扩散模型。使用小数据集快速迭代，验证流程正确后再扩展到大规模训练。
@@ -540,9 +525,11 @@ LDM使用组合损失函数来训练自编码器：
    - 使用PatchGAN判别器
 
 对抗训练的引入是为了进一步提高重建的真实性。判别器学习区分真实图像和重建图像，迫使生成器（解码器）产生更逼真的结果。延迟启动策略很重要：先让自编码器通过重建和感知损失学习基本的编码-解码能力，然后引入对抗损失来精细化细节。
-        # 组合
-        loss = rec_loss + self.perceptual_weight * p_loss + \
-               self.kl_weight * kl_loss + self.disc_weight * g_loss
+组合损失的实现需要权衡各个损失项：
+- 重建损失（`rec_loss`）：基础损失项，权重通常为1.0
+- 感知损失（`p_loss`）：乘以感知权重（`perceptual_weight`），通常为0.1-1.0
+- KL损失（`kl_loss`）：乘以极小的KL权重（`kl_weight`），通常为1e-6
+- 对抗损失（`g_loss`）：乘以判别器权重（`disc_weight`），通常为0.1-0.5
 
 **总损失**： $\mathcal{L}_{total} = \mathcal{L}_{rec} + \lambda_1\mathcal{L}_{percep} + \lambda_2\mathcal{L}_{KL} + \lambda_3\mathcal{L}_{adv}$
 
@@ -606,11 +593,13 @@ $$\mathcal{L}_{KL} = -\frac{1}{2}\sum_{i=1}^{d}(1 + \log\sigma_i^2 - \mu_i^2 - \
 - **优点**：更稳定的训练，避免模式崩塌
 
 梯度惩罚基于Wasserstein距离的对偶形式。理论上，最优的Wasserstein判别器应该是1-Lipschitz函数。梯度惩罚通过软约束实现这一点，在数据流形附近强制梯度范数接近1。这比谱归一化更灵活，因为它只在数据分布附近施加约束，而不是全局限制网络容量。
-    gradient_norm = gradients.norm(2, dim=1)
-    penalty = ((gradient_norm - 1) ** 2).mean()
-    
-    return penalty
-```
+梯度惩罚的实现步骤：
+- 在真实和生成样本之间进行随机插值
+- 计算判别器对插值样本的输出
+- 使用自动微分计算输出相对于输入的梯度
+- 计算梯度的L2范数（使用 `norm(2, dim=1)`）
+- 惩罚项为梯度范数与1的差的平方的均值
+- 这鼓励判别器在数据流形附近保持1-Lipschitz性质
 
 🔬 **研究线索：最优正则化策略**  
 如何平衡重建质量和潜在空间的规整性？是否可以设计自适应的正则化方案？
@@ -640,14 +629,11 @@ ResNet块的关键组件：
 - **两层3×3卷积**：保持空间分辨率
 - **快捷连接**：当输入输出通道不匹配时使用1×1卷积
 - **Dropout**：可选的正则化
-        
-        h = self.norm2(h)
-        h = F.silu(h)
-        h = self.dropout(h)
-        h = self.conv2(h)
-        
-        return h + self.shortcut(x)
-```
+ResNet块的处理流程：
+- 第一层：归一化（`norm1`） → SiLU激活 → 3×3卷积（`conv1`）
+- 第二层：归一化（`norm2`） → SiLU激活 → Dropout（可选） → 3×3卷积（`conv2`）
+- 快捷连接：如果输入输出通道不同，使用1×1卷积（`shortcut`）进行匹配
+- 最终输出：残差路径与快捷连接相加
 
 <details>
 <summary>**练习 10.2：自编码器架构实验**</summary>
@@ -680,15 +666,27 @@ ResNet块的关键组件：
 
 **1. 学习率调度**：
 
-[代码实现已转换为数学公式和文字描述]
+常用的学习率调度策略：
+- **线性预热**：在前N步线性增加学习率，避免训练初期的不稳定
+- **余弦退火**：学习率按余弦函数衰减，公式为 $lr = lr_{min} + \frac{1}{2}(lr_{max} - lr_{min})(1 + \cos(\frac{\pi \cdot step}{total\_steps}))$
+- **步进衰减**：在特定步数将学习率乘以衰减因子
+- **自适应调整**：根据验证损失平台期自动降低学习率
 
 **2. EMA（指数移动平均）**：
 
-[代码实现已转换为数学公式和文字描述]
+EMA通过维护模型参数的移动平均来提高生成质量：
+- 更新公式： $\theta_{ema} = \beta \cdot \theta_{ema} + (1-\beta) \cdot \theta$
+- 典型的 $\beta$ 值为0.999或0.9999
+- EMA模型通常比原始模型产生更稳定、更高质量的结果
+- 在推理时使用EMA参数而非训练参数
 
 **3. 梯度累积**：
 
-[代码实现已转换为数学公式和文字描述]
+在显存受限时通过梯度累积模拟大批量训练：
+- 将梯度累积多个小批次
+- 等效批量大小 = 物理批量 × 累积步数
+- 只在累积完成后更新参数
+- 需要正确归一化损失（除以累积步数）
 
 💡 **调试技巧：监控潜在空间**  
 定期可视化潜在编码的分布，确保没有模式崩溃或异常值。
@@ -697,7 +695,15 @@ ResNet块的关键组件：
 
 使用预训练的自编码器可以大大加速开发：
 
-[代码块已移除]
+加载预训练模型的关键步骤：
+- 从检查点文件加载状态字典
+- 实例化自编码器架构（需要匹配预训练时的配置）
+- 加载权重并设置为评估模式（`eval()`）
+- 如果使用不同的数据域，可能需要微调编码器或解码器
+- 常见的预训练模型来源：
+  - CompVis/stable-diffusion 的 VAE
+  - 各种开源模型仓库
+  - 自行在大规模数据集上预训练
 
 🌟 **最佳实践：迁移学习**  
 即使目标领域不同，从预训练模型开始通常比从头训练更好。自然图像的编码器可以很好地迁移到其他视觉任务。
