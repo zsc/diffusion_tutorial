@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>附录C：信息几何与分数函数的力学解释</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class="active"><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="appendix-b.html">← 附录B</a> | 附录C | <a href="index.html">返回首页 →</a></p>
+<h1 id="c">附录C：信息几何与分数函数的力学解释</h1>
+<p>扩散模型的成功不仅是工程上的胜利，更是深刻数学原理的体现。本附录将从信息几何（Information Geometry）的角度重新审视扩散模型，揭示分数函数作为“力”的物理意义，并建立与能量优化的深刻联系。这种视角不仅提供了强大的理论洞察，也为设计新算法提供了直观的指导原则。</p>
+<h2 id="c1">C.1 信息几何基础</h2>
+<p>信息几何将概率分布空间 <code>P</code> 视为一个具有内在几何结构的黎曼流形（Riemannian manifold），而不是一个平坦的欧几里得空间。</p>
+<h3 id="c11">C.1.1 概率分布流形</h3>
+<ul>
+<li><strong>概率单纯形</strong>: 对于离散分布，所有可能的概率向量构成一个单纯形。这是一个嵌入在高维空间中的弯曲子流形。</li>
+<li><strong>Fisher信息度量</strong>: 这个流形上的“距离”不是欧几里得距离，而是由<strong>Fisher信息矩阵</strong> <code>I(θ)</code> 定义的黎曼度量。两点之间的最短路径是测地线（geodesic）。<blockquote>
+<p><strong>定义 C.1 (Fisher信息矩阵)</strong>
+对于参数化的概率分布族 <code>{p(x; θ)}</code>，Fisher信息矩阵定义为：
+</p>
+</blockquote>
+</li>
+</ul>
+<p>$$I_{ij}(   heta) = \mathbb{E}_{p(x;\theta)}\left[\frac{\partial \log p(x;\theta)}{\partial \theta_i} \frac{\partial \log p(x;\theta)}{\partial \theta_j}\right]$$
+它衡量了当我们微小地改变参数 <code>θ</code> 时，概率分布 <code>p(x; θ)</code> 的变化有多大。信息矩阵的元素越大，表示分布对该方向的参数变化越敏感。</p>
+<h3 id="c12-natural-gradient">C.1.2 自然梯度 (Natural Gradient)</h3>
+<p>在优化概率模型时，普通的梯度下降是在平坦的欧几里得空间中寻找最速下降方向。然而，在弯曲的概率流形上，真正的最速下降方向由<strong>自然梯度</strong>给出。</p>
+<blockquote>
+<p><strong>定义 C.2 (自然梯度)</strong>
+设 <code>L(θ)</code> 是关于参数 <code>θ</code> 的损失函数，普通梯度为 <code>g = ∇_θ L</code>。自然梯度 <code>g_nat</code> 定义为：</p>
+<p>$$\tilde{g} = I(\theta)^{-1} g$$
+优化步骤变为：<code>θ_{t+1} = θ_t - α * I(θ_t)^{-1} * g_t</code>。</p>
+</blockquote>
+<p>💡 <strong>关键洞察</strong>：自然梯度下降具有<strong>参数化不变性</strong>。无论我们如何对模型进行重新参数化（例如，线性变换），其在概率流形上的优化路径都是相同的。而普通梯度下降的路径则会随参数化的改变而改变。这使得自然梯度在理论上是优化概率模型的更优选择。</p>
+<p>⚡ <strong>实现挑战</strong>：计算完整的Fisher信息矩阵并求逆的代价非常高昂（<code>O(N^2)</code>，N为参数量）。在实践中，通常使用其对角近似、K-FAC等方法来降低计算成本。Adam等自适应优化算法也可以被看作是对自然梯度的一种简化近似。</p>
+<details>
+<summary><strong>练习 C.1：Fisher信息计算</strong></summary>
+<ol>
+<li><strong>计算</strong>：对于一维高斯分布 <code>N(μ, σ^2)</code>，其参数为 <code>θ = (μ, σ)</code>。计算其2x2的Fisher信息矩阵 <code>I(μ, σ)</code>。</li>
+<li><strong>分析</strong>：从矩阵的形式分析：a) 为什么估计均值 <code>μ</code> 和估计标准差 <code>σ</code> 是解耦的？b) 为什么当 <code>σ</code> 很小时，Fisher信息会变大？</li>
+<li><strong>开放探索</strong>：自然梯度在训练扩散模型的分数网络 <code>s_θ</code> 时有何应用？<code>θ</code> 是网络权重，此时的Fisher信息矩阵该如何定义和计算？</li>
+</ol>
+<p><strong>解答思路</strong>：</p>
+<ol>
+<li>写出对数似然 <code>log p(x; μ, σ)</code>，然后计算其对 <code>μ</code> 和 <code>σ</code> 的二阶偏导数的期望。你会发现非对角线项的期望为0，对角线项分别为 <code>1/σ^2</code> 和 <code>2/σ^2</code>。</li>
+<li>a) 非对角线项为0意味着参数 <code>μ</code> 和 <code>σ</code> 在Fisher度量下是正交的。b) <code>σ</code> 越小，分布越集中，从样本中推断参数位置的信息就越多，因此Fisher信息越大。</li>
+</ol>
+</details>
+<h2 id="c2">C.2 分数函数的几何与力学解释</h2>
+<h3 id="c21">C.2.1 分数函数作为切向量</h3>
+<p>从信息几何的角度看，分数函数 <code>s(x) = ∇_x log p(x)</code> 不仅仅是一个梯度，它是在数据空间 <code>x</code> 中，定义了一个指向概率密度 <code>p(x)</code> 增长最快方向的<strong>向量场</strong>。</p>
+<ul>
+<li><strong>与流形的关系</strong>：可以证明 <code>E_p[s(x)] = 0</code>，这意味着分数函数属于概率分布流形在某一点的<strong>切空间</strong>。</li>
+<li><strong>动力学意义</strong>：如果我们让一个粒子沿着这个向量场流动，即 <code>dx/dt = s(x)</code>，粒子最终会收敛到概率分布的局部最大值（模式）。</li>
+</ul>
+<h3 id="c22-stein">C.2.2 Stein恒等式</h3>
+<p>Stein恒等式是连接分数函数与概率分布的桥梁，它构成了分数匹配的理论基础。</p>
+<blockquote>
+<p><strong>定理 C.3 (Stein恒等式)</strong>
+对于一个足够光滑的测试函数 <code>φ(x)</code> 和概率密度 <code>p(x)</code>，在一定边界条件下成立：</p>
+<p>$$\mathbb{E}_{p(x)}[\nabla_x \cdot \phi(x) + \phi(x) \cdot \nabla_x \log p(x)] = 0$$
+💡 <strong>关键洞察</strong>：这个恒等式只涉及分数 <code>∇log p(x)</code> 和 <code>p(x)</code> 的期望，而完全不依赖于 <code>p(x)</code> 本身及其归一化常数。这使得我们可以在只拥有 <code>p(x)</code> 的样本的情况下，通过最小化Stein恒等式的残差来学习其分数函数，这正是<strong>分数匹配</strong>的核心思想。</p>
+</blockquote>
+<h3 id="c23">C.2.3 分数函数作为“力场”</h3>
+<p>我们可以从物理学的角度，为分数函数建立一个非常直观的力学类比。</p>
+<blockquote>
+<p><strong>定义 C.4 (能量函数与力)</strong>
+给定一个概率分布 <code>p(x)</code>，我们可以定义一个对应的<strong>能量函数</strong>（或势能）：</p>
+<p>$$E(x) = -\log p(x)$$
+那么，分数函数就变成了作用在粒子上的<strong>力</strong>：</p>
+<p>$$F(x) = -\nabla E(x) = \nabla \log p(x)$$
+这是一个<strong>保守力场</strong>，因为它是一个标量势 <code>E(x)</code> 的梯度。</p>
+</blockquote>
+<p><strong>物理图像</strong>：</p>
+<ul>
+<li><strong>高概率区域</strong> (<code>p(x)</code> 大) ⇔ <strong>低能量区域</strong> (<code>E(x)</code> 小)。</li>
+<li>粒子会受到一个力的作用，将它从高能量区域（低概率）推向低能量区域（高概率）。</li>
+<li>概率分布的模式（modes）对应于能量景观的<strong>势阱</strong>（potential wells）。</li>
+</ul>
+<h3 id="c24-langevin">C.2.4 Langevin动力学</h3>
+<p>Langevin动力学描述了粒子在这个力场中，同时受到随机热噪声影响时的运动轨迹。</p>
+<blockquote>
+<p><strong>定义 C.5 (Langevin SDE)</strong></p>
+<p>$$dX_t = \nabla \log p(X_t) dt + \sqrt{2} dW_t$$</p>
+<ul>
+<li><strong>漂移项 <code>∇log p(X_t)dt</code></strong>: 粒子受到分数“力”的作用，确定性地向能量更低处移动。</li>
+<li><strong>扩散项 <code>sqrt(2)dW_t</code></strong>: 粒子受到随机布朗运动的扰动，使其能够探索整个能量景观，而不是仅仅陷入最近的势阱。</li>
+</ul>
+</blockquote>
+<p>🌟 <strong>核心联系</strong>：Langevin动力学的稳态分布恰好是 <code>p(x)</code>。这意味着，无论从什么初始状态开始，只要我们模拟这个SDE足够长的时间，最终得到的粒子分布就会收敛到我们想要的目标分布 <code>p(x)</code>。这为从概率分布中采样提供了一个基于物理模拟的强大方法。</p>
+<p><strong>扩散模型中的应用</strong>：</p>
+<ul>
+<li><strong>前向过程</strong>：可以看作是一个能量景观逐渐被“抚平”的过程。<code>E_0(x) = -log p_data(x)</code> 是一个复杂、多势阱的崎岖景观，而 <code>E_T(x) ≈ ||x||^2 / 2</code> 是一个简单的、单一的抛物线势阱。</li>
+<li><strong>反向过程</strong>：学习反向SDE <code>dx = [f - g^2 * s_θ]dt + g d(bar(W)_t)</code>，本质上是在学习一个时变的力场 <code>s_θ(x, t)</code>，这个力场可以在每个时刻 <code>t</code> 将粒子有效地引导回数据所在的高概率区域。</li>
+</ul>
+<details>
+<summary><strong>综合练习：一维双势阱模型</strong></summary>
+<p>考虑一个一维能量函数 <code>E(x) = (x^2 - 1)^2</code>，它在 <code>x=-1</code> 和 <code>x=1</code> 处有两个势阱。</p>
+<ol>
+<li><strong>概率分布</strong>：写出对应的概率分布 <code>p(x) ∝ exp(-E(x))</code> 的表达式。</li>
+<li><strong>分数函数/力</strong>：计算其分数函数 <code>s(x) = ∇log p(x)</code>。分析在 <code>x=0</code>（势垒）和 <code>x=-1, 1</code>（势阱）附近，这个“力”的方向和大小。</li>
+<li><strong>Langevin动力学</strong>：写出对应的Langevin SDE。如果一个粒子从 <code>x=0</code> 开始，它的长期行为会是怎样的？</li>
+<li><strong>开放探索</strong>：在扩散模型中，我们学习的是一个时变的分数函数 <code>s_θ(x, t)</code>。对于这个双势阱例子，<code>s_θ(x, t)</code> 在 <code>t</code> 接近 <code>T</code>（高噪声）和 <code>t</code> 接近 <code>0</code>（低噪声）时，其形状应该分别是什么样的？</li>
+</ol>
+<p><strong>解答思路</strong>：</p>
+<ol>
+<li><code>p(x) = (1/Z) * exp(-(x^2 - 1)^2)</code>，<code>Z</code>是归一化常数。</li>
+<li><code>s(x) = -dE/dx = -2(x^2 - 1)(2x) = -4x(x^2 - 1)</code>。在 <code>x=0</code>，<code>s(0)=0</code>，但这是一个不稳定的平衡点。在 <code>x=-1, 1</code>，<code>s(x)=0</code>，是稳定的平衡点。在 <code>x</code> 略大于0时，<code>s(x)&lt;0</code>，力指向左边；略小于0时，<code>s(x)&gt;0</code>，力指向右边，因此粒子会被推离 <code>x=0</code>。</li>
+<li><code>dX_t = -4X_t(X_t^2 - 1)dt + sqrt(2)dW_t</code>。长期来看，粒子会在两个势阱 <code>x=-1</code> 和 <code>x=1</code> 之间来回跳跃，其最终分布会收敛到 <code>p(x)</code>。</li>
+<li>当 <code>t</code> 接近 <code>T</code> 时，能量景观被抚平，<code>s_θ(x, t)</code> 应该接近于一个单势阱（高斯分布）的分数函数，即 <code>s ≈ -x</code>。当 <code>t</code> 接近 <code>0</code> 时，<code>s_θ(x, t)</code> 应该精确地逼近我们计算出的 <code>s(x) = -4x(x^2 - 1)</code>，以恢复双峰结构。</li>
+</ol>
+</details>
+            </article>
+            
+            <nav class="page-nav"><a href="./appendix-b.html" class="nav-link prev">← 附录B：倒向随机微分方程 (BSDE) 速成</a><a href="./CLAUDE.html" class="nav-link next">扩散模型教程项目说明 →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第1章：扩散模型导论</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class="active"><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="index.html">← 返回目录</a> | 第1章 / 共14章 | <a href="chapter2.html">下一章 →</a></p>
+<h1 id="1">第1章：扩散模型导论</h1>
+<p>欢迎来到扩散模型的世界。本章将为您打开一扇通往现代生成模型前沿的大门。我们将从最基本的概念出发，探索扩散模型如何通过模拟一个有序到无序、再从无序中恢复有序的优雅过程，实现惊人的生成效果。您将学习到其背后的核心数学原理，包括前向加噪和反向去噪过程，并初步接触到该领域激动人心的开放性研究问题。本章旨在为您后续深入学习DDPM、分数模型和更高级的主题奠定坚实的直觉和理论基础。</p>
+<h2 id="11">1.1 什么是扩散模型？</h2>
+<p>扩散模型（Diffusion Models）是一类强大的生成模型，它通过学习数据的逐步去噪过程来生成高质量的样本。这个过程可以类比为物理学中的扩散现象：就像墨水在水中逐渐扩散直至均匀分布，扩散模型将数据逐步添加噪声直至变成纯噪声，然后学习如何反转这个过程。</p>
+<p>让我们从一个直观的例子开始。想象你有一张清晰的照片，现在你要对它进行一系列操作：第一步，添加一点点噪声，图像变得略微模糊；第二步，再添加一些噪声，细节开始消失；如此反复，经过足够多的步骤后，原始图像完全被噪声淹没，变成了纯粹的随机像素。这就是扩散模型的前向过程——一个逐渐破坏信息的过程。</p>
+<p>神奇的是，如果我们能学会如何在每一步精确地去除添加的噪声，那么就可以从纯噪声开始，一步步恢复出原始图像。更重要的是，一旦学会了这种去噪能力，我们就可以从任意的随机噪声开始，生成全新的、从未见过但却逼真的图像。这就是扩散模型的核心思想：通过学习破坏的逆过程来实现创造。</p>
+<h3 id="_1">从布朗运动到扩散模型：一段跨越百年的科学之旅</h3>
+<p>扩散模型的数学根源可以追溯到1827年罗伯特·布朗（Robert Brown）对花粉微粒在水中无规则运动的观察。当时，布朗用显微镜观察悬浮在水中的花粉颗粒，发现它们在不停地做着看似毫无规律的运动。这种现象困扰了科学界近80年，直到1905年，爱因斯坦（Einstein）在其奇迹之年中不仅发表了相对论，还给出了布朗运动的严格数学描述。</p>
+<p>爱因斯坦的洞察是革命性的：他意识到这种无规则运动源于水分子对花粉的不断碰撞。由于分子运动的随机性，花粉在各个方向受到的撞击力不平衡，导致了观察到的随机运动。他通过扩散方程 $\frac{\partial p}{\partial t} = D\nabla^2 p$ 刻画了粒子密度的演化，其中 $p$ 是粒子的概率密度， $D$ 是扩散系数。这个方程告诉我们，粒子会从高浓度区域向低浓度区域扩散，最终达到均匀分布。</p>
+<p>值得注意的是，这里的扩散过程遵循菲克定律（Fick's law），描述的是浓度梯度驱动的纯扩散现象，而非Navier-Stokes方程中的对流-扩散耦合过程。在机器学习的扩散模型中，我们关注的正是这种纯粹的随机扩散：没有外力驱动的定向流动，只有随机热运动导致的均匀化过程。这种纯扩散的特性使得数学处理更加优雅，也保证了前向过程的可逆性。</p>
+<p>三年后的1908年，保罗·朗之万（Paul Langevin）提出了另一种描述布朗运动的方法——不再关注粒子群体的密度演化，而是追踪单个粒子的轨迹。他提出的随机微分方程： $d\mathbf{x}_t = -\nabla U(\mathbf{x}_t)dt + \sqrt{2D}d\mathbf{W}_t$ ，其中第一项 $-\nabla U(\mathbf{x}_t)dt$ 是确定性的漂移项，表示粒子在势能场 $U$ 中受到的力；第二项 $\sqrt{2D}d\mathbf{W}_t$ 是随机的扩散项，表示分子碰撞带来的随机扰动， $\mathbf{W}_t$ 是维纳过程（Wiener process）。</p>
+<p>这个方程奠定了随机过程理论的基础，也成为了现代扩散模型的理论支柱。从朗之万动力学到今天的去噪扩散概率模型（DDPM），核心思想一脉相承：通过在数据上添加精心设计的噪声（对应朗之万方程中的随机项），并学习反向的去噪过程（对应漂移项），我们可以从简单的噪声分布生成复杂的数据分布。这种优雅的对称性不仅在数学上令人着迷，更在实践中展现出了惊人的生成能力。</p>
+<h3 id="_2">扩散模型的本质：时间的可逆性</h3>
+<p>扩散模型最深刻的洞察在于对时间可逆性的利用。在物理学中，许多微观过程都是时间可逆的——如果你能精确地知道系统的状态，理论上可以逆转时间的流向。扩散模型将这一物理直觉转化为算法：如果我们知道噪声是如何一步步添加的，那么就能学会如何一步步去除它。</p>
+<p>这种可逆性并非显而易见。在宏观世界中，我们看到的大多是不可逆过程：墨水滴入水中会扩散，但扩散的墨水不会自发聚集；玻璃杯摔碎了不会自动复原。这是因为宏观过程涉及的粒子数量巨大，精确逆转每个粒子的运动在实践中是不可能的。但在扩散模型的数学框架中，我们处理的是概率分布的演化，而非单个粒子的轨迹。通过学习分布之间的映射关系，我们可以实现宏观上的"时间逆转"。</p>
+<p>🔬 <strong>研究线索：物理扩散与概率扩散的深层联系</strong><br />
+扩散模型与物理扩散方程的联系不仅仅是类比。实际上，Fokker-Planck方程和Schrödinger桥问题揭示了两者的数学等价性。Fokker-Planck方程描述了概率密度在朗之万动力学下的演化，而Schrödinger桥问题寻找连接两个概率分布的最优随机过程。这种联系在最优传输理论中有深刻体现，但目前仍缺乏统一的几何理论框架。特别是，如何从信息几何的角度理解扩散过程在概率流形上的测地线性质？PyTorch中的<code>torchdiffeq.odeint</code>可用于探索连续时间扩散的数值实现。</p>
+<blockquote>
+<p><strong>定义 1.1（扩散模型）</strong>
+扩散模型是一类概率生成模型，它定义了两个马尔可夫过程：</p>
+<ul>
+<li><strong>前向过程（Forward Process）</strong>：一个固定的马尔可夫链，将数据分布 $q(\mathbf{x}_0)$ 通过逐步添加高斯噪声转换为已知的先验分布（通常是标准高斯分布）。</li>
+<li><strong>反向过程（Reverse Process）</strong>：一个参数化的马尔可夫链，学习前向过程的逆过程，从先验分布开始逐步去噪，最终生成数据分布的样本。</li>
+</ul>
+<p>模型的训练目标是最大化数据的对数似然下界，这等价于学习在每个时间步精确预测和去除噪声的能力。</p>
+</blockquote>
+<h2 id="12">1.2 扩散模型的数学基础</h2>
+<p>在理解了扩散模型的直观概念后，让我们深入其数学原理。扩散模型的数学框架优雅而深刻，它将看似复杂的生成过程分解为一系列简单的概率变换。我们将从前向扩散过程开始，逐步揭示这个框架的精妙之处。</p>
+<h3 id="121">1.2.1 前向扩散过程</h3>
+<p>前向过程是扩散模型的第一个关键组成部分。它定义了如何将数据逐步转化为噪声，这个过程必须满足两个关键要求：首先，它必须是可控的，让我们能够精确知道每一步发生了什么；其次，它必须最终将任何数据都转化为相同的简单分布（通常是标准高斯分布）。</p>
+<h4 id="_3">马尔可夫链：一步一步走向混沌</h4>
+<p>给定数据点 $\mathbf{x}_0 \sim q(\mathbf{x}_0)$ ，前向过程通过 $T$ 步逐渐添加高斯噪声，定义为一个马尔可夫链：</p>
+<p>$$q(\mathbf{x}_t | \mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$$
+让我们仔细解析这个公式的含义。这个条件分布告诉我们，给定第 $t-1$ 步的状态 $\mathbf{x}_{t-1}$ ，第 $t$ 步的状态 $\mathbf{x}_t$ 是如何生成的：</p>
+<ul>
+<li><strong>均值部分</strong> $\sqrt{1-\beta_t}\mathbf{x}_{t-1}$ ：我们保留了前一步状态的一部分信息，保留的比例是 $\sqrt{1-\beta_t}$ 。注意这里使用平方根是为了保持方差的正确缩放。</li>
+<li><strong>方差部分</strong> $\beta_t\mathbf{I}$ ：我们添加了方差为 $\beta_t$ 的各向同性高斯噪声。</li>
+</ul>
+<p>其中 ${\beta_t}_{t=1}^T$ 是预先设定的噪声调度（noise schedule），控制每一步添加噪声的量。通常 $\beta_t$ 的值很小（如0.0001到0.02之间），这保证了相邻时间步之间的变化是渐进的。</p>
+<p>这种设计的巧妙之处在于，它在每一步都在做两件事：削弱原始信号（通过乘以小于1的系数）和添加随机噪声。经过足够多的步骤后，原始信号的影响会指数级衰减，而累积的噪声会主导整个分布。</p>
+<h4 id="_4">重参数化技巧：时间旅行的捷径</h4>
+<p>在实际训练中，如果要采样 $\mathbf{x}_t$ ，按照马尔可夫链的定义需要从 $\mathbf{x}_0$ 开始逐步计算到 $\mathbf{x}_t$ ，这会非常低效。幸运的是，高斯分布的良好性质允许我们使用重参数化技巧，直接从 $\mathbf{x}_0$ "跳跃"到任意时刻 $t$ ：
+$$ \mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$$
+这个公式的推导基于高斯分布的可加性。让我们通过一个简单的例子来理解：如果 $X \sim \mathcal{N}(\mu_1, \sigma_1^2)$ 和 $Y \sim \mathcal{N}(\mu_2, \sigma_2^2)$ 是独立的高斯随机变量，那么 $aX + bY \sim \mathcal{N}(a\mu_1 + b\mu_2, a^2\sigma_1^2 + b^2\sigma_2^2)$ 。</p>
+<p>应用这个性质，我们可以证明上述重参数化公式等价于条件概率：
+$$q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$$
+其中 $\alpha_t = 1 - \beta_t$ 表示每一步保留的信息比例， $\bar{\alpha}_t = \prod_{s=1}^{t}\alpha_s$ 表示从初始状态到时刻 $t$ 累积保留的信息比例。</p>
+<h4 id="_5">信噪比的演化：从清晰到模糊的定量描述</h4>
+<p>理解前向过程的一个关键视角是信噪比（Signal-to-Noise Ratio, SNR）。在时刻 $t$ ，数据的信噪比可以定义为：
+$$\text{SNR}(t) = \frac{\text{Signal Power}}{\text{Noise Power}} = \frac{\bar{\alpha}_t}{1-\bar{\alpha}_t}$$
+这个比值直观地刻画了原始信号和噪声的相对强度。当 $t=0$ 时， $\text{SNR}(0) = \infty$ （纯信号，无噪声）；当 $t \to T$ 且 $\bar{\alpha}_T \to 0$ 时， $\text{SNR}(T) \to 0$ （纯噪声，无信号）。</p>
+<p>在对数尺度下观察SNR特别有意义： $\log \text{SNR}(t) = \log \bar{\alpha}_t - \log(1-\bar{\alpha}_t)$ 。好的噪声调度应该使得 $\log \text{SNR}(t)$ 近似线性下降，这样可以保证：</p>
+<ol>
+<li>模型在各个时间步面临相似难度的去噪任务</li>
+<li>训练过程中各个时间步的梯度贡献较为均衡</li>
+<li>避免某些时间步的信息损失过快或过慢</li>
+</ol>
+<p>当 $t \to T$ 时，若设计得当使 $\bar{\alpha}_T \to 0$ ，则 $\mathbf{x}_T$ 的分布将趋向于各向同性的标准高斯分布 $\mathcal{N}(0, \mathbf{I})$ ，完全独立于原始数据 $\mathbf{x}_0$ 。这正是我们想要的：无论起点是什么样的复杂数据，终点都是相同的简单分布。</p>
+<p>💡 <strong>开放问题：最优噪声调度的理论基础</strong><br />
+虽然实践中余弦调度效果良好，但缺乏理论指导原则。信息论视角下，噪声调度应该如何与数据的固有维度相适应？是否存在数据相关的自适应调度算法？</p>
+<p>🌟 <strong>理论空白：扩散速度的几何含义</strong><br />
+前向扩散过程在数据流形上的速度场有何几何意义？与Ricci流的联系如何？这个联系源于两者都描述了几何结构的演化：Ricci流通过 $\frac{\partial g_{ij}}{\partial t} = -2R_{ij}$ 使流形曲率均匀化，最终趋向常曲率空间；而扩散过程使数据分布从复杂流形逐渐"展平"到各向同性高斯分布。两者都涉及从复杂几何到简单几何的演化，且都可用PDE描述。理解这种深层联系可能启发新的采样算法，例如利用流形的曲率信息来设计自适应的噪声调度。</p>
+<details>
+<summary>**练习 1.1：分析噪声调度**</summary>
+<p>考虑一个线性噪声调度： $\beta_t = \beta_{min} + \frac{t-1}{T-1}(\beta_{max} - \beta_{min})$ ，其中 $T=1000$ , $\beta_{min}=10^{-4}$ , $\beta_{max}=0.02$ 。</p>
+<ol>
+<li><strong>推导与分析</strong>：推导信噪比 (Signal-to-Noise Ratio, SNR) $\text{SNR}(t) = \frac{\bar{\alpha}_t}{1-\bar{\alpha}_t}$ 的表达式。分析其随时间 $t$ 的变化趋势，并解释为什么在对数尺度下观察SNR更有意义。</li>
+<li><strong>开放探索</strong>：比较线性和余弦调度对整个扩散过程中信息损失速率的影响。哪种调度在过程的早期/晚期损失更多信息？这如何影响模型的学习难度和最终生成质量？</li>
+<li><strong>研究思路</strong>：<ul>
+<li><strong>信息瓶颈视角的噪声调度分析</strong>：信息瓶颈（Information Bottleneck）理论最小化 $\mathcal{L} = I(X;Z) - \beta I(Z;Y)$ ，其中 $Z$ 是压缩表示。在扩散模型中， $\mathbf{x}_t$ 可视为 $\mathbf{x}_0$ 的压缩表示，互信息 $I(\mathbf{x}_0; \mathbf{x}_t) = \frac{1}{2}\log\frac{1}{1-\bar{\alpha}_t}$ 随时间递减。理想的噪声调度应该：(1) 在早期保留语义信息（高层特征），在后期才丢失细节；(2) 使信息损失率 $-\frac{dI}{dt}$ 尽可能恒定，避免某些时刻的学习困难；(3) 考虑数据的固有维度 $d_{intrinsic}$ ，高维数据可能需要更平缓的调度。这启发我们设计自适应调度： $\beta_t = f(I(\mathbf{x}_0; \mathbf{x}_t), d_{intrinsic})$ 。</li>
+<li>研究噪声调度与模型架构（如U-Net的不同层）之间的相互作用。</li>
+<li>探索变分方法，将噪声调度本身作为可学习的参数。</li>
+</ul>
+</li>
+</ol>
+</details>
+<h3 id="122">1.2.2 反向去噪过程</h3>
+<p>如果前向过程是将数据逐步转化为噪声的"破坏"过程，那么反向过程就是扩散模型的"创造"过程——它学习如何从纯噪声中逐步恢复出有意义的数据。这个过程的数学描述既优雅又富有挑战性。</p>
+<h4 id="_6">时间的逆转：从噪声到数据的旅程</h4>
+<p>反向过程的目标是学习条件分布 $p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$ ，即给定时刻 $t$ 的状态，如何推断时刻 $t-1$ 的状态。整个反向过程从纯噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$ 开始，逐步去除噪声，最终生成数据样本 $\mathbf{x}_0$ 。</p>
+<p>数学上，反向过程的联合分布可以写作：
+$$p_\theta(\mathbf{x}_{0:T}) = p(\mathbf{x}_T) \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t)$$
+这里的关键洞察是：虽然真实的反向条件分布 $q(\mathbf{x}_{t-1} | \mathbf{x}_t)$ 很难直接计算（它依赖于整个数据分布），但我们可以用神经网络来学习近似它。</p>
+<h4 id="_7">高斯假设：简化但不简单</h4>
+<p>为了使问题可解，我们假设每一步的反向过程仍然是高斯分布：
+$$p_\theta(\mathbf{x}_{t-1} | \mathbf{x}_t) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t), \sigma_t^2\mathbf{I})$$
+这个假设看似限制性很强，但实际上有深刻的理论基础：</p>
+<ol>
+<li>当 $\beta_t$ 足够小时，真实的反向过程确实近似高斯分布</li>
+<li>高斯分布的参数化简单，只需要学习均值和方差</li>
+<li>高斯分布的采样高效，这对生成过程至关重要</li>
+</ol>
+<p>其中，均值 $\boldsymbol{\mu}_\theta(\mathbf{x}_t, t)$ 由一个参数化的神经网络（通常是U-Net或Transformer）预测。这个网络接收当前的噪声图像 $\mathbf{x}_t$ 和时间步 $t$ 作为输入，输出去噪后的均值。</p>
+<h4 id="_8">均值参数化的艺术</h4>
+<p>有趣的是，预测均值 $\boldsymbol{\mu}_\theta(\mathbf{x}_t, t)$ 有多种等价的参数化方式，每种方式都有其独特的视角：</p>
+<ol>
+<li><strong>直接预测均值</strong>：网络直接输出 $\boldsymbol{\mu}_\theta(\mathbf{x}_t, t)$</li>
+<li><strong>预测原始数据</strong>：网络预测 $\mathbf{x}_0$ ，然后通过贝叶斯公式计算均值</li>
+<li><strong>预测噪声</strong>：网络预测添加的噪声 $\boldsymbol{\epsilon}$ ，这是DDPM采用的方式</li>
+</ol>
+<p>第三种方式特别优雅。回忆重参数化公式 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$ ，如果我们能预测出噪声 $\boldsymbol{\epsilon}$ ，就可以恢复出 $\mathbf{x}_0$ ：
+$$\hat{\mathbf{x}}_0 = \frac{\mathbf{x}_t - \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)}{\sqrt{\bar{\alpha}_t}}$$
+这种参数化的优势在于：</p>
+<ul>
+<li>噪声预测在不同时间步的尺度较为一致</li>
+<li>与基于分数的生成模型有深刻联系（将在第4章详述）</li>
+<li>实践中训练更稳定，收敛更快</li>
+</ul>
+<h4 id="_9">方差的选择：固定还是学习？</h4>
+<p>方差 $\sigma_t^2$ 的选择是一个微妙的设计决策：</p>
+<p><strong>固定方差策略</strong>（DDPM采用）：</p>
+<ul>
+<li>设置 $\sigma_t^2 = \beta_t$ 或 $\sigma_t^2 = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t}\beta_t$</li>
+<li>这些选择基于在已知 $\mathbf{x}_0$ 时的真实后验方差</li>
+<li>简单且计算高效，不需要额外的网络输出</li>
+</ul>
+<p><strong>学习方差策略</strong>（Improved DDPM等）：</p>
+<ul>
+<li>网络同时预测均值和方差（或对数方差）</li>
+<li>可以更好地建模数据的不确定性</li>
+<li>在某些任务上可以提升生成质量，但增加了优化难度</li>
+</ul>
+<p>⚡ <strong>实现挑战：方差参数化的选择</strong><br />
+固定方差vs学习方差是一个未解决的权衡问题。理论上，最优的方差应该反映模型在每个位置和时间步的不确定性。但实践中，学习方差可能导致训练不稳定。一个折中方案是学习方差的插值系数：$\sigma_t^2 = \exp(v_\theta \log \beta_t + (1-v_\theta) \log \tilde{\beta}_t)$，其中 $v_\theta \in [0,1]$ 由网络预测。这涉及到<code>torch.nn.Parameter</code>的灵活使用和梯度流的稳定性分析。</p>
+<h4 id="_10">贝叶斯视角：后验推断的优雅</h4>
+<p>从贝叶斯推断的角度看，反向过程实际上是在做后验推断。如果我们知道 $\mathbf{x}_0$ ，那么真实的后验分布 $q(\mathbf{x}_{t-1} | \mathbf{x}_t, \mathbf{x}_0)$ 有闭式解：
+$$q(\mathbf{x}_{t-1} | \mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \tilde{\beta}_t \mathbf{I})$$
+其中后验均值和方差为：
+$$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1-\bar{\alpha}_t}\mathbf{x}_0 + \frac{\sqrt{\alpha_t}(1-\bar{\alpha}_{t-1})}{1-\bar{\alpha}_t}\mathbf{x}_t$$</p>
+<p>$$\tilde{\beta}_t = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t} \beta_t$$
+这个公式揭示了一个重要事实：如果我们能准确预测 $\mathbf{x}_0$ （或等价地，预测噪声 $\boldsymbol{\epsilon}$ ），就能计算出最优的去噪方向。这正是神经网络需要学习的核心能力。</p>
+<details>
+<summary>**练习 1.2：探索扩散过程的数学本质**</summary>
+<p>考虑一个简单的一维扩散过程，初始数据为单点 $x_0$ 。</p>
+<ol>
+<li><strong>前向过程分析</strong>：推导任意时刻 $t$ 的期望 $\mathbb{E}[x_t | x_0]$ 和方差 $\text{Var}(x_t | x_0)$ 。</li>
+<li><strong>信息论视角</strong>：推导并分析互信息 $I(x_t; x_0)$ 如何随时间 $t$ 衰减。这对于理解扩散过程中的信息损失有何启示？</li>
+<li><strong>最优反向过程</strong>：证明当 $\beta_t \to 0$ 时，真实的反向过程条件分布 $q(\mathbf{x}_{t-1} | \mathbf{x}_t, \mathbf{x}_0)$ 的均值，可以仅由 $\mathbf{x}_t$ 和 $\nabla_{\mathbf{x}_t} \log q_t(\mathbf{x}_t)$ （即分数函数）来近似表达。这揭示了扩散模型与分数模型的深刻联系（将在第4章详细讨论）。</li>
+<li><strong>研究思路</strong>：<ul>
+<li>将1D高斯情况下的解析解作为理解高维、复杂数据分布上扩散过程的"玩具模型"。</li>
+<li>探索非高斯噪声（如Laplace或Student's-t分布）对前向和反向过程的影响。</li>
+<li>研究该过程与Ornstein-Uhlenbeck过程的联系。</li>
+</ul>
+</li>
+</ol>
+</details>
+<h3 id="123">1.2.3 训练目标：变分下界的优雅</h3>
+<p>扩散模型的训练目标源于最大似然估计。给定观测数据 $\mathbf{x}_0$ ，我们希望最大化其在模型下的对数似然 $\log p_\theta(\mathbf{x}_0)$ 。由于直接计算这个似然涉及对所有可能的扩散路径进行积分，在计算上是不可行的。因此，我们转而优化其变分下界（Evidence Lower Bound, ELBO）。</p>
+<p>通过巧妙的数学推导，ELBO可以分解为一系列更简单的项。最终，DDPM将复杂的优化问题简化为一个优雅的去噪目标：
+$$L_{\text{simple}} = \mathbb{E}_{t, \mathbf{x}_0, \boldsymbol{\epsilon}} \left[ |\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)|^2 \right]$$
+其中 $t$ 从 ${1, ..., T}$ 均匀采样， $\boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$ 是添加的噪声， $\mathbf{x}_t$ 是通过重参数化得到的噪声数据。</p>
+<p>这个损失函数的美妙之处在于其简单性：</p>
+<ul>
+<li><strong>直观解释</strong>：网络学习预测在每个时间步添加的噪声</li>
+<li><strong>计算高效</strong>：每次只需要采样一个时间步，而不是整个轨迹</li>
+<li><strong>梯度稳定</strong>：L2损失提供了平滑的梯度信号</li>
+</ul>
+<p>🌟 <strong>理论空白：扩散速度的几何含义</strong><br />
+前向扩散过程在数据流形上的速度场有何几何意义？与Ricci流的联系如何？这个联系源于两者都描述了几何结构的演化：Ricci流通过 $\frac{\partial g_{ij}}{\partial t} = -2R_{ij}$ 使流形曲率均匀化，最终趋向常曲率空间；而扩散过程使数据分布从复杂流形逐渐"展平"到各向同性高斯分布。两者都涉及从复杂几何到简单几何的演化，且都可用PDE描述。理解这种深层联系可能启发新的采样算法，例如利用流形的曲率信息来设计自适应的噪声调度。</p>
+<h3 id="124">1.2.4 采样过程：从理论到实践</h3>
+<p>训练完成后，我们可以通过反向过程生成新的样本。采样算法从标准高斯噪声开始，迭代应用学习到的去噪网络：</p>
+<ol>
+<li>采样初始噪声： $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$</li>
+<li>对于 $t = T, T-1, ..., 1$ ：
+   - 如果 $t &gt; 1$ ，添加噪声： $\mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$
+   - 否则： $\mathbf{z} = \mathbf{0}$
+   - 应用去噪步骤： $\mathbf{x}_{t-1} = \frac{1}{\sqrt{\alpha_t}}(\mathbf{x}_t - \frac{1-\alpha_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)) + \sigma_t \mathbf{z}$</li>
+</ol>
+<p>这个采样过程展现了扩散模型的核心魅力：通过学习去噪，我们实现了生成。每一步去噪都在逐渐揭示数据的结构，就像雕塑家从大理石中雕刻出雕像一样。</p>
+<h2 id="13">1.3 扩散模型的优势</h2>
+<p>扩散模型在生成模型领域的崛起并非偶然。它解决了许多困扰早期生成模型的核心问题，同时带来了新的可能性。让我们深入分析扩散模型的独特优势，理解为什么它能够在短时间内成为生成AI的主流选择。</p>
+<h3 id="_11">生成质量：细节的胜利</h3>
+<p>扩散模型最引人注目的优势是其卓越的生成质量。在FID（Fréchet Inception Distance）、IS（Inception Score）等标准评测指标上，扩散模型consistently超越了GAN。但更重要的是，扩散模型在生成细节方面的表现尤为出色：</p>
+<ul>
+<li><strong>纹理保真度</strong>：扩散模型能够生成极其精细的纹理，如皮肤的毛孔、织物的纹理、水面的涟漪等</li>
+<li><strong>全局一致性</strong>：生成的图像在全局结构上保持良好的一致性，避免了GAN常见的局部伪影</li>
+<li><strong>多样性保持</strong>：能够捕获数据分布的全部模态，而不是像某些GAN那样只关注高概率区域</li>
+</ul>
+<p>这种质量优势源于扩散模型的渐进式生成过程。不同于GAN的一步到位，扩散模型通过数百甚至上千步的迭代细化，每一步都在改善生成质量。这种"慢工出细活"的方式虽然计算成本较高，但换来了无与伦比的生成质量。</p>
+<h3 id="_12">训练稳定性：告别模式崩塌</h3>
+<p>如果你曾经训练过GAN，一定对其训练的不稳定性深有体会。生成器和判别器之间的对抗博弈常常导致：</p>
+<ul>
+<li><strong>模式崩塌（Mode Collapse）</strong>：生成器只学会生成少数几种样本</li>
+<li><strong>梯度消失/爆炸</strong>：判别器过强或过弱都会导致训练失败</li>
+<li><strong>超参数敏感性</strong>：微小的超参数变化可能导致完全不同的结果</li>
+</ul>
+<p>扩散模型彻底改变了这一局面。其训练目标是一个简单的去噪任务，没有对抗网络的不稳定性：
+$$L = \mathbb{E}_{t, \mathbf{x}_0, \boldsymbol{\epsilon}} \left[ |\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)|^2 \right]$$</p>
+<p>这个L2损失函数：</p>
+<ul>
+<li><strong>梯度平滑</strong>：提供稳定的梯度信号，不会出现梯度消失或爆炸</li>
+<li><strong>无需平衡</strong>：不需要精心平衡两个网络的训练速度</li>
+<li><strong>收敛可预测</strong>：损失曲线平滑下降，训练进度清晰可见</li>
+</ul>
+<h3 id="_13">理论基础：概率论的优雅</h3>
+<p>扩散模型建立在坚实的概率论基础之上。每个设计选择都有明确的理论依据：</p>
+<ol>
+<li><strong>变分推断框架</strong>：模型优化的是数据似然的变分下界（ELBO），这是一个有明确统计意义的目标</li>
+<li><strong>与物理过程的联系</strong>：前向过程对应于物理中的扩散现象，反向过程对应于时间反演</li>
+<li><strong>与最优传输的联系</strong>：扩散路径可以视为连接数据分布和噪声分布的传输路径</li>
+</ol>
+<p>这种理论基础带来的好处是：</p>
+<ul>
+<li><strong>可解释性强</strong>：模型的每个组件都有清晰的概率解释</li>
+<li><strong>改进有方向</strong>：理论分析可以指导模型的改进方向</li>
+<li><strong>与其他方法的桥梁</strong>：容易与分数匹配、流模型等其他方法建立联系</li>
+</ul>
+<h3 id="_14">灵活性：一个框架，多种应用</h3>
+<p>扩散模型的框架极其灵活，可以轻松适应各种生成任务：</p>
+<p><strong>条件生成</strong>：通过在去噪网络中注入条件信息，可以实现：</p>
+<ul>
+<li>文本到图像生成（如DALL-E 2、Stable Diffusion）</li>
+<li>图像到图像翻译</li>
+<li>类别条件生成</li>
+<li>多模态生成</li>
+</ul>
+<p><strong>图像编辑</strong>：利用扩散模型的迭代特性，可以实现：</p>
+<ul>
+<li>图像修复（inpainting）</li>
+<li>超分辨率</li>
+<li>风格迁移</li>
+<li>语义编辑</li>
+</ul>
+<p><strong>精确似然估计</strong>：不同于GAN，扩散模型可以：</p>
+<ul>
+<li>计算数据的精确似然下界</li>
+<li>进行异常检测</li>
+<li>模型比较和选择</li>
+</ul>
+<h3 id="_15">可控性：精确控制生成过程</h3>
+<p>扩散模型提供了前所未有的生成控制能力：</p>
+<ol>
+<li><strong>引导强度控制</strong>：通过调整classifier-free guidance的强度，可以在多样性和质量之间权衡</li>
+<li><strong>中间状态访问</strong>：可以在任意时间步查看和修改生成过程</li>
+<li><strong>噪声控制</strong>：通过控制初始噪声和采样随机性，可以精确控制生成结果</li>
+</ol>
+<p>这种可控性在实际应用中极为重要，使得扩散模型不仅是研究工具，更是实用的生产力工具。</p>
+<p>🔬 <strong>研究前沿：效率与质量的平衡</strong><br />
+尽管扩散模型有诸多优势，但其主要劣势是采样速度慢。当前的研究热点包括：</p>
+<ul>
+<li><strong>蒸馏方法</strong>：将多步扩散模型蒸馏为少步模型</li>
+<li><strong>并行采样</strong>：设计可以并行执行的采样算法</li>
+<li><strong>自适应步数</strong>：根据生成难度动态调整采样步数
+这些方向都试图在保持生成质量的同时提高效率，是未来发展的关键。</li>
+</ul>
+<h2 id="14">1.4 历史发展与里程碑</h2>
+<p>扩散模型的发展并非一蹴而就，而是经历了一个从理论探索到实践突破的漫长过程。</p>
+<ul>
+<li><strong>2015年</strong>：Sohl-Dickstein等人在论文《Deep Unsupervised Learning using Nonequilibrium Thermodynamics》中首次提出了扩散概率模型的思想，将其与非平衡热力学联系起来。</li>
+<li><strong>2020年</strong>：Ho等人提出的DDPM（Denoising Diffusion Probabilistic Models）是该领域的转折点。他们通过简化目标函数和架构设计，极大地提升了模型的生成质量和易用性，使其成为主流的生成模型。</li>
+<li><strong>2021年</strong>：Song等人提出的DDIM（Denoising Diffusion Implicit Models）通过构建非马尔可夫的前向过程，实现了比DDPM快10-100倍的采样速度，同时保持了高质量的生成结果。</li>
+<li><strong>2022年</strong>：Rombach等人提出的潜在扩散模型（Latent Diffusion Models, LDM），即Stable Diffusion的核心，通过在低维潜在空间中进行扩散，大幅降低了计算成本，使得高分辨率图像生成变得触手可及。</li>
+<li><strong>2023年</strong>：Peebles和Xie提出的DiT（Diffusion Transformer）标志着扩散模型架构的重大转变。他们证明了纯Transformer架构可以替代U-Net，并且展现出卓越的缩放特性（scaling properties）。DiT-XL/2在256×256 ImageNet上达到2.27 FID，证明了扩散模型也遵循大模型的缩放定律：随着模型参数、训练数据和计算量的增加，生成质量可预测地提升。这一发现直接推动了Sora、Stable Diffusion 3等大规模视频和图像生成模型的诞生。</li>
+</ul>
+<p>🔬 <strong>历史视角的研究机会</strong><br />
+早期基于热力学的方法与现代DDPM的联系尚未完全被挖掘。非平衡统计物理中的Jarzynski恒等式或Crooks涨落定理（Fluctuation Theorems）能否为理解反向过程、设计新的损失函数或采样策略提供新的理论洞察？</p>
+<h2 id="15">1.5 本章小结</h2>
+<p>在本章中，我们对扩散模型进行了初步的探索：</p>
+<ul>
+<li><strong>核心概念</strong>：理解了扩散模型通过“加噪”和“去噪”两个对称过程进行生成建模的基本思想。</li>
+<li><strong>数学基础</strong>：学习了前向过程的数学表述，特别是如何通过重参数化技巧直接对任意时间步的噪声样本进行采样。</li>
+<li><strong>关键组件</strong>：初步了解了反向去噪过程、噪声调度和网络参数化的基本概念。</li>
+<li><strong>模型优势与历史</strong>：认识到扩散模型在生成质量和训练稳定性上的优势，并回顾了其发展的关键里程碑。</li>
+</ul>
+<p>通过本章的学习，我们已经掌握了扩散模型的基本词汇和核心思想。下一章，我们将深入学习U-Net和Transformer这两种在扩散模型中至关重要的神经网络架构，为后续理解模型的具体实现打下基础。</p>
+<details>
+<summary>**综合练习：噪声调度的理论分析**</summary>
+<p>考虑三种常见的噪声调度策略：</p>
+<ul>
+<li><strong>线性调度</strong>： $\beta_t = \beta_{\text{start}} + \frac{t-1}{T-1}(\beta_{\text{end}} - \beta_{\text{start}})$</li>
+<li><strong>余弦调度</strong>： $\bar{\alpha}_t = f(t)/f(0)$ ，其中 $f(t) = \cos\left(\frac{t/T + s}{1 + s} \cdot \frac{\pi}{2}\right)^2$</li>
+<li><strong>二次调度</strong>： $\beta_t$ 的增长率随 $t$ 呈二次关系。</li>
+</ul>
+<p><strong>理论分析与开放探索：</strong></p>
+<ol>
+<li><strong>信噪比分析</strong>：推导并绘制每种调度下信噪比 $\text{SNR}(t) = \bar{\alpha}_t / (1 - \bar{\alpha}_t)$ 的对数曲线。比较不同曲线的形状，并讨论其对模型学习过程可能产生的影响（例如，模型在哪些阶段需要学习更精细的细节？）。</li>
+<li><strong>与最优传输的联系</strong>：噪声调度定义了从数据分布到噪声分布的路径。这与最优传输（Optimal Transport）理论中的位移插值（displacement interpolation）有何联系？是否存在一个“最优”的调度方案，可以最小化某种传输成本？</li>
+<li><strong>实现挑战：自适应噪声调度</strong>：能否设计一个根据数据特性（如复杂度、固有维度）或训练阶段动态调整的噪声调度？这可能需要在线估计数据的局部几何性质。<code>torch.autograd.functional.jacobian</code>可用于计算此类局部几何量。</li>
+<li><strong>理论空白：噪声调度与采样效率</strong>：不同的噪声调度对DDIM等快速采样算法的影响机制尚不清楚。是否存在专门为快速采样（而非最优训练）设计的噪声调度？这涉及到对ODE/SDE求解器离散化误差的精细分析。</li>
+</ol>
+</details>
+<p><a href="index.html">← 返回目录</a> | 第1章 / 共14章 | <a href="chapter2.html">下一章 →</a></p>
+            </article>
+            
+            <nav class="page-nav"><a href="./index.html" class="nav-link prev">← 扩散模型教程</a><a href="./chapter2.html" class="nav-link next">第2章：神经网络架构：U-Net与ViT →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

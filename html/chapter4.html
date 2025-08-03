@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第4章：基于分数的生成模型</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class="active"><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="chapter3.html">← 上一章</a> | 第4章 / 共14章 | <a href="chapter5.html">下一章 →</a></p>
+<h1 id="4">第4章：基于分数的生成模型</h1>
+<p>基于分数的生成模型（Score-based Generative Models）提供了理解扩散模型的另一个重要视角。通过直接学习数据分布的分数函数（score function，即对数概率密度的梯度），我们可以构建强大的生成模型。本章将深入探讨分数匹配、Langevin动力学以及它们与扩散模型的深层联系。从NCSN到Score SDE，我们将看到分数模型如何与DDPM统一在同一框架下。</p>
+<h2 id="41">4.1 分数函数的直觉与重要性</h2>
+<h3 id="411">4.1.1 什么是分数函数？</h3>
+<p>分数函数（score function）是概率论和统计学中的一个基本概念，它定义为对数概率密度函数关于数据的梯度：</p>
+<p>$$\nabla_x \log p(x) = \frac{\nabla_x p(x)}{p(x)}$$
+这个看似简单的定义蕴含着深刻的意义。为了真正理解分数函数的本质，让我们从多个角度来剖析它。</p>
+<p><strong>直观理解：概率景观的"指南针"</strong></p>
+<p>想象概率分布 $p(x)$ 是一个山地地形，其中高度代表概率密度。分数函数就像是站在任意一点时的"最陡上升方向"——它指向概率密度增长最快的方向。这个比喻虽然简单，却揭示了分数函数的核心作用：它告诉我们如何在概率空间中"导航"。</p>
+<p>更具体地说，分数函数回答了一个关键问题：从当前位置出发，应该向哪个方向移动才能最快地到达高概率区域？这种局部信息看似有限，但当我们知道整个空间中每一点的分数函数时，就能完整地重构出整个概率分布。</p>
+<p><strong>数学视角：从概率到对数概率的转换</strong></p>
+<p>为什么我们要考虑对数概率的梯度，而不是概率本身的梯度？这里有几个深层原因：</p>
+<ol>
+<li>
+<p><strong>数值稳定性</strong>：概率值通常很小（尤其在高维空间），直接计算梯度容易产生数值下溢。对数变换将乘法转为加法，大大提高了数值稳定性。</p>
+</li>
+<li>
+<p><strong>归一化的优雅处理</strong>：对数变换将归一化常数变成了加法常数，在求梯度时自然消失。这是分数函数最优美的性质之一。</p>
+</li>
+<li>
+<p><strong>与信息论的联系</strong>：对数概率与信息量直接相关，分数函数因此与Fisher信息矩阵等信息论概念有着自然的联系。</p>
+</li>
+</ol>
+<p>让我们通过几个例子来深入理解这些概念。</p>
+<p><strong>例1：一维高斯分布的深入分析</strong></p>
+<p>对于标准正态分布 $p(x) = \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2}}$ ：
+$$\log p(x) = -\frac{x^2}{2} - \frac{1}{2}\log(2\pi)$$
+分数函数为：
+$$\nabla_x \log p(x) = -x$$
+这个简单的结果蕴含着丰富的信息：</p>
+<ol>
+<li>
+<p><strong>线性性质</strong>：分数函数是 $x$ 的线性函数，这意味着"拉力"与偏离中心的距离成正比。这就像弹簧的胡克定律——偏离越远，恢复力越大。</p>
+</li>
+<li>
+<p><strong>方向性</strong>：
+   - 当 $x &gt; 0$ 时，分数为负，指向原点（概率更高的方向）
+   - 当 $x &lt; 0$ 时，分数为正，同样指向原点
+   - 在原点处，分数为零——这是概率密度的极值点</p>
+</li>
+<li>
+<p><strong>尺度不变性</strong>：对于一般的高斯分布 $\mathcal{N}(\mu, \sigma^2)$，分数函数为 $-\frac{x-\mu}{\sigma^2}$。注意分母是方差而非标准差，这反映了分数函数对尺度的敏感性。</p>
+</li>
+</ol>
+<p><strong>例2：多峰分布的复杂性</strong></p>
+<p>考虑一个双峰高斯混合分布：
+$$p(x) = \frac{1}{2}\mathcal{N}(x; -2, 0.5) + \frac{1}{2}\mathcal{N}(x; 2, 0.5)$$
+其分数函数为：
+$$\nabla_x \log p(x) = \frac{\frac{1}{2}e^{-\frac{(x+2)^2}{1}} \cdot \frac{-(x+2)}{0.5} + \frac{1}{2}e^{-\frac{(x-2)^2}{1}} \cdot \frac{-(x-2)}{0.5}}{\frac{1}{2}e^{-\frac{(x+2)^2}{1}} + \frac{1}{2}e^{-\frac{(x-2)^2}{1}}}$$
+这个复杂的表达式展现了多峰分布的几个关键特征：</p>
+<ol>
+<li>
+<p><strong>非线性动力学</strong>：不同于单峰高斯的线性分数函数，多峰分布的分数函数是高度非线性的。</p>
+</li>
+<li>
+<p><strong>吸引域</strong>：存在一个分界点（鞍点），将空间分为两个吸引域。每个域内的点都会被"拉向"相应的峰。</p>
+</li>
+<li>
+<p><strong>临界行为</strong>：在两峰之间的鞍点处，分数函数为零，但这是一个不稳定平衡点。微小的扰动会导致系统流向某一个峰。</p>
+</li>
+</ol>
+<p><strong>🔬 研究线索：</strong> 分数函数的这种"指向高概率区域"的性质是否总是成立？考虑多峰分布的情况，分数函数在鞍点附近的行为如何？这涉及到动力系统理论中的稳定性分析。</p>
+<h3 id="412">4.1.2 为什么分数函数重要？</h3>
+<p>分数函数在机器学习和统计学中扮演着核心角色，其重要性远超其简单的数学定义。让我们深入探讨为什么分数函数如此关键。</p>
+<h4 id="1">1. 无需归一化常数：绕过计算瓶颈</h4>
+<p>在实际应用中，我们经常遇到只知道未归一化密度的情况。许多复杂的概率模型（如马尔可夫随机场、能量模型）可以写成：
+$$p(x) = \frac{1}{Z} \exp(-E(x)), \quad Z = \int \exp(-E(x)) dx$$
+这里的配分函数 $Z$ 通常是计算瓶颈——在高维空间中，这个积分往往是不可解的。但神奇的是，分数函数完全绕过了这个问题：
+$$\nabla_x \log p(x) = \nabla_x \log \frac{1}{Z} + \nabla_x \log \exp(-E(x)) = 0 - \nabla_x E(x) = -\nabla_x E(x)$$
+这意味着：</p>
+<ul>
+<li><strong>计算效率</strong>：即使不知道 $Z$，我们仍然可以计算分数函数</li>
+<li><strong>模型灵活性</strong>：可以使用任意复杂的能量函数，不用担心归一化</li>
+<li><strong>理论优雅</strong>：分数函数自然地处理了概率模型中最困难的部分</li>
+</ul>
+<p><strong>实例：Ising模型的深入分析</strong></p>
+<p>在统计物理中的Ising模型中，系统能量为：
+$$E(x) = -J \sum_{\langle i,j \rangle} x_i x_j - h \sum_i x_i$$
+其中 $x_i \in {-1, +1}$ 表示自旋状态，$J$ 是耦合强度，$h$ 是外场。</p>
+<p>配分函数 $Z = \sum_{{x}} \exp(-\beta E(x))$ 的计算是 #P-hard 问题——对于 $n$ 个自旋，需要求和 $2^n$ 项。但在连续松弛下，能量的梯度却很容易计算：
+$$\nabla_{x_i} E(x) = -J \sum_{j \in \mathcal{N}(i)} x_j - h$$
+这个例子完美展示了分数函数方法的威力：即使在配分函数不可计算的情况下，我们仍然可以进行有意义的推断和采样。</p>
+<p><strong>💡 开放问题：</strong> 如何设计高效的分数函数估计器，使其在高维空间中仍然准确？当前的神经网络架构是否最优？考虑引入物理约束或对称性。</p>
+<h4 id="2">2. 采样算法的基础：从静态到动态</h4>
+<p>分数函数不仅描述了概率分布的静态性质，更重要的是它定义了一个动态系统。通过分数函数，我们可以构造各种采样算法。</p>
+<p><strong>Langevin动力学：最基本的分数驱动采样</strong>
+$$x_{t+1} = x_t + \epsilon \nabla_x \log p(x_t) + \sqrt{2\epsilon} \xi_t$$
+其中 $\xi_t \sim \mathcal{N}(0, I)$ 。这个更新规则有着深刻的物理意义：</p>
+<ul>
+<li><strong>第一项</strong>（$x_t$）：当前位置</li>
+<li><strong>第二项</strong>（$\epsilon \nabla_x \log p(x_t)$）：确定性漂移，指向高概率方向</li>
+<li><strong>第三项</strong>（$\sqrt{2\epsilon} \xi_t$）：随机扰动，保证遍历性</li>
+</ul>
+<p>这三项的平衡确保了算法最终收敛到目标分布 $p(x)$。更深入地说，这个过程满足细致平衡条件（detailed balance），这是MCMC方法正确性的关键。</p>
+<p><strong>从离散到连续：随机微分方程视角</strong></p>
+<p>当步长 $\epsilon \to 0$ 时，我们得到连续时间的Langevin SDE：
+$$dX_t = \nabla \log p(X_t)dt + \sqrt{2}dW_t$$
+这个方程揭示了分数函数与扩散过程的深层联系——这正是后续章节将要探讨的核心内容。</p>
+<p><strong>⚡ 实现挑战：</strong> Langevin采样在高维空间收敛极慢。关键挑战包括：</p>
+<ul>
+<li><strong>多尺度问题</strong>：不同维度可能有截然不同的尺度</li>
+<li><strong>局部陷阱</strong>：多峰分布中的metastable states</li>
+<li><strong>数值稳定性</strong>：步长选择的微妙平衡</li>
+</ul>
+<p>可能的解决方案包括预条件器（借鉴 <code>torch.optim.LBFGS</code> 的思想）、自适应步长、和并行tempering等技术。</p>
+<h3 id="413">4.1.3 分数函数的几何意义</h3>
+<p>从几何角度看，分数函数定义了数据流形上的一个向量场。这个视角不仅优美，而且为理解和设计算法提供了强大的工具。</p>
+<p><strong>向量场的直观理解</strong></p>
+<p>想象在概率密度定义的"地形"上，每一点都有一个箭头，指示着"上山"的方向。这些箭头的集合就是分数函数定义的向量场。这个向量场告诉我们：</p>
+<ul>
+<li>从任意点出发，如何找到最近的高概率区域</li>
+<li>概率质量是如何在空间中分布的</li>
+<li>不同区域之间是如何连接的</li>
+</ul>
+<p><strong>性质1：梯度流的不动点与临界点分析</strong>
+$$\nabla_x \log p(x^<em>) = 0 \Leftrightarrow x^</em> \text{ 是 } p(x) \text{ 的局部极值点}$$
+但这只是故事的开始。通过分析Hessian矩阵 $\nabla^2 \log p(x^*)$，我们可以进一步分类这些临界点：</p>
+<ul>
+<li><strong>局部极大值</strong>：所有特征值为负，对应概率密度的峰</li>
+<li><strong>局部极小值</strong>：所有特征值为正，在概率分布中极少出现</li>
+<li><strong>鞍点</strong>：既有正特征值又有负特征值，连接不同的峰</li>
+</ul>
+<p>鞍点在高维空间中尤其重要——它们形成了连接不同模式的"山脊"和"山谷"。理解这些结构对于设计高效的采样算法至关重要。</p>
+<p><strong>性质2：体积收缩与概率流</strong></p>
+<p>分数函数的散度具有深刻的几何意义：
+$$\nabla \cdot (\nabla \log p(x)) = \nabla^2 \log p(x) + |\nabla \log p(x)|^2$$
+让我们拆解这个公式：</p>
+<ul>
+<li><strong>第一项</strong> $\nabla^2 \log p(x)$：Laplacian，衡量局部的"凹凸性"</li>
+<li><strong>第二项</strong> $|\nabla \log p(x)|^2$：分数的模长平方，总是非负的</li>
+</ul>
+<p>这个散度告诉我们向量场的"源"和"汇"：</p>
+<ul>
+<li>负散度区域：概率流入，对应高概率区域</li>
+<li>正散度区域：概率流出，对应低概率区域</li>
+</ul>
+<p><strong>性质3：与信息几何的联系</strong></p>
+<p>分数函数与Fisher信息矩阵有着自然的联系：
+$$I(\theta) = \mathbb{E}_{p(x|\theta)}[\nabla_\theta \log p(x|\theta) \nabla_\theta \log p(x|\theta)^T]$$
+这建立了概率模型的参数空间与数据空间之间的桥梁。Fisher信息定义了参数空间的自然度量，而分数函数则描述了数据空间的几何结构。</p>
+<p><strong>流形上的推广</strong></p>
+<p>当数据位于低维流形上时，欧几里德空间的分数函数需要推广。设数据位于 $d$ 维流形 $\mathcal{M} \subset \mathbb{R}^n$ 上，则需要考虑：</p>
+<ol>
+<li><strong>切空间投影</strong>：分数函数应该位于流形的切空间内</li>
+<li><strong>黎曼度量</strong>：距离和梯度的定义需要考虑流形的内在几何</li>
+<li><strong>测地线vs直线</strong>：最优路径不再是直线而是测地线</li>
+</ol>
+<p>这些考虑导致了流形分数函数的定义：
+$$\nabla_\mathcal{M} \log p(x) = \text{Proj}_{T_x\mathcal{M}}(\nabla \log p(x))$$
+其中 $\text{Proj}_{T_x\mathcal{M}}$ 是到切空间的投影算子。</p>
+<p><strong>🌟 理论缺口：</strong> 分数函数的全局几何性质还未被完全理解。特别是：</p>
+<ol>
+<li>在流形上的分数函数理论仍在发展中</li>
+<li>与最优传输理论的具体联系需要进一步探索</li>
+<li>高维空间中的"浓度现象"如何影响分数函数的行为</li>
+</ol>
+<details>
+<summary><strong>练习 4.1：探索分数函数的性质</strong></summary>
+<ol>
+<li>
+<p>证明对于指数族分布 $p(x) = h(x)\exp(\eta^T T(x) - A(\eta))$ ，分数函数具有特殊形式。</p>
+</li>
+<li>
+<p><strong>开放探索</strong>：考虑混合高斯分布 $p(x) = \sum_i \pi_i \mathcal{N}(x; \mu_i, \Sigma_i)$ 。
+   - 分析分数函数在不同区域的行为
+   - 什么条件下会出现"分数坍塌"（score collapse）？
+   - 如何设计对这种现象鲁棒的学习算法？</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>从动力系统角度分析相空间的结构</li>
+<li>考虑引入正则化项来避免数值不稳定</li>
+<li>探索与最优传输的联系</li>
+</ul>
+</details>
+<h2 id="42">4.2 分数匹配：学习未知分布的分数</h2>
+<p>学习分数函数是基于分数的生成模型的核心。但我们面临一个根本性挑战：如何从有限的数据样本中学习连续的分数函数？本节将探讨这个问题的优雅解决方案。</p>
+<h3 id="421">4.2.1 经典分数匹配</h3>
+<p>给定数据分布 $p_{data}(x)$ 的样本，如何学习其分数函数？这个问题看似循环：要学习分数函数，似乎需要知道真实的概率密度，但这正是我们想要避免的。Hyvärinen (2005) 的分数匹配（Score Matching）方法提供了一个巧妙的解决方案。</p>
+<p><strong>朴素想法与其问题</strong></p>
+<p>最直接的想法是最小化模型分数与真实分数的差异：
+$$\mathcal{L}_{naive} = \mathbb{E}_{p_{data}}\left[\frac{1}{2}|\nabla_x \log p_{model}(x) - \nabla_x \log p_{data}(x)|^2\right]$$
+但这里有个致命问题：我们不知道 $\nabla_x \log p_{data}(x)$ ！如果知道真实分数，我们就已经解决了问题。这似乎是个死胡同。</p>
+<p><strong>Hyvärinen的天才洞察：分部积分的魔法</strong></p>
+<p>Hyvärinen的关键洞察是：通过巧妙的数学变换，可以将不可计算的目标函数转换为可计算的形式。让我们详细推导这个过程。</p>
+<p>首先，展开平方项：
+$$\mathcal{L}_{naive} = \mathbb{E}_{p_{data}}\left[\frac{1}{2}|\nabla_x \log p_{model}(x)|^2 - \nabla_x \log p_{model}(x)^T \nabla_x \log p_{data}(x) + \frac{1}{2}|\nabla_x \log p_{data}(x)|^2\right]$$
+最后一项与模型无关，可以忽略。关键是如何处理中间的交叉项。这里就是分部积分发挥作用的地方：
+$$\mathbb{E}_{p_{data}}[\nabla_x \log p_{model}(x)^T \nabla_x \log p_{data}(x)]$$
+利用 $\nabla_x \log p_{data}(x) = \frac{\nabla_x p_{data}(x)}{p_{data}(x)}$，我们有：
+$$= \int p_{data}(x) \nabla_x \log p_{model}(x)^T \frac{\nabla_x p_{data}(x)}{p_{data}(x)} dx = \int \nabla_x \log p_{model}(x)^T \nabla_x p_{data}(x) dx$$
+现在应用分部积分（假设边界条件合适）：
+$$= -\int p_{data}(x) \cdot \text{tr}(\nabla_x^2 \log p_{model}(x)) dx = -\mathbb{E}_{p_{data}}[\text{tr}(\nabla_x^2 \log p_{model}(x))]$$
+因此，我们得到了可计算的目标函数：
+$$\mathcal{L}_{SM} = \mathbb{E}_{p_{data}}\left[\text{tr}(\nabla_x^2 \log p_{model}(x)) + \frac{1}{2}|\nabla_x \log p_{model}(x)|^2\right] + \text{const}$$
+这个结果的美妙之处在于：</p>
+<ul>
+<li><strong>不需要真实分数</strong>：目标函数只依赖于模型和数据样本</li>
+<li><strong>理论优雅</strong>：分部积分自然地消除了未知量</li>
+<li><strong>计算可行</strong>：虽然需要计算Hessian的迹，但这是可以做到的</li>
+</ul>
+<p><strong>深入理解：几何解释</strong></p>
+<p>从几何角度看，分数匹配在做什么？它实际上在最小化两个向量场之间的"能量"：</p>
+<ul>
+<li>模型定义的向量场（分数函数）</li>
+<li>数据隐含的真实向量场</li>
+</ul>
+<p>但巧妙的是，我们不需要显式地知道第二个向量场，而是通过数据分布的"形状"（通过Hessian的迹体现）来间接地约束模型。</p>
+<p><strong>🔬 研究线索：</strong> 分数匹配的这种"隐式"特性是否可以推广到其他问题？考虑：</p>
+<ol>
+<li>在因果推断中，能否类似地避免直接估计因果效应？</li>
+<li>在强化学习中，能否避免显式的值函数估计？</li>
+<li>这种隐式方法的一般理论框架是什么？</li>
+</ol>
+<h3 id="422-denoising-score-matching">4.2.2 去噪分数匹配（Denoising Score Matching）</h3>
+<p>经典分数匹配虽然理论优雅，但在实践中面临严重的计算挑战。计算Hessian矩阵的迹需要 $O(d)$ 次反向传播（其中 $d$ 是数据维度），在高维情况下代价高昂。Vincent (2011) 提出的去噪分数匹配（Denoising Score Matching, DSM）提供了一个巧妙且高效的替代方案。</p>
+<p><strong>核心思想：从去噪中学习分数</strong></p>
+<p>DSM的核心洞察是：如果我们知道如何去噪，就知道了分数函数。这个联系初看并不明显，让我们深入探讨其中的原理。</p>
+<p>考虑向干净数据添加已知噪声的过程：
+$$\tilde{x} = x + \sigma \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)$$
+加噪后的数据分布为：
+$$p_\sigma(\tilde{x}) = \int p_{data}(x) \mathcal{N}(\tilde{x}; x, \sigma^2 I) dx$$
+这是原始分布与高斯核的卷积。关键的数学结果是，加噪数据的分数函数可以表示为：
+$$\nabla_{\tilde{x}} \log p_\sigma(\tilde{x}) = \frac{\mathbb{E}_{p(x|\tilde{x})}[x] - \tilde{x}}{\sigma^2} = -\frac{\mathbb{E}_{p(\epsilon|\tilde{x})}[\epsilon]}{\sigma}$$
+这个公式揭示了深刻的联系：</p>
+<ul>
+<li><strong>分数函数指向去噪方向</strong>：从噪声数据到干净数据的期望位移</li>
+<li><strong>噪声估计等价于分数估计</strong>：如果能预测添加的噪声，就能计算分数</li>
+</ul>
+<p><strong>去噪分数匹配目标函数</strong></p>
+<p>基于上述洞察，DSM的目标函数为：
+$$\mathcal{L}_{DSM} = \mathbb{E}_{p_{data}(x)}\mathbb{E}_{\epsilon}\left[\frac{1}{2}|s_\theta(\tilde{x}, \sigma) + \frac{\epsilon}{\sigma}|^2\right]$$
+其中 $s_\theta(\tilde{x}, \sigma)$ 是我们要学习的分数函数模型。这个目标函数的优美之处在于：</p>
+<ul>
+<li><strong>计算高效</strong>：不需要计算Hessian，只需要前向传播</li>
+<li><strong>直观明确</strong>：模型在学习预测噪声的负方向</li>
+<li><strong>与DDPM的联系</strong>：这正是DDPM训练目标的核心！</li>
+</ul>
+<p><strong>理论保证：DSM的一致性</strong></p>
+<p>一个自然的问题是：学习加噪数据的分数函数如何帮助我们学习原始数据的分数？关键在于噪声水平 $\sigma$ 的选择。</p>
+<p>当 $\sigma \to 0$ 时，有：
+$$\nabla_{\tilde{x}} \log p_\sigma(\tilde{x}) \to \nabla_x \log p_{data}(x)$$
+这意味着，在小噪声极限下，加噪数据的分数收敛到原始数据的分数。但这里有个权衡：</p>
+<ul>
+<li><strong>小噪声</strong>：更接近真实分数，但训练不稳定（分数可能很大）</li>
+<li><strong>大噪声</strong>：训练稳定，但偏离真实分数</li>
+</ul>
+<p>这种权衡直接导致了多尺度方法的发展（见下一节的NCSN）。</p>
+<p><strong>DSM的变体与扩展</strong></p>
+<ol>
+<li>
+<p><strong>加权去噪分数匹配</strong>：不同噪声水平使用不同权重
+$$\mathcal{L}_{weighted} = \mathbb{E}_{\sigma \sim p(\sigma)} \lambda(\sigma) \mathcal{L}_{DSM}(\sigma)$$</p>
+</li>
+<li>
+<p><strong>条件去噪分数匹配</strong>：学习条件分布的分数
+$$s_\theta(\tilde{x}, y, \sigma) \approx \nabla_{\tilde{x}} \log p(\tilde{x}|y)$$</p>
+</li>
+<li>
+<p><strong>流形去噪分数匹配</strong>：当数据位于低维流形时的适配</p>
+</li>
+</ol>
+<p><strong>💡 开放问题：</strong> </p>
+<ol>
+<li><strong>最优噪声调度</strong>：如何选择噪声水平序列？当前的几何序列 $\sigma_i = \sigma_0 \cdot \alpha^i$ 是否最优？</li>
+<li><strong>自适应噪声</strong>：能否根据数据的局部几何自动调整噪声水平？高曲率区域可能需要更小的噪声。</li>
+<li><strong>非高斯噪声</strong>：使用Laplace噪声、Student-t噪声或其他重尾分布会带来什么优势？这可能提供更好的鲁棒性。</li>
+<li><strong>理论界限</strong>：DSM估计的样本复杂度和逼近误差的精确界限是什么？</li>
+</ol>
+<h3 id="423-sliced-score-matching">4.2.3 基于切片的分数匹配（Sliced Score Matching）</h3>
+<p>除了去噪方法，还有另一种巧妙的方式来避免计算完整的Hessian矩阵：使用随机投影。Song et al. (2020) 提出的切片分数匹配（Sliced Score Matching, SSM）提供了一种在计算效率和估计精度之间的优雅平衡。</p>
+<p><strong>核心思想：从高维到一维</strong></p>
+<p>计算 $d \times d$ Hessian矩阵的迹需要 $O(d)$ 次反向传播。SSM的关键洞察是：我们可以通过随机投影将这个高维问题转化为一系列一维问题。</p>
+<p>对于随机方向 $v \sim \mathcal{N}(0, I)$，考虑分数函数在该方向上的投影：
+$$s_v(x) = v^T \nabla_x \log p(x)$$
+这个一维函数的导数是：
+$$\frac{\partial s_v}{\partial v^T x} = v^T \nabla_x^2 \log p(x) v$$
+神奇的是，Hessian矩阵的迹可以表示为这些方向导数的期望：
+$$\text{tr}(\nabla_x^2 \log p(x)) = \mathbb{E}_{v \sim \mathcal{N}(0,I)}[v^T \nabla_x^2 \log p(x) v]$$
+<strong>切片分数匹配目标函数</strong></p>
+<p>基于这个洞察，SSM的目标函数为：
+$$\mathcal{L}_{SSM} = \mathbb{E}_{p_{data}}\mathbb{E}_{v \sim \mathcal{N}(0,I)}\left[v^T\nabla_x^2 \log p_{model}(x)v + \frac{1}{2}(v^T\nabla_x \log p_{model}(x))^2\right]$$
+这个目标函数的计算只需要：</p>
+<ol>
+<li>计算分数函数 $s_\theta(x) = \nabla_x \log p_{model}(x)$（一次前向传播）</li>
+<li>计算方向导数 $v^T \nabla_x s_\theta(x)$（一次向量-Jacobian乘积）</li>
+</ol>
+<p>使用 <code>torch.autograd.grad</code> 可以高效地计算这些量，避免了构造完整的Hessian矩阵。</p>
+<p><strong>理论分析：方差与偏差的权衡</strong></p>
+<p>SSM通过蒙特卡洛估计Hessian的迹，这引入了额外的方差。关键问题是：需要多少个随机投影才能得到准确的估计？</p>
+<p>理论结果表明，估计误差的方差为：
+$$\text{Var}[\hat{\mathcal{L}}_{SSM}] \propto \frac{1}{K} |\nabla_x^2 \log p(x)|_F^2$$
+其中 $K$ 是使用的随机投影数量，$|\cdot|_F$ 是Frobenius范数。这意味着：</p>
+<ul>
+<li><strong>低秩结构</strong>：如果Hessian近似低秩，少量投影就足够</li>
+<li><strong>高维诅咒</strong>：在高维空间中，可能需要很多投影</li>
+<li><strong>自适应策略</strong>：可以根据估计的方差动态调整投影数量</li>
+</ul>
+<p><strong>实现技巧与优化</strong></p>
+<ol>
+<li>
+<p><strong>高效的向量-Jacobian乘积</strong>：
+   <code>python
+   # 使用 torch.autograd.grad 计算 v^T ∇s(x)
+   vjp = torch.autograd.grad(s, x, v, retain_graph=True)[0]</code></p>
+</li>
+<li>
+<p><strong>批量投影</strong>：同时处理多个随机方向可以提高GPU利用率</p>
+</li>
+<li>
+<p><strong>重要性采样</strong>：不使用标准高斯，而是根据数据的协方差结构选择投影方向</p>
+</li>
+</ol>
+<p><strong>SSM vs DSM：如何选择？</strong></p>
+<p>两种方法各有优劣：</p>
+<ul>
+<li><strong>SSM优势</strong>：</li>
+<li>不需要添加噪声，保持数据的原始分布</li>
+<li>理论上是无偏估计</li>
+<li>
+<p>适合低噪声或精确建模场景</p>
+</li>
+<li>
+<p><strong>DSM优势</strong>：</p>
+</li>
+<li>计算更简单，不需要二阶导数</li>
+<li>与扩散模型有自然联系</li>
+<li>在高维空间中通常更稳定</li>
+</ul>
+<p><strong>⚡ 实现挑战与开放问题：</strong> </p>
+<ol>
+<li><strong>最优投影选择</strong>：如何选择投影方向以最小化估计方差？当前的各向同性高斯是否最优？</li>
+<li><strong>自适应投影数</strong>：能否在线估计所需的投影数量？</li>
+<li><strong>结构化投影</strong>：利用数据的已知结构（如图像的空间局部性）设计更好的投影</li>
+<li><strong>与其他方法的结合</strong>：能否结合SSM和DSM的优点？</li>
+</ol>
+<details>
+<summary><strong>练习 4.2：实现与分析不同的分数匹配方法</strong></summary>
+<ol>
+<li>
+<p>实现三种分数匹配方法，比较它们在2D数据上的表现。</p>
+</li>
+<li>
+<p><strong>开放探索</strong>：设计新的分数匹配方法
+   - 考虑使用对抗训练来匹配分数
+   - 探索基于最优传输的分数匹配
+   - 研究在流形上的分数匹配</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>分析不同方法的方差-偏差权衡</li>
+<li>考虑计算效率与估计精度的平衡</li>
+<li>探索与其他无监督学习方法的联系</li>
+</ul>
+</details>
+<h2 id="43-ncsn">4.3 噪声条件分数网络（NCSN）</h2>
+<h3 id="431">4.3.1 多尺度去噪分数匹配</h3>
+<p>Song &amp; Ermon (2019) 的关键创新是引入多个噪声尺度：
+$${\sigma_i}_{i=1}^L, \quad \sigma_1 &gt; \sigma_2 &gt; \cdots &gt; \sigma_L$$
+<strong>动机</strong>：</p>
+<ul>
+<li>大噪声帮助覆盖整个空间，避免模式遗漏</li>
+<li>小噪声帮助精确建模细节</li>
+<li>不同尺度提供了"课程学习"效果</li>
+</ul>
+<p><strong>🌟 理论缺口：</strong> 噪声尺度的选择缺乏严格的理论指导。当前主要依赖经验和网格搜索。能否从信息论或最优控制角度推导最优调度？</p>
+<h3 id="432-langevin">4.3.2 退火Langevin动力学</h3>
+<p>NCSN使用退火策略进行采样：</p>
+<div class="codehilite"><pre><span></span><code>对于每个噪声级别 σ_i:
+    运行 T 步 Langevin 动力学
+    逐渐减小步长
+</code></pre></div>
+
+<p><strong>💡 开放问题：</strong> </p>
+<ol>
+<li>如何自动确定每个噪声级别的迭代次数？</li>
+<li>能否设计连续的退火过程而非离散级别？</li>
+<li>如何处理采样过程中的metastability？</li>
+</ol>
+<h3 id="433">4.3.3 架构设计考虑</h3>
+<p>NCSN使用带条件的U-Net架构：</p>
+<ul>
+<li>输入：带噪声的数据 + 噪声级别</li>
+<li>输出：该噪声级别下的分数估计</li>
+</ul>
+<p><strong>⚡ 实现挑战：</strong> </p>
+<ul>
+<li>不同噪声级别的分数尺度差异巨大，如何归一化？</li>
+<li>是否应该为不同噪声级别使用不同的网络？</li>
+<li>如何在网络中有效编码噪声级别信息？使用 <code>torch.nn.Embedding</code> 还是连续编码？</li>
+</ul>
+<details>
+<summary><strong>练习 4.3：探索NCSN的改进</strong></summary>
+<ol>
+<li>
+<p>实现基础NCSN并分析其在不同数据分布上的表现。</p>
+</li>
+<li>
+<p><strong>开放探索</strong>：改进NCSN
+   - 设计自适应的噪声调度算法
+   - 探索非欧几里德空间（如球面、双曲空间）上的NCSN
+   - 研究NCSN与谱方法的结合</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>从优化理论角度分析收敛性</li>
+<li>考虑引入物理先验（如能量守恒）</li>
+<li>探索与神经ODE的联系</li>
+</ul>
+</details>
+<h2 id="44-langevin">4.4 Langevin动力学与采样</h2>
+<h3 id="441-langevin">4.4.1 连续时间Langevin动力学</h3>
+<p>Langevin方程描述了布朗粒子在势场中的运动：
+$$dX_t = \nabla \log p(X_t)dt + \sqrt{2}dW_t$$
+这个SDE的平稳分布正是 $p(x)$ 。</p>
+<p><strong>🔬 研究线索：</strong> Langevin动力学与物理学中的涨落-耗散定理有深刻联系。能否利用这种联系设计更高效的采样算法？考虑引入"记忆"效应或非马尔可夫动力学。</p>
+<h3 id="442">4.4.2 离散化与误差分析</h3>
+<p>Euler-Maruyama离散化：
+$$x_{k+1} = x_k + \epsilon s_\theta(x_k) + \sqrt{2\epsilon}\xi_k$$
+<strong>关键问题</strong>：</p>
+<ul>
+<li>离散化误差如何累积？</li>
+<li>如何选择步长 $\epsilon$ ？</li>
+<li>何时停止迭代？</li>
+</ul>
+<p><strong>🌟 理论缺口：</strong> 非凸情况下的收敛性分析仍不完整。特别是：</p>
+<ol>
+<li>有限时间内的混合时间界</li>
+<li>非光滑分数函数的影响</li>
+<li>离散化对不变测度的影响</li>
+</ol>
+<h3 id="443">4.4.3 加速采样技术</h3>
+<p>标准Langevin采样很慢，几种加速技术：</p>
+<ol>
+<li>
+<p><strong>预条件Langevin动力学</strong>
+$$dX_t = G(X_t)\nabla \log p(X_t)dt + \sqrt{2G(X_t)}dW_t$$
+其中 $G(x)$ 是预条件矩阵。</p>
+</li>
+<li>
+<p><strong>动量方法（Hamiltonian Monte Carlo）</strong>
+   引入动量变量，利用哈密顿动力学。</p>
+</li>
+<li>
+<p><strong>并行链</strong>
+   运行多个温度的Markov链，交换状态。</p>
+</li>
+</ol>
+<p><strong>💡 开放问题：</strong> </p>
+<ul>
+<li>如何自动设计最优预条件器？</li>
+<li>能否利用神经网络学习加速采样？</li>
+<li>如何在保持正确性的同时最大化并行效率？</li>
+</ul>
+<details>
+<summary><strong>练习 4.4：Langevin采样的深入研究</strong></summary>
+<ol>
+<li>
+<p>实现不同的Langevin采样变体，比较效率。</p>
+</li>
+<li>
+<p><strong>开放探索</strong>：新型采样算法
+   - 设计基于最优传输的采样路径
+   - 探索量子启发的采样算法
+   - 研究在离散空间上的"Langevin"动力学</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>分析不同算法的偏差-方差权衡</li>
+<li>考虑自适应和在线学习策略</li>
+<li>探索与强化学习的联系（采样作为决策过程）</li>
+</ul>
+</details>
+<h2 id="45-score-based-modelsdiffusion-models">4.5 统一视角：Score-Based Models与Diffusion Models</h2>
+<h3 id="451-ddpm">4.5.1 DDPM作为特殊的分数模型</h3>
+<p>关键发现：DDPM的去噪目标等价于分数匹配！</p>
+<p>DDPM学习：
+$$\mathbb{E}[|\epsilon - \epsilon_\theta(x_t, t)|^2]$$
+而加噪数据的分数函数：
+$$\nabla_{x_t} \log p_t(x_t) = -\frac{\epsilon}{\sqrt{1-\bar{\alpha}_t}}$$
+因此DDPM实际上在学习（重新缩放的）分数函数。</p>
+<p><strong>🔬 研究线索：</strong> 这种等价性是巧合还是有更深层的原因？考虑从信息几何或最优传输角度理解这种联系。</p>
+<h3 id="452">4.5.2 连续时间框架</h3>
+<p>Song et al. (2021) 提出了统一的SDE框架：</p>
+<p>前向SDE：
+$$dx = f(x,t)dt + g(t)dW_t$$
+对应的反向SDE：
+$$dx = [f(x,t) - g(t)^2\nabla_x \log p_t(x)]dt + g(t)d\bar{W}_t$$
+不同选择的 $f$ 和 $g$ 对应不同的模型：</p>
+<ul>
+<li>VP-SDE (Variance Preserving)</li>
+<li>VE-SDE (Variance Exploding)  </li>
+<li>sub-VP-SDE</li>
+</ul>
+<p><strong>💡 开放问题：</strong> </p>
+<ol>
+<li>什么样的SDE选择是最优的？</li>
+<li>能否自适应地学习SDE系数？</li>
+<li>非线性SDE会带来什么优势？</li>
+</ol>
+<h3 id="453-ode">4.5.3 概率流ODE</h3>
+<p>每个SDE都有对应的概率流ODE：
+$$dx = [f(x,t) - \frac{1}{2}g(t)^2\nabla_x \log p_t(x)]dt$$
+这个ODE：</p>
+<ul>
+<li>具有相同的边际分布</li>
+<li>但是确定性的</li>
+<li>可以用于精确似然计算</li>
+</ul>
+<p><strong>⚡ 实现挑战：</strong> </p>
+<ul>
+<li>ODE求解器的选择（<code>torchdiffeq.odeint</code> 的不同方法）</li>
+<li>如何权衡精度与速度？</li>
+<li>如何处理刚性ODE？</li>
+</ul>
+<details>
+<summary><strong>练习 4.5：探索统一框架</strong></summary>
+<ol>
+<li>
+<p>实现不同的SDE并比较它们的特性。</p>
+</li>
+<li>
+<p><strong>开放探索</strong>：扩展统一框架
+   - 设计新的SDE族
+   - 探索非欧几里德空间上的扩散
+   - 研究带约束的扩散过程</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>从几何角度理解不同SDE的含义</li>
+<li>考虑引入自适应或学习的SDE系数</li>
+<li>探索与最优控制的联系</li>
+</ul>
+</details>
+<h2 id="46">4.6 高级主题与前沿研究</h2>
+<h3 id="461">4.6.1 条件分数模型</h3>
+<p>给定条件 $y$ ，如何建模 $p(x|y)$ 的分数？</p>
+<p><strong>方法1：直接建模</strong>
+$$s_\theta(x, y, t) \approx \nabla_x \log p_t(x|y)$$
+<strong>方法2：分类器引导</strong>
+$$\nabla_x \log p(x|y) = \nabla_x \log p(x) + \nabla_x \log p(y|x)$$</p>
+<p><strong>🌟 理论缺口：</strong> </p>
+<ul>
+<li>两种方法的理论比较尚不完整</li>
+<li>如何处理高维或结构化的条件？</li>
+<li>组合性条件生成仍是挑战</li>
+</ul>
+<h3 id="462">4.6.2 流形上的分数模型</h3>
+<p>现实数据常位于低维流形上，如何在流形上定义分数函数？</p>
+<p><strong>挑战</strong>：</p>
+<ul>
+<li>需要流形的局部坐标系</li>
+<li>切空间上的分数函数定义</li>
+<li>测地线vs欧氏距离</li>
+</ul>
+<p><strong>💡 开放问题：</strong> </p>
+<ul>
+<li>如何学习未知流形的几何？</li>
+<li>能否设计流形感知的神经网络架构？</li>
+<li>如何处理拓扑变化？</li>
+</ul>
+<h3 id="463">4.6.3 分数模型的理论基础</h3>
+<p><strong>未解决的理论问题</strong>：</p>
+<ol>
+<li><strong>样本复杂度</strong>：需要多少样本才能学好分数函数？</li>
+<li><strong>逼近误差</strong>：神经网络的表达能力限制</li>
+<li><strong>优化景观</strong>：分数匹配的优化是否是良性的？</li>
+</ol>
+<p><strong>🔬 研究线索：</strong> 这些问题与统计学习理论、逼近理论和优化理论都有联系。特别是与神经切线核(NTK)理论的联系值得探索。</p>
+<details>
+<summary><strong>综合练习：设计你的分数生成模型</strong></summary>
+<p>基于本章所学，设计一个新的分数生成模型：</p>
+<ol>
+<li>
+<p><strong>问题设定</strong>：选择一个具有挑战性的生成任务
+   - 如：图上的分子生成、3D点云生成、时间序列生成</p>
+</li>
+<li>
+<p><strong>方法设计</strong>：
+   - 如何定义合适的分数函数？
+   - 采用什么训练策略？
+   - 如何设计高效的采样算法？</p>
+</li>
+<li>
+<p><strong>理论分析</strong>：
+   - 你的方法有什么理论保证？
+   - 与现有方法相比有什么优势？</p>
+</li>
+<li>
+<p><strong>开放研究方向</strong>：
+   - 识别你的方法中的理论缺口
+   - 提出可能的改进方向
+   - 设计验证实验</p>
+</li>
+</ol>
+<p><strong>研究思路</strong>：</p>
+<ul>
+<li>从应用需求出发，识别现有方法的不足</li>
+<li>考虑跨学科的思想借鉴</li>
+<li>注重理论与实践的结合</li>
+</ul>
+</details>
+<h2 id="_1">本章小结</h2>
+<p>在本章中，我们深入探讨了基于分数的生成模型：</p>
+<p><strong>核心概念</strong>：</p>
+<ul>
+<li>分数函数作为概率分布的局部几何信息</li>
+<li>分数匹配技术绕过归一化常数的计算</li>
+<li>Langevin动力学提供原理性的采样方法</li>
+<li>与扩散模型的深刻联系</li>
+</ul>
+<p><strong>关键洞察</strong>：</p>
+<ul>
+<li>去噪与分数估计的等价性</li>
+<li>多尺度建模的重要性</li>
+<li>连续时间框架的统一视角</li>
+</ul>
+<p><strong>开放问题与研究方向</strong>：</p>
+<ul>
+<li>高效的分数函数学习与采样</li>
+<li>非欧几里德空间的扩展</li>
+<li>理论基础的完善</li>
+<li>与其他机器学习范式的结合</li>
+</ul>
+<p>分数模型不仅是强大的生成模型，更提供了理解概率分布的新视角。随着理论的发展和计算能力的提升，我们期待看到更多突破性的进展。</p>
+<p>下一章，我们将进入连续时间的世界，探讨PDE/SDE视角下的扩散模型，看看微分方程如何为生成建模提供新的工具。</p>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter3.html" class="nav-link prev">← 第3章：去噪扩散概率模型 (DDPM)</a><a href="./chapter5.html" class="nav-link next">第5章：连续时间扩散模型 (PDE/SDE) →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

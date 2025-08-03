@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第3章：去噪扩散概率模型 (DDPM)</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class="active"><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="chapter2.html">← 上一章</a> | 第3章 / 共14章 | <a href="chapter4.html">下一章 →</a></p>
+<h1 id="3-ddpm">第3章：去噪扩散概率模型 (DDPM)</h1>
+<p>2020年，Ho等人的论文《Denoising Diffusion Probabilistic Models》是扩散模型发展史上的一个分水岭，它不仅极大地简化了模型的训练过程，更是在多个图像生成基准上达到了与GAN相媲美的生成质量。本章将深入剖析DDPM的数学原理、训练算法和实现细节。通过本章学习，你将掌握DDPM的核心思想，并理解其背后的概率论基础是如何被巧妙地简化为一个优雅的去噪目标的。</p>
+<h2 id="31-ddpm">3.1 DDPM的核心思想：简化与统一</h2>
+<p>在DDPM之前，扩散模型虽然理论优雅，但实践起来却充满挑战。早期的扩散模型需要精心设计的推断过程、复杂的变分边界优化，以及难以调试的训练流程。研究者们被困在理论与实践之间的鸿沟中：一方面，扩散模型在理论上具有诸多优势——可解释的概率框架、精确的似然计算、稳定的训练过程；另一方面，实际训练时却面临着收敛慢、生成质量差、超参数敏感等问题。</p>
+<p>DDPM的出现改变了这一切。它的革命性贡献在于：<strong>将复杂的变分推断问题简化为了一个简单直观的去噪任务</strong>。这种简化不是以牺牲理论严谨性为代价的——恰恰相反，DDPM展示了如何通过巧妙的数学变换和参数化选择，在保持理论完整性的同时，获得一个极其简洁的实践框架。</p>
+<p>要理解DDPM的突破性，我们需要回顾一下早期扩散模型面临的具体困难。在Sohl-Dickstein等人2015年的开创性工作中，训练一个扩散模型需要同时优化多个相互耦合的组件：前向过程的扩散率、反向过程的参数化、以及连接两者的变分边界。这种复杂性不仅使得模型难以训练，更重要的是，它掩盖了扩散模型的核心洞察——<strong>生成的本质是去噪</strong>。</p>
+<p>DDPM的作者们意识到，如果我们愿意做一些合理的假设和简化，整个框架可以变得异常优雅。这些简化并非随意为之，而是基于对问题本质的深刻理解。让我们详细看看这些关键的设计决策：</p>
+<blockquote>
+<p><strong>定义：DDPM的三个关键简化</strong></p>
+<ol>
+<li><strong>固定前向过程</strong>：前向加噪过程使用一个预先设定的、固定的方差调度 $\beta_t$ ，无需学习。这避免了早期扩散模型中需要同时学习前向和反向过程的复杂性。</li>
+<li><strong>简化反向过程</strong>：假设反向去噪过程也是高斯分布，且其方差也是固定的。因此，模型只需要学习高斯分布的均值，将学习目标从整个分布简化为单一参数。</li>
+<li><strong>重参数化目标</strong>：将学习"去噪后的图像均值"这一困难任务，巧妙地转换为学习"添加到图像中的噪声"，极大地稳定了训练过程。</li>
+</ol>
+</blockquote>
+<p>这三个简化看似独立，实际上形成了一个相互支撑的体系。固定的前向过程提供了稳定的训练目标，简化的反向过程减少了模型的负担，而噪声预测的参数化则确保了训练的稳定性。它们共同将一个原本复杂的生成建模问题转化为了一个标准的监督学习问题。</p>
+<p>让我们通过一个直观的比喻来理解这种转化的威力。想象你是一位艺术品修复师，面对一幅被时间侵蚀的古画。传统的方法是试图直接画出缺失的部分——这需要你理解画家的风格、时代背景、绘画技法等复杂知识。而DDPM的方法则是先理解"侵蚀"本身的模式——哪些地方容易褪色、裂纹如何形成、灰尘如何堆积。一旦你理解了破坏的过程，修复就变成了简单地"逆转"这个过程。</p>
+<p>这种思路的转变带来了实际的好处。在DDPM之前，训练一个高质量的扩散模型可能需要数周的时间和大量的超参数调整。而使用DDPM框架，研究者们发现他们可以用相对简单的设置获得令人惊叹的结果。更重要的是，这种简化并没有限制模型的表达能力——相反，通过让模型专注于学习去噪这一核心任务，DDPM实际上提高了生成质量。</p>
+<h3 id="311">3.1.1 为什么预测噪声更好？</h3>
+<p>在理解DDPM之前，我们需要先回答一个根本性的问题：为什么预测噪声比预测清晰图像更有效？这个问题的答案涉及深度学习中的一个核心洞察：<strong>匹配简单分布比匹配复杂分布容易得多</strong>。</p>
+<p>考虑这样一个类比：假设你要训练一个神经网络来完成两个任务之一：(1) 给定一幅被墨水污染的名画，预测原始画作的样子；(2) 给定同样的污染画作，预测墨水的形状和位置。虽然这两个任务在信息论上是等价的（知道其中一个就能推出另一个），但从学习的角度来看，它们的难度截然不同。预测原画需要网络理解艺术风格、构图规则、色彩理论等复杂知识，而预测墨水只需要识别那些不符合画作整体风格的异常模式。</p>
+<p>这个看似简单的改变是DDPM成功的关键。预测原始图像 $x_0$ 意味着网络需要输出一个具有复杂结构和特定分布的物体，而预测噪声 $\epsilon$ 意味着网络只需要输出一个来自标准正态分布的样本。更深层的原因在于，噪声预测任务具有某种"局部性"——网络可以通过识别局部的不一致性来判断噪声，而无需理解整体的全局结构。</p>
+<p>让我们从多个角度深入理解这个设计选择的智慧。首先，从<strong>统计学角度</strong>看，标准正态分布是所有分布中最"无信息"的——它的熵最大，没有任何特殊的结构或模式。这意味着预测噪声时，网络不需要记忆或重建任何特定的模式，只需要识别哪些部分偏离了原始数据的统计规律。这种任务的普适性使得网络能够学习到更加通用的去噪原理，而不是过拟合到特定的数据模式。</p>
+<p>其次，从<strong>优化角度</strong>看，预测噪声提供了更加稳定的梯度信号。当我们训练网络预测 $x_0$ 时，特别是在高噪声水平（大的 $t$ 值）下，网络需要从几乎纯粹的噪声中重建出完整的图像。这就像要求一个人仅凭一片模糊的色块就画出蒙娜丽莎——即使对于强大的神经网络，这也是一个极其困难的任务。网络可能会产生多种合理的预测，导致训练信号混乱，梯度方向不稳定。相反，预测噪声时，网络的任务始终是明确的：识别并提取那些不属于原始数据的成分。</p>
+<p>第三，从<strong>信息论角度</strong>看，这种参数化方式更好地利用了不同时间步的信息。在前向过程的早期（小的 $t$ ），图像中保留了大量原始信息，噪声相对较少，此时预测噪声相对容易。在前向过程的后期（大的 $t$ ），虽然图像已经高度退化，但噪声占主导地位，预测"大部分都是噪声"仍然是一个合理的策略。这种自然的难度曲线使得网络在所有时间步上都能获得有意义的学习信号。</p>
+<blockquote>
+<p><strong>定义：预测噪声的优势</strong>
+| 方面 | 预测均值 $\mu_\theta$ | 预测噪声 $\epsilon_\theta$ |</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">方面</th>
+<th style="text-align: left;">预测均值 $\mu_\theta$</th>
+<th style="text-align: left;">预测噪声 $\epsilon_\theta$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>输出范围</strong></td>
+<td style="text-align: left;">需要匹配数据的复杂分布</td>
+<td style="text-align: left;">目标是标准高斯分布（已归一化）</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>训练信号</strong></td>
+<td style="text-align: left;">随时间步 $t$ 变化剧烈</td>
+<td style="text-align: left;">各时间步的训练目标相对一致</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>梯度流</strong></td>
+<td style="text-align: left;">在高噪声时可能梯度消失</td>
+<td style="text-align: left;">梯度传播更稳定</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>物理意义</strong></td>
+<td style="text-align: left;">预测去噪后的图像</td>
+<td style="text-align: left;">预测被添加的噪声</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>优化景观</strong></td>
+<td style="text-align: left;">多模态、非凸，容易陷入局部最优</td>
+<td style="text-align: left;">相对平滑，更容易优化</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>泛化能力</strong></td>
+<td style="text-align: left;">需要记忆训练数据的具体模式</td>
+<td style="text-align: left;">学习更通用的去噪原理</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<p>让我们从数学角度更深入地理解这种差异。当网络预测 $x_0$ 时，在时间步 $t$ 较大（噪声较多）的情况下，输入 $x_t$ 几乎是纯噪声，网络需要从几乎没有信息的输入中"凭空"生成一个有意义的图像。这就像要求网络成为一个"记忆机器"，记住所有可能的图像。相反，当预测噪声 $\epsilon$ 时，网络的任务是识别和分离信号与噪声，这是一个更加well-defined的问题。</p>
+<p>为了更具体地理解这一点，让我们考虑一个极端情况：当 $t = T$（最后一个时间步）时，$x_T$ 几乎完全是噪声。如果网络需要预测 $x_0$，它面临的是一个一对多的映射问题——同一个噪声输入可能对应无数个可能的原始图像。这种歧义性使得训练信号非常嘈杂，网络很难收敛到一个稳定的解。而如果预测噪声，网络只需要输出"这基本上都是噪声"，这是一个明确且合理的答案。</p>
+<p>更有趣的是，这种参数化选择还影响了网络的<strong>归纳偏置</strong>（inductive bias）。当网络学习预测噪声时，它实际上在学习数据的"负空间"——那些不应该出现在真实数据中的模式。这促使网络发展出对数据结构的隐式理解：平滑的区域不应该有高频噪声，边缘应该是锐利的而不是模糊的，纹理应该具有某种规律性等等。这种通过"排除法"学习的方式，恰好与人类视觉系统处理噪声的方式相似。</p>
+<p>🔬 <strong>研究线索</strong>：DDPM预测噪声 $\epsilon$ ，而一些后续工作（如Cold Diffusion）则探索直接预测 $x_0$ 。这两种参数化方式的优劣在不同场景下仍有争议。例如，在处理视频时，预测帧间差（类似于噪声）可能比预测完整帧更有效。另一个有趣的研究方向是"v-prediction"（预测 $v = \alpha_t \epsilon - \sigma_t x_0$），它试图在两种参数化之间找到平衡点。Progressive Distillation等工作也展示了在不同的训练阶段切换参数化方式可能带来好处。</p>
+<h3 id="312-ddpm">3.1.2 DDPM训练算法概览</h3>
+<p>得益于上述简化，DDPM的训练过程变得异常简洁。这种简洁性不仅体现在代码实现上，更重要的是概念上的清晰：整个训练过程可以被理解为学习一个"通用去噪器"。</p>
+<p><strong>DDPM训练伪代码</strong></p>
+<ol>
+<li>从数据集中随机抽取一批原始图像 $x_0$ 。</li>
+<li>为该批次中的每个图像随机选择一个时间步 $t$ (从1到T)。</li>
+<li>从标准正态分布中采样一个噪声 $\epsilon$ 。</li>
+<li>使用闭式解计算 $t$ 时刻的噪声图像 $x_t$ ： $x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon$ 。</li>
+<li>将 $x_t$ 和 $t$ 输入到神经网络 $\epsilon_\theta$ 中，得到预测的噪声 $\epsilon_{pred}$ 。</li>
+<li>计算损失： $loss = \text{MSE}(\epsilon, \epsilon_{pred})$ 。</li>
+<li>使用梯度下降更新模型参数 $\theta$ 。</li>
+</ol>
+<p>这个算法的优雅之处在于它的<strong>自监督性质</strong>。与需要配对数据的监督学习不同，DDPM只需要原始数据本身。噪声是我们人为添加的，因此我们知道"正确答案"。这使得DDPM可以充分利用大规模无标注数据集，这是其能够扩展到数十亿参数规模的关键因素之一。</p>
+<p>这种端到端的去噪训练方式，是DDPM易于实现和训练稳定的核心原因。让我们深入理解这个算法的几个关键设计选择：</p>
+<p><strong>时间步的随机采样</strong>：为什么要随机选择时间步 $t$，而不是按顺序训练？这个设计确保了网络在所有噪声水平上都能均匀地学习。如果按顺序训练，网络可能会"遗忘"早期学到的知识。随机采样还带来了另一个好处：每个批次中的样本具有不同的噪声水平，这种多样性有助于网络学习更鲁棒的特征表示。</p>
+<p>更深层的原因涉及到<strong>课程学习</strong>（curriculum learning）的概念。直觉上，我们可能认为应该先让网络学习简单的任务（去除少量噪声），然后逐渐增加难度。然而，实践表明，这种策略在扩散模型中往往适得其反。原因是不同噪声水平的去噪任务需要不同的策略：低噪声时需要精细的局部调整，高噪声时需要全局的结构重建。随机采样迫使网络同时学习所有这些策略，反而产生了更好的泛化能力。</p>
+<p><strong>闭式解的重要性</strong>：能够直接从 $x_0$ 计算 $x_t$ 是DDPM的一个关键优势。这避免了需要迭代地应用前向过程，大大提高了训练效率。在PyTorch中，这个操作可以通过简单的张量运算实现，如 <code>torch.randn_like()</code> 生成噪声，然后进行线性组合。</p>
+<p>从计算的角度看，这个闭式解将原本的 $O(T)$ 复杂度降低到了 $O(1)$。但更重要的是，它避免了数值误差的累积。如果我们通过迭代应用前向过程来计算 $x_t$，每一步的浮点运算误差都会累积，最终可能导致 $x_t$ 偏离理论分布。闭式解保证了我们始终在正确的分布上进行训练。</p>
+<p><strong>MSE损失的简单性</strong>：使用均方误差作为损失函数看似平凡，但它恰好对应于高斯分布下的最大似然估计。这种对应关系不是巧合，而是DDPM理论框架的自然结果。更重要的是，MSE损失在所有像素上均匀加权，这促使网络学习全局一致的去噪策略。</p>
+<p>然而，MSE损失的选择也引发了一些有趣的讨论。在计算机视觉中，我们知道MSE往往不是感知质量的最佳度量——它倾向于产生模糊的结果。但在DDPM的框架下，这个"缺点"反而成了优点。因为网络预测的是噪声而不是图像，模糊性实际上反映了噪声的不确定性。当存在多个合理的去噪方案时，预测它们的平均值（这正是MSE损失所鼓励的）是一个合理的策略。</p>
+<p>💡 <strong>实践洞察</strong>：在实际实现中，时间步 $t$ 的编码方式对模型性能有显著影响。DDPM使用正弦位置编码（类似于Transformer），将离散的时间步映射到连续的高维表示。这种编码方式不仅提供了时间信息，还隐含地编码了当前的信噪比，帮助网络理解需要去除多少噪声。</p>
+<p>具体来说，时间编码通常采用如下形式：</p>
+<ul>
+<li>首先将时间步 $t$ 归一化到 $[0, 1]$ 区间</li>
+<li>然后应用一组不同频率的正弦和余弦函数</li>
+<li>最后通过一个小型MLP将编码映射到与特征维度匹配的表示</li>
+</ul>
+<p>这种编码的好处是它能够表示时间的绝对位置和相对关系，使得网络能够学习到"在时间步200时应该去除中等强度的噪声"这样的模式，同时也能泛化到训练时未见过的时间步（例如在使用DDIM等快速采样方法时）。</p>
+<h2 id="32">3.2 前向过程：从数据到噪声</h2>
+<p>前向过程是扩散模型的基础，它定义了数据如何逐渐转变为噪声的数学过程。理解前向过程不仅是掌握DDPM的前提，更是洞察扩散模型本质的关键。在这一节中，我们将深入探讨前向过程的数学结构、物理直觉，以及它如何为后续的反向学习奠定基础。</p>
+<p>从概念上讲，前向过程模拟了一个自然界中普遍存在的现象：<strong>信息的逐渐丢失</strong>。想象一滴墨水落入清水中，起初我们能清晰地看到墨滴的形状和位置，但随着时间推移，墨水逐渐扩散，最终与水完全混合，原始的结构信息完全消失。扩散模型的前向过程正是这个物理过程的数学抽象。</p>
+<p>前向过程定义了一个固定的马尔可夫链，它逐步将数据分布 $q(x_0)$ 转换为一个已知的先验分布（通常是标准正态分布 $\mathcal{N}(0, I)$ ）。数学上，每一步的转移概率定义为：</p>
+<p>$q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$</p>
+<p>这个看似简单的公式蕴含着深刻的设计智慧。让我们逐一分析其组成部分：</p>
+<p><strong>均值项 $\sqrt{1-\beta_t}\mathbf{x}_{t-1}$</strong>：这个缩放因子确保了信号在传播过程中的能量守恒。如果没有这个缩放，随着噪声的不断添加，数据的总能量会无限增长。$\sqrt{1-\beta_t}$ 的选择保证了在添加方差为 $\beta_t$ 的噪声后，总方差保持在合理范围内。</p>
+<p>为了更深入地理解这一点，让我们考虑方差的传播。假设 $x_{t-1}$ 的方差是 $\sigma^2$，那么经过一步前向过程后：</p>
+<ul>
+<li>缩放后的信号方差：$(1-\beta_t) \cdot \sigma^2$</li>
+<li>添加的噪声方差：$\beta_t$</li>
+<li>总方差：$(1-\beta_t) \cdot \sigma^2 + \beta_t$</li>
+</ul>
+<p>当 $\sigma^2 = 1$（标准化的数据）时，输出的方差仍然是1。这种<strong>方差保持</strong>（variance preserving）的性质不仅使得数学推导更加优雅，也避免了数值计算中的溢出或下溢问题。</p>
+<p><strong>方差项 $\beta_t\mathbf{I}$</strong>：各向同性的噪声假设简化了理论分析，但也限制了模型的表达能力。这是一个经典的"简单有效"vs"复杂精确"的权衡。后续研究探索了各向异性噪声、结构化噪声等更复杂的前向过程。</p>
+<p>各向同性噪声的假设意味着我们对图像的每个像素、每个通道添加相同强度的独立噪声。这在某种程度上是不符合真实世界的——例如，图像的边缘区域可能比平滑区域对噪声更敏感，不同颜色通道的噪声特性也可能不同。然而，这种简化带来的好处远大于其局限性：它使得我们可以用单一参数 $\beta_t$ 控制整个加噪过程，极大地简化了超参数调优。</p>
+<p><strong>马尔可夫性质</strong>：$x_t$ 只依赖于 $x_{t-1}$，而不依赖于更早的历史。这个性质极大地简化了理论推导，使得我们可以使用动态规划的思想来分析整个过程。</p>
+<p>马尔可夫假设的一个重要含义是：<strong>信息的丢失是单调的</strong>。一旦某些细节在时间步 $t$ 被噪声掩盖，它们就永远无法在后续步骤中恢复（在前向过程中）。这种不可逆性正是我们需要学习反向过程的根本原因——如果前向过程是可逆的，我们就不需要神经网络了。</p>
+<h3 id="321">3.2.1 重参数化技巧</h3>
+<p>DDPM的一个关键数学技巧是，我们可以直接从 $x_0$ 采样任意时刻的 $x_t$ ，而无需迭代计算。这个技巧不仅是计算效率的关键，更揭示了扩散过程的一个深刻性质：<strong>整个前向过程可以被视为一个线性高斯系统</strong>。</p>
+<blockquote>
+<p><strong>定理：闭式采样公式</strong>
+定义 $\alpha_t = 1 - \beta_t$ 和 $\bar{\alpha}_t = \prod_{s=1}^{t} \alpha_s$ ，则：
+$q(\mathbf{x}_t|\mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})$</p>
+<p>这个公式可以等价地写成重参数化形式：
+$\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}, \quad \boldsymbol{\epsilon} \sim \mathcal{N}(0, \mathbf{I})$</p>
+</blockquote>
+<p>这个闭式公式的推导虽然基于简单的高斯分布性质，但其意义深远。让我们通过一个具体的推导来理解这个过程：</p>
+<p><strong>推导过程</strong>：从 $x_0$ 到 $x_1$：$x_1 = \sqrt{\alpha_1}x_0 + \sqrt{\beta_1}\epsilon_1$。从 $x_1$ 到 $x_2$：$x_2 = \sqrt{\alpha_2}x_1 + \sqrt{\beta_2}\epsilon_2 = \sqrt{\alpha_2}(\sqrt{\alpha_1}x_0 + \sqrt{\beta_1}\epsilon_1) + \sqrt{\beta_2}\epsilon_2$。</p>
+<p>关键洞察是，两个独立高斯噪声的线性组合仍然是高斯噪声。通过仔细计算方差，我们可以证明：$x_2 = \sqrt{\alpha_1\alpha_2}x_0 + \sqrt{1-\alpha_1\alpha_2}\tilde{\epsilon}$，其中 $\tilde{\epsilon}$ 是一个新的标准高斯噪声。</p>
+<p>这个推导过程揭示了一个更深层的数学结构。让我们详细展开 $x_2$ 的表达式：
+$x_2 = \sqrt{\alpha_2}\sqrt{\alpha_1}x_0 + \sqrt{\alpha_2}\sqrt{\beta_1}\epsilon_1 + \sqrt{\beta_2}\epsilon_2$</p>
+<p>由于 $\epsilon_1$ 和 $\epsilon_2$ 是独立的标准正态随机变量，我们需要找到一个等价的表示。关键是认识到：</p>
+<ul>
+<li>系数 $\sqrt{\alpha_2}\sqrt{\beta_1}$ 和 $\sqrt{\beta_2}$ 定义了两个正交方向上的噪声强度</li>
+<li>这两个独立噪声的组合等价于一个具有适当方差的单一噪声</li>
+</ul>
+<p>通过计算总方差：
+$\text{Var}(x_2|x_0) = \alpha_2\beta_1 + \beta_2 = \alpha_2(1-\alpha_1) + (1-\alpha_2) = 1 - \alpha_1\alpha_2$</p>
+<p>这正好等于 $1 - \bar{\alpha}_2$，验证了我们的闭式公式。</p>
+<p><strong>物理直觉</strong>：这个公式告诉我们，无论经过多少步扩散，$x_t$ 始终可以表示为原始信号 $x_0$ 的衰减版本加上一个适当强度的噪声。衰减因子 $\sqrt{\bar{\alpha}_t}$ 描述了信号的保留程度，而 $\sqrt{1-\bar{\alpha}_t}$ 描述了噪声的强度。当 $t \to T$ 时，$\bar{\alpha}_t \to 0$，信号完全消失，只剩下纯噪声。</p>
+<p>从信号处理的角度看，这个过程可以理解为一个<strong>低通滤波器</strong>加上<strong>白噪声</strong>。随着时间推移，高频细节（如纹理、边缘）首先被破坏，而低频信息（如整体形状、颜色分布）保留得更久。这解释了为什么在中等噪声水平下，我们仍然能够隐约看出图像的大致轮廓。</p>
+<p><strong>计算优势</strong>：在实际训练中，这个闭式公式允许我们：</p>
+<ul>
+<li>并行处理不同时间步的样本</li>
+<li>避免数值误差的累积</li>
+<li>实现高效的GPU向量化计算</li>
+</ul>
+<p>更重要的是，这个公式使得训练过程具有极好的<strong>可扩展性</strong>。无论我们选择 $T=1000$ 还是 $T=4000$，计算任意 $x_t$ 的成本都是恒定的。这与许多其他生成模型形成鲜明对比，后者的计算成本往往随着模型复杂度呈超线性增长。</p>
+<h3 id="322-noise-schedule">3.2.2 噪声调度 (Noise Schedule)</h3>
+<p>噪声调度 ${\beta_t}$ 的选择对模型性能有重要影响。它决定了信息在前向过程中的衰减速度，直接影响到反向过程的学习难度。一个好的噪声调度应该在以下几个方面取得平衡：</p>
+<ol>
+<li><strong>信息保留</strong>：早期步骤应该保留足够的原始信息，使得反向过程有据可依</li>
+<li><strong>充分扩散</strong>：最终应该充分接近先验分布，确保生成的多样性</li>
+<li><strong>平滑过渡</strong>：相邻时间步之间的变化应该适度，避免学习任务的突变</li>
+</ol>
+<blockquote>
+<p><strong>定义：调度策略对比</strong>
+| 调度类型 | 特点 | 优势 | 劣势 |</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">调度类型</th>
+<th style="text-align: left;">特点</th>
+<th style="text-align: left;">优势</th>
+<th style="text-align: left;">劣势</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>线性 (Linear)</strong></td>
+<td style="text-align: left;">$\beta_t$ 从 $\beta_1 = 10^{-4}$ 线性增长到 $\beta_T = 0.02$</td>
+<td style="text-align: left;">简单直观，DDPM原始选择，易于实现和调试</td>
+<td style="text-align: left;">过程早期破坏信息过快，后期变化又太慢，导致生成质量次优</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>余弦 (Cosine)</strong></td>
+<td style="text-align: left;">基于信噪比(SNR)的余弦曲线设计：$\bar{\alpha}_t = \frac{f(t)}{f(0)}$，其中 $f(t) = \cos\left(\frac{t/T + s}{1+s} \cdot \frac{\pi}{2}\right)^2$</td>
+<td style="text-align: left;">过程早期缓慢加噪，保留更多结构信息，感知质量显著更好，特别适合高分辨率图像</td>
+<td style="text-align: left;">理论相对复杂，超参数 $s$ 需要调整，末期可能收敛过慢</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>二次 (Quadratic)</strong></td>
+<td style="text-align: left;">$\beta_t$ 呈二次方增长：$\beta_t = \beta_{\min} + (\beta_{\max} - \beta_{\min}) \cdot (t/T)^2$</td>
+<td style="text-align: left;">在线性的基础上，进一步减缓早期加噪，中期过渡更平滑</td>
+<td style="text-align: left;">后期加噪可能过于激进，需要仔细选择 $\beta_{\max}$</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>对数 (Logarithmic)</strong></td>
+<td style="text-align: left;">$\beta_t$ 按对数规律增长</td>
+<td style="text-align: left;">极其缓慢的早期加噪，适合保留细节丰富的数据</td>
+<td style="text-align: left;">可能需要更多的扩散步数才能充分混合</td>
+</tr>
+</tbody>
+</table>
+</blockquote>
+<p>让我们深入理解为什么余弦调度在实践中表现优异。关键在于<strong>信噪比（SNR）</strong>的概念：</p>
+<p>$\text{SNR}(t) = \frac{\bar{\alpha}_t}{1 - \bar{\alpha}_t}$</p>
+<p>线性调度下，log-SNR几乎是线性下降的，这意味着在对数空间中，信息的丢失速度是恒定的。然而，人类的感知系统对信息的敏感度并非线性——我们对高SNR区域（图像清晰时）的变化更敏感。余弦调度通过在高SNR区域放慢变化速度，更好地匹配了这种感知特性。</p>
+<p><strong>实践经验</strong>：</p>
+<ul>
+<li>对于64×64的低分辨率图像，线性调度通常足够</li>
+<li>对于256×256及以上的高分辨率图像，余弦调度几乎总是更好</li>
+<li>对于特殊数据（如医学图像），可能需要定制调度</li>
+</ul>
+<p>💡 <strong>开放问题</strong>：是否存在一个"最优"的噪声调度？理论上，最优调度应与数据的内在属性（如维度、复杂度）相关。目前，设计数据自适应的噪声调度或在训练中学习调度本身，仍然是一个活跃的研究领域。一些有趣的方向包括：</p>
+<ul>
+<li><strong>学习型调度</strong>：让网络自己学习最优的 $\beta_t$</li>
+<li><strong>内容感知调度</strong>：根据图像的局部特征（纹理、边缘等）使用不同的噪声强度</li>
+<li><strong>任务特定调度</strong>：为不同的下游任务（生成、修复、超分）设计专门的调度</li>
+</ul>
+<details>
+<summary><strong>练习 3.1：设计与分析噪声调度</strong></summary>
+<ol>
+<li><strong>S形调度设计</strong>：设计一个“S形”的噪声调度，使得加噪过程满足：a) 前期缓慢；b) 中期快速；c) 后期再次放缓。写出其数学表达式。</li>
+<li><strong>信噪比(SNR)分析</strong>：对于线性和余弦调度，推导并绘制其信噪比 $\text{SNR}(t) = \bar{\alpha}_t / (1 - \bar{\alpha}_t)$ 的对数曲线。从曲线形状解释为什么余弦调度通常能取得更好的生成质量。</li>
+<li><strong>研究思路</strong>：<ul>
+<li>从信息论的角度出发，将前向过程视为一个信息通道，分析不同调度下的信道容量变化。</li>
+<li>探索噪声调度与最优传输理论（Optimal Transport）的联系。前向过程可以看作是从数据分布到噪声分布的一条路径，最优调度是否对应着某种“最短”路径？</li>
+</ul>
+</li>
+</ol>
+</details>
+<h2 id="33">3.3 反向过程：从噪声到数据</h2>
+<p>如果说前向过程是将数据逐渐模糊化的过程，那么反向过程就是扩散模型的"魔法"所在——它要学习如何从纯噪声 $x_T$ 逐步恢复出清晰的数据 $x_0$ 。这个过程的优雅之处在于，虽然看似是在"逆转时间"，但实际上我们是在学习一个条件概率分布，这个分布告诉我们：给定当前的噪声图像，上一个时间步的图像应该是什么样子。</p>
+<p>反向过程的核心挑战在于：我们需要学习 $p_\theta(x_{t-1}|x_t)$ ，但这个条件分布是极其复杂的——它需要理解图像的所有可能结构，并能够推断出哪些部分是噪声，哪些部分是信号。DDPM的天才之处在于，通过巧妙的数学推导，将这个看似不可能的任务转化为一个简单的噪声预测问题。</p>
+<h3 id="331">3.3.1 反向条件概率的推导</h3>
+<p>这是DDPM论文中最重要的数学推导之一，也是理解整个框架的关键。我们将通过贝叶斯定理，证明在已知 $x_0$ 的条件下，反向的条件概率 $q(x_{t-1}|x_t, x_0)$ 也是一个高斯分布。这个结果不仅优雅，更重要的是它为我们的学习任务提供了明确的目标。</p>
+<p>让我们从贝叶斯定理开始：
+$q(x_{t-1}|x_t, x_0) = \frac{q(x_t|x_{t-1}, x_0) q(x_{t-1}|x_0)}{q(x_t|x_0)}$</p>
+<p>由于前向过程的马尔可夫性质，$q(x_t|x_{t-1}, x_0) = q(x_t|x_{t-1})$。现在，所有三个项都是已知的高斯分布：</p>
+<ul>
+<li>$q(x_t|x_{t-1}) = \mathcal{N}(x_t; \sqrt{\alpha_t}x_{t-1}, \beta_t I)$</li>
+<li>$q(x_{t-1}|x_0) = \mathcal{N}(x_{t-1}; \sqrt{\bar{\alpha}_{t-1}}x_0, (1-\bar{\alpha}_{t-1})I)$</li>
+<li>$q(x_t|x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t}x_0, (1-\bar{\alpha}_t)I)$</li>
+</ul>
+<p>高斯分布的一个美妙性质是：高斯分布的乘积和除法（在指数空间中）仍然是高斯分布。通过仔细的代数运算，我们可以得出：</p>
+<blockquote>
+<p><strong>定理：反向过程的后验分布</strong>
+$q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_{t-1}; \tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0), \tilde{\beta}_t\mathbf{I})$</p>
+<p>其中：</p>
+<ul>
+<li>后验均值：$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0) = \frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1-\bar{\alpha}_t}\mathbf{x}_0 + \frac{\sqrt{\alpha_t}(1-\bar{\alpha}_{t-1})}{1-\bar{\alpha}_t}\mathbf{x}_t$</li>
+<li>后验方差：$\tilde{\beta}_t = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t} \cdot \beta_t$</li>
+</ul>
+</blockquote>
+<p>这个结果的深刻之处在于几个方面：</p>
+<ol>
+<li><strong>线性组合</strong>：后验均值是 $x_t$ 和 $x_0$ 的线性组合，权重只依赖于噪声调度</li>
+<li><strong>确定性方差</strong>：后验方差 $\tilde{\beta}_t$ 完全由前向过程决定，不依赖于数据</li>
+<li><strong>信息融合</strong>：这个公式可以理解为在 $x_t$（当前观察）和 $x_0$（先验知识）之间的最优贝叶斯融合</li>
+</ol>
+<p>这个定理的<strong>关键洞察</strong>在于：如果我们能以某种方式从 $x_t$ 中估计出 $x_0$ ，我们就能近似真实的反向过程。这正是神经网络需要做的事情。但是，直接预测 $x_0$ 并不是最优的选择。</p>
+<p><strong>从 $x_0$ 到 $\epsilon$ 的重参数化</strong></p>
+<p>利用前向过程的重参数化公式 $x_t = \sqrt{\bar{\alpha}_t}x_0 + \sqrt{1-\bar{\alpha}_t}\epsilon$，我们可以解出：
+$x_0 = \frac{x_t - \sqrt{1 - \bar{\alpha}_t} \epsilon}{\sqrt{\bar{\alpha}_t}}$</p>
+<p>将这个表达式代入后验均值公式，经过一番代数运算，我们得到：
+$\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \boldsymbol{\epsilon}) = \frac{1}{\sqrt{\alpha_t}}\left(\mathbf{x}_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\boldsymbol{\epsilon}\right)$</p>
+<p>这个表达式优雅地揭示了：<strong>学习反向过程等价于学习预测噪声 $\epsilon$</strong>。这不仅是一个数学上的等价变换，更是一个概念上的突破——它将"预测去噪后的图像"这个复杂任务转化为"识别添加的噪声"这个相对简单的任务。</p>
+<h3 id="332-vs">3.3.2 方差的处理：固定 vs 可学习</h3>
+<p>在确定了均值的参数化后，还有一个重要问题：如何处理反向过程的方差？DDPM采用了一个大胆的简化：固定方差。这个决定背后有深刻的理论和实践考量。</p>
+<p><strong>理论考量</strong>：后验方差 $\tilde{\beta}_t$ 有一个精确的公式，它是前向过程参数的函数。然而，在实际的反向过程中，我们并不知道真实的 $x_0$，因此无法使用精确的后验方差。DDPM提出了两种近似方案：</p>
+<ol>
+<li><strong>方案一</strong>：$\sigma_t^2 = \tilde{\beta}_t = \frac{1-\bar{\alpha}_{t-1}}{1-\bar{\alpha}_t} \cdot \beta_t$ （后验方差的精确值）</li>
+<li><strong>方案二</strong>：$\sigma_t^2 = \beta_t$ （更简单的选择）</li>
+</ol>
+<p>有趣的是，虽然方案一在理论上更精确，但实验表明两种方案的生成质量非常接近。这暗示着反向过程对方差的选择相对不敏感，均值的准确预测才是关键。</p>
+<p><strong>实践考量</strong>：固定方差大大简化了训练和实现：</p>
+<ul>
+<li>训练时只需要优化一个目标（预测噪声）</li>
+<li>避免了多任务学习的复杂性</li>
+<li>减少了模型的参数量和计算开销</li>
+</ul>
+<p>后续工作（如Improved DDPM）探索了让网络同时预测均值和方差：
+$p_\theta(x_{t-1}|x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \sigma_\theta^2(x_t, t))$</p>
+<p>这种方法可以提高模型的对数似然，但对感知质量的提升往往有限。更重要的是，学习方差引入了新的挑战：</p>
+<ul>
+<li>需要仔细设计方差的参数化方式（如预测对数方差）</li>
+<li>需要平衡均值和方差预测的损失权重</li>
+<li>可能导致训练不稳定</li>
+</ul>
+<p>对于大多数应用，固定方差是一个优秀的选择，它在简单性和性能之间达到了极好的平衡。</p>
+<details>
+<summary><strong>练习 3.2：参数化的等价性与差异</strong></summary>
+<ol>
+<li><strong>数学推导</strong>：从后验均值 $\tilde{\mu}_t(x_t, x_0)$ 的表达式出发，代入 $x_0$ 与 $x_t, \epsilon$ 的关系式，推导出 $\tilde{\mu}_t(x_t, \epsilon)$ 的表达式，从而证明“预测 $x_0$ ”和“预测 $\epsilon$ ”在数学上是等价的。</li>
+<li><strong>稳定性分析</strong>：从优化的角度，分析为什么预测一个目标为 $\mathcal{N}(0, I)$ 的噪声 $\epsilon$ ，比预测一个目标为复杂数据分布 $q(x_0)$ 的 $x_0$ 更稳定？（提示：考虑不同时间步 $t$ 下目标函数的尺度和梯度。）</li>
+<li><strong>开放探索</strong>：DDPM选择固定方差。但在某些情况下，让方差可学习可能很重要。设想一个场景（例如，生成具有不同纹理区域的图像），其中自适应的去噪方差可能带来优势，并解释原因。</li>
+</ol>
+</details>
+<h2 id="34">3.4 训练目标：从变分下界到简单均方误差</h2>
+<p>DDPM的最终妙笔是将复杂的变分下界（Variational Lower Bound, VLB）损失函数简化为一个简单的均方误差（MSE）。</p>
+<p>完整的VLB损失可以写成三项之和： $L_{\text{VLB}} = L_T + \sum_{t&gt;1} L_{t-1} + L_0$ 。其中 $L_{t-1}$ 是主要的去噪匹配项，可以表示为两个高斯分布（真实后验 $q$ 和模型预测 $p_\theta$ ）之间的KL散度。通过我们上面的推导，这一项可以简化为对两个均值 $\tilde{\mu}_t$ 和 $\mu_\theta$ 差值的L2损失。</p>
+<blockquote>
+<p><strong>🎯 DDPM的简化训练目标</strong>
+Ho等人发现，如果忽略VLB损失中复杂的加权系数，直接优化一个更简单的目标函数，效果反而更好：
+$L_{\text{simple}} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)|^2\right]$
+这就是DDPM最终的训练目标：<strong>在随机的时间步 $t$ ，让神经网络 $\epsilon_\theta$ 预测出添加到 $x_0$ 上的原始噪声 $\epsilon$ </strong>。</p>
+</blockquote>
+<p>⚡ <strong>实现挑战与研究前沿</strong>：虽然简单损失效果很好，但它对所有时间步 $t$ 的误差一视同仁。后续研究（如Min-SNR- $\gamma$ 加权策略）表明，对不同 $t$ 的损失进行加权（例如，降低高信噪比、即低噪声区域的损失权重）可以显著提高生成质量，尤其是在高分辨率生成任务中。</p>
+<h2 id="35">3.5 采样算法：从理论到实践</h2>
+<p>训练完成后，我们就可以从随机噪声中生成图像了。采样过程是反向过程的实际执行。</p>
+<p><strong>DDPM标准采样算法</strong></p>
+<ol>
+<li>从标准正态分布中采样一个初始噪声图像 $x_T$ 。</li>
+<li>
+<p>从 $t = T$ 循环到 $t = 1$ ：
+    a. 将当前的 $x_t$ 和时间步 $t$ 输入模型，得到噪声预测 $\epsilon_\theta(x_t, t)$ 。
+    b. 使用 $\epsilon_\theta$ 和 $x_t$ 计算去噪后的均值 $\mu_\theta(x_t, t)$ 。
+    c. 从标准正态分布中采样一个随机噪声 $z$ 。
+    d. 计算 $x_{t-1} = \mu_\theta(x_t, t) + \sigma_t z$ 。（其中 $\sigma_t$ 是固定的方差）</p>
+</li>
+<li>
+<p>最终得到的 $x_0$ 就是生成的图像。</p>
+</li>
+</ol>
+<p>这个迭代过程通常需要1000步，因此速度较慢，这是DDPM的主要缺点之一，也催生了后续大量的快速采样算法研究（将在第8章讨论）。</p>
+<details>
+<summary><strong>综合练习：DDPM的局限性与改进方向</strong></summary>
+<p>DDPM虽然强大，但并非完美。请分析其潜在的局限性，并为每个局限性提出一个可能的研究方向或改进思路。</p>
+<ol>
+<li><strong>局限一：采样速度慢</strong>。标准DDPM需要上千步迭代。<ul>
+<li><strong>改进思路</strong>：？（提示：反向过程是否必须是马尔可夫的？）</li>
+</ul>
+</li>
+<li><strong>局限二：高斯假设</strong>。整个框架基于高斯噪声和高斯转移核。<ul>
+<li><strong>改进思路</strong>：？（提示：对于某些具有特定结构噪声的数据，如JPEG压缩伪影，非高斯噪声是否更合适？）</li>
+</ul>
+</li>
+<li><strong>局限三：固定的前向过程</strong>。前向过程与数据无关。<ul>
+<li><strong>改进思路</strong>：？（提示：能否设计一个依赖于数据内容的前向过程，例如，在图像的平滑区域加更多噪声，在纹理区域加更少噪声？）</li>
+</ul>
+</li>
+<li><strong>研究思路</strong>：<ul>
+<li>阅读DDIM、DEIS等快速采样算法的论文。</li>
+<li>查阅关于非高斯扩散或泊松流生成模型（PFGM）的研究。</li>
+<li>探索将扩散模型与自编码器结合（如LDM）或与最优传输理论结合的工作。</li>
+</ul>
+</li>
+</ol>
+</details>
+<h2 id="_1">本章小结</h2>
+<p>在本章中，我们深入剖析了DDPM的内部工作原理：</p>
+<ul>
+<li><strong>核心思想</strong>：通过将复杂的变分下界目标简化为预测噪声的均方误差，DDPM极大地简化了扩散模型的训练。</li>
+<li><strong>数学推导</strong>：我们理解了前向过程的闭式解、反向过程的后验分布，以及它们如何共同导出了最终的简化损失函数。</li>
+<li><strong>关键组件</strong>：我们分析了噪声调度、网络参数化（预测噪声vs预测图像）、方差选择等关键设计决策的重要性。</li>
+<li><strong>训练与采样</strong>：我们掌握了DDPM的完整训练和采样算法流程。</li>
+</ul>
+<p>DDPM为后续扩散模型的发展奠定了坚实的基础。下一章，我们将从另一个角度——分数匹配（Score Matching）——来理解扩散过程，并看到这两个看似不同的框架如何最终在统一的SDE/PDE视角下完美融合。</p>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter2.html" class="nav-link prev">← 第2章：神经网络架构：U-Net与ViT</a><a href="./chapter4.html" class="nav-link next">第4章：基于分数的生成模型 →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

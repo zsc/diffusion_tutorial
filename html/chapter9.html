@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第9章：条件生成与引导技术</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class="active"><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="index.html">← 返回目录</a> | 第9章 / 共14章 | <a href="chapter10.html">下一章 →</a></p>
+<h1 id="9">第9章：条件生成与引导技术</h1>
+<p>条件生成是扩散模型最重要的应用之一，它使我们能够控制生成过程，产生符合特定要求的样本。本章深入探讨各种条件生成技术，从基于分类器的引导到无分类器引导，再到最新的控制方法。您将学习如何在数学上理解这些引导机制，掌握在不同场景下选择和实现条件生成的技巧，并了解如何平衡生成质量与条件遵循度。通过本章的学习，您将能够构建强大的可控生成系统。</p>
+<h2 id="_1">章节大纲</h2>
+<h3 id="91">9.1 条件扩散模型的基础</h3>
+<ul>
+<li>条件分布的建模</li>
+<li>条件信息的注入方式</li>
+<li>架构设计考虑</li>
+<li>训练策略</li>
+</ul>
+<h3 id="92-classifier-guidance">9.2 分类器引导（Classifier Guidance）</h3>
+<ul>
+<li>理论推导与直觉</li>
+<li>梯度计算与实现</li>
+<li>引导强度的影响</li>
+<li>局限性分析</li>
+</ul>
+<h3 id="93-classifier-free-guidance">9.3 无分类器引导（Classifier-Free Guidance）</h3>
+<ul>
+<li>动机与核心思想</li>
+<li>条件与无条件模型的联合训练</li>
+<li>引导公式推导</li>
+<li>实践中的技巧</li>
+</ul>
+<h3 id="94">9.4 高级引导技术</h3>
+<ul>
+<li>多条件组合</li>
+<li>负向提示（Negative Prompting）</li>
+<li>动态引导强度</li>
+<li>ControlNet与适配器方法</li>
+</ul>
+<h3 id="95">9.5 评估与优化</h3>
+<ul>
+<li>条件一致性度量</li>
+<li>多样性与质量权衡</li>
+<li>引导失效的诊断</li>
+<li>实际应用案例</li>
+</ul>
+<h2 id="91_1">9.1 条件扩散模型的基础</h2>
+<h3 id="911">9.1.1 条件分布的数学框架</h3>
+<p>在条件扩散模型中，我们的目标是建模条件分布 $p(\mathbf{x}|\mathbf{c})$ ，其中 $\mathbf{x}$ 是数据（如图像）， $\mathbf{c}$ 是条件信息（如类别标签、文本描述等）。</p>
+<p>条件扩散过程定义为：</p>
+<ul>
+<li><strong>前向过程</strong>： $q(\mathbf{x}_t|\mathbf{x}_{t-1}) = \mathcal{N}(\mathbf{x}_t; \sqrt{1-\beta_t}\mathbf{x}_{t-1}, \beta_t\mathbf{I})$ （与条件无关）</li>
+<li><strong>反向过程</strong>： $p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}) = \mathcal{N}(\mathbf{x}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{x}_t, t, \mathbf{c}), \sigma_t^2\mathbf{I})$</li>
+</ul>
+<p>关键在于如何设计和训练条件去噪网络 $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$ 。</p>
+<h3 id="912">9.1.2 条件信息的注入方式</h3>
+<ol>
+<li><strong>拼接（Concatenation）</strong></li>
+</ol>
+<p>最直接的方式是将条件信息与输入拼接。对于图像条件，可以在通道维度上拼接 $[\mathbf{x}_t, \mathbf{c}_{image}]$ 。对于向量条件，先通过条件编码器得到嵌入 $\mathbf{c}_{embed}$ ，然后扩展到空间维度后拼接。这种方法简单有效，但会增加第一层的参数量。</p>
+<ol start="2">
+<li><strong>自适应归一化（Adaptive Normalization）</strong></li>
+</ol>
+<p>通过条件信息调制归一化参数，包括AdaIN、AdaGN、AdaLN等变体。核心思想是：</p>
+<p>$$\mathbf{h} = \gamma(\mathbf{c}) \odot \text{Normalize}(\mathbf{h}) + \beta(\mathbf{c})$$
+其中 $\gamma$ 和 $\beta$ 是通过MLP从条件嵌入预测得到的缩放和偏移参数。</p>
+<ol start="3">
+<li><strong>交叉注意力（Cross-Attention）</strong></li>
+</ol>
+<p>特别适合序列条件（如文本）。查询（Query）来自图像特征，键（Key）和值（Value）来自文本编码：
+$$\text{Attention}(\mathbf{Q}, \mathbf{K}, \mathbf{V}) = \text{softmax}\left(\frac{\mathbf{Q}\mathbf{K}^T}{\sqrt{d_k}}\right)\mathbf{V}$$
+其中 $\mathbf{Q} = \mathbf{h}_{image}W_Q$ ， $\mathbf{K} = \mathbf{h}_{text}W_K$ ， $\mathbf{V} = \mathbf{h}_{text}W_V$ 。</p>
+<ol start="4">
+<li><strong>特征调制（Feature-wise Modulation）</strong></li>
+</ol>
+<p>FiLM（Feature-wise Linear Modulation）层通过条件信息缩放和偏移特征：
+$$\mathbf{h}_{out} = \gamma(\mathbf{c}) \odot \mathbf{h}_{in} + \beta(\mathbf{c})$$
+这种方法参数效率高，且能有效控制特征的激活模式。</p>
+<p>🔬 <strong>研究线索：最优注入位置</strong><br />
+应该在网络的哪些层注入条件信息？早期层vs后期层？所有层vs特定层？这可能依赖于条件类型和任务。</p>
+<h3 id="913">9.1.3 架构设计原则</h3>
+<ol>
+<li><strong>条件编码器设计</strong></li>
+</ol>
+<p>不同类型的条件需要不同的编码器：</p>
+<ul>
+<li><strong>类别标签</strong>：通过嵌入层映射到高维空间，再经过MLP进一步处理</li>
+<li><strong>文本</strong>：使用预训练语言模型（如CLIP文本编码器、T5编码器）提取语义特征</li>
+<li><strong>图像</strong>：预训练视觉模型（如ResNet、ViT）或专门设计的卷积编码器</li>
+<li><strong>音频</strong>：先转换为频谱图，然后使用专门的时频编码器</li>
+</ul>
+<ol start="2">
+<li><strong>多尺度条件注入</strong></li>
+</ol>
+<p>在U-Net的不同分辨率层级注入条件信息，使得：</p>
+<ul>
+<li>高分辨率层获得细节控制（如纹理、边缘）</li>
+<li>中分辨率层获得结构控制（如物体形状）</li>
+<li>低分辨率层获得语义控制（如整体布局）</li>
+</ul>
+<p>每个下采样块和上采样块都接收条件信息： $\mathbf{h}_i = f_i(\mathbf{h}_{i-1}, t, \mathbf{c})$</p>
+<ol start="3">
+<li><strong>时间-条件交互</strong></li>
+</ol>
+<p>时间步 $t$ 和条件信息 $\mathbf{c}$ 可能需要交互建模。一种常见方法是联合编码：
+$$\mathbf{e}_{joint} = \text{MLP}(\mathbf{e}_t + \mathbf{e}_c)$$
+其中 $\mathbf{e}_t$ 是时间嵌入， $\mathbf{e}_c$ 是条件嵌入。这种交互允许模型根据去噪阶段调整条件的影响方式。</p>
+<h3 id="914">9.1.4 训练策略</h3>
+<ol>
+<li><strong>条件dropout</strong></li>
+</ol>
+<p>随机丢弃条件信息，训练模型同时处理条件和无条件生成。在训练时，以概率 $p_{uncond}$ 将条件 $\mathbf{c}$ 替换为空条件 $\varnothing$ ：
+$$\mathbf{c}_{train} = \begin{cases}
+\mathbf{c} &amp; \text{with probability } 1-p_{uncond} \
+\varnothing &amp; \text{with probability } p_{uncond}
+\end{cases}</p>
+<p>$$
+然后正常计算去噪损失：
+$$\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{train})|^2\right]$$
+这是无分类器引导的基础，使模型能够同时进行条件和无条件生成。</p>
+<ol start="2">
+<li><strong>条件增强</strong></li>
+</ol>
+<p>对条件信息进行数据增强以提高泛化能力：</p>
+<ul>
+<li><strong>文本条件</strong>：同义词替换、句子改写、随机删除/添加修饰词</li>
+<li><strong>图像条件</strong>：几何变换（旋转、缩放）、颜色扰动、随机裁剪</li>
+<li><strong>类别条件</strong>：标签平滑、Mixup混合策略</li>
+</ul>
+<ol start="3">
+<li><strong>多任务学习</strong></li>
+</ol>
+<p>同时训练多种条件类型，总损失为各任务损失的加权和：
+$$\mathcal{L}_{total} = \mathcal{L}_{uncond} + \lambda_1\mathcal{L}_{class} + \lambda_2\mathcal{L}_{text} + \lambda_3\mathcal{L}_{image}$$
+其中 $\lambda_i$ 是各任务的权重系数。</p>
+<p>💡 <strong>实践技巧：条件缩放</strong><br />
+不同条件的强度可能需要不同的缩放。使用可学习的缩放因子： $\mathbf{c}_{scaled} = s_c \cdot \mathbf{c}$ ，其中 $s_c$ 是可学习参数。</p>
+<details>
+<summary>**练习 9.1：实现多模态条件扩散模型**</summary>
+<p>设计一个支持多种条件类型的扩散模型。</p>
+<ol>
+<li>
+<p><strong>基础架构</strong>：
+   - 实现支持类别、文本、图像条件的U-Net
+   - 设计灵活的条件注入机制
+   - 处理条件缺失的情况</p>
+</li>
+<li>
+<p><strong>条件编码器</strong>：
+   - 类别：可学习嵌入
+   - 文本：使用预训练CLIP
+   - 图像：轻量级CNN编码器</p>
+</li>
+<li>
+<p><strong>训练实验</strong>：
+   - 比较不同注入方式的效果
+   - 研究条件dropout率的影响
+   - 测试多条件组合</p>
+</li>
+<li>
+<p><strong>扩展研究</strong>：
+   - 设计条件强度的自适应调整
+   - 实现条件插值
+   - 探索新的条件类型（如草图、深度图）</p>
+</li>
+</ol>
+</details>
+<h3 id="915">9.1.5 条件一致性的理论保证</h3>
+<p><strong>变分下界的条件版本</strong>：
+$$\log p_\theta(\mathbf{x}_0|\mathbf{c}) \geq \mathbb{E}_q\left[\log p_\theta(\mathbf{x}_0|\mathbf{x}_1, \mathbf{c}) - \sum_{t=2}^T D_{KL}(q(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{x}_0) | p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, \mathbf{c}))\right]$$
+这保证了模型学习的是真实的条件分布。</p>
+<p><strong>条件独立性假设</strong>：</p>
+<p>在许多实现中，我们假设：
+$$q(\mathbf{x}_t|\mathbf{x}_0, \mathbf{c}) = q(\mathbf{x}_t|\mathbf{x}_0)$$
+即前向过程与条件无关。这简化了训练但可能限制了模型能力。</p>
+<p>🌟 <strong>开放问题：条件相关的前向过程</strong><br />
+是否可以设计依赖于条件的前向过程？例如，对不同类别使用不同的噪声调度？这可能提供更好的归纳偏置。</p>
+<h3 id="916">9.1.6 实现细节与优化</h3>
+<p><strong>内存优化策略</strong>：</p>
+<ul>
+<li><strong>梯度检查点</strong>：对计算密集但内存占用大的条件块使用 <code>torch.utils.checkpoint</code></li>
+<li><strong>混合精度训练</strong>：条件编码器使用FP16，关键层保持FP32</li>
+<li><strong>动态批处理</strong>：根据条件复杂度动态调整批大小</li>
+</ul>
+<p><strong>计算优化技巧</strong>：</p>
+<ul>
+<li><strong>条件编码缓存</strong>：对于离散条件（如类别），缓存编码结果</li>
+<li><strong>批量编码</strong>：将相同类型的条件批量处理</li>
+<li><strong>编码器共享</strong>：多个条件类型共享底层特征提取器</li>
+</ul>
+<p><strong>数值稳定性保障</strong>：</p>
+<ul>
+<li><strong>条件归一化</strong>： $\mathbf{c}_{encoded} = s \cdot \mathbf{c}_{encoded} / |\mathbf{c}_{encoded}|_2$</li>
+<li><strong>残差缩放</strong>：条件注入时使用小的初始权重</li>
+<li><strong>梯度裁剪</strong>：防止条件相关的梯度爆炸</li>
+</ul>
+<h2 id="92-classifier-guidance_1">9.2 分类器引导（Classifier Guidance）</h2>
+<h3 id="921">9.2.1 理论推导</h3>
+<p>分类器引导的核心思想是使用外部分类器的梯度来引导扩散模型的采样过程。我们从贝叶斯规则开始：
+$$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$$
+第一项是无条件分数，第二项是分类器的梯度。这给出了条件采样的更新规则：
+$$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t) - \sqrt{1 - \bar{\alpha}_t} \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$
+其中 $p_\phi(\mathbf{c}|\mathbf{x}_t)$ 是在噪声数据上训练的分类器。</p>
+<h3 id="922">9.2.2 噪声条件分类器</h3>
+<p>关键挑战是训练一个能在所有噪声水平 $t$ 上工作的分类器。</p>
+<p><strong>训练目标</strong>：
+$$\mathcal{L}_{classifier} = \mathbb{E}_{t \sim \mathcal{U}[1,T], \mathbf{x}_0 \sim p_{data}, \boldsymbol{\epsilon} \sim \mathcal{N}(0,\mathbf{I})} \left[-\log p_\phi(\mathbf{c}|\mathbf{x}_t, t)\right]$$
+其中 $\mathbf{x}_t = \sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}$ 是加噪后的样本。</p>
+<p><strong>分类器架构要求</strong>：</p>
+<ol>
+<li><strong>时间条件</strong>：通过时间嵌入了解当前噪声水平，通常使用正弦编码</li>
+<li><strong>鲁棒性</strong>：在高噪声下仍能提取有用特征，需要强大的特征提取能力</li>
+<li><strong>梯度质量</strong>：提供平滑且有意义的梯度信号用于引导</li>
+</ol>
+<p><strong>架构设计原则</strong>：</p>
+<ul>
+<li>使用与扩散模型相似的骨干网络（如U-Net）</li>
+<li>在多个尺度提取特征以增强鲁棒性</li>
+<li>使用残差连接和归一化层稳定训练</li>
+</ul>
+<h3 id="923">9.2.3 引导强度与采样</h3>
+<p>引导强度 $s$ 控制条件的影响程度：
+$$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t) - s\sqrt{1 - \bar{\alpha}_t} \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$</p>
+<ul>
+<li>$s = 0$ ：无条件生成</li>
+<li>$s = 1$ ：标准条件生成</li>
+<li>$s &gt; 1$ ：强化条件，可能降低多样性</li>
+<li>$s &lt; 0$ ：负向引导，远离条件</li>
+</ul>
+<p><strong>采样算法流程</strong>：</p>
+<ol>
+<li>从标准高斯分布采样初始噪声 $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$</li>
+<li>对于每个时间步 $t = T, T-1, ..., 1$ ：
+   - 使用扩散模型预测无条件噪声： $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)$
+   - 计算分类器对数概率的梯度： $\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+   - 组合得到引导后的噪声预测： $\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$
+   - 执行去噪步骤得到 $\mathbf{x}_{t-1}$</li>
+</ol>
+<p><strong>梯度计算细节</strong>：</p>
+<ul>
+<li>需要对 $\mathbf{x}_t$ 启用梯度计算</li>
+<li>通过自动微分计算分类器输出相对于输入的梯度</li>
+<li>计算完成后关闭梯度计算以节省内存</li>
+</ul>
+<h3 id="924">9.2.4 梯度计算的实践考虑</h3>
+<ol>
+<li><strong>梯度缩放</strong></li>
+</ol>
+<p>不同时间步的梯度量级差异很大，需要自适应缩放。根据噪声水平调整：
+$$\nabla_{scaled} = \frac{1}{\sqrt{1-\bar{\alpha}_t}} \cdot \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t)$$
+这种缩放补偿了不同噪声水平下的信号强度差异。</p>
+<ol start="2">
+<li><strong>梯度裁剪</strong></li>
+</ol>
+<p>防止梯度爆炸，对梯度进行归一化：
+$$\nabla_{clipped} = \frac{\nabla}{\max(1, |\nabla|_2 / \lambda)}$$
+其中 $\lambda$ 是梯度范数的阈值。</p>
+<ol start="3">
+<li><strong>多步梯度累积</strong></li>
+</ol>
+<p>通过对带噪声扰动的输入计算多次梯度并平均，获得更稳定的梯度估计：
+$$\nabla_{stable} = \frac{1}{N} \sum_{i=1}^N \nabla_{\mathbf{x}_t} \log p_\phi(\mathbf{c}|\mathbf{x}_t + \sigma\boldsymbol{\epsilon}_i)$$
+其中 $\boldsymbol{\epsilon}_i \sim \mathcal{N}(0, \mathbf{I})$ ， $\sigma$ 是小的噪声尺度。</p>
+<p>💡 <strong>实践技巧：温度调节</strong><br />
+对分类器输出使用温度缩放可以控制引导的锐度： $p_\phi(\mathbf{c}|\mathbf{x}_t) \propto \exp(\text{logits}/\tau)$ ，其中 $\tau$ 是温度参数。</p>
+<h3 id="925">9.2.5 局限性分析</h3>
+<ol>
+<li>
+<p><strong>需要额外的分类器</strong>
+- 增加训练成本
+- 分类器质量影响生成质量
+- 需要为每个条件类型训练分类器</p>
+</li>
+<li>
+<p><strong>梯度质量问题</strong>
+- 高噪声下梯度可能无意义
+- 对抗样本问题
+- 梯度消失/爆炸</p>
+</li>
+<li>
+<p><strong>模式崩溃风险</strong>
+- 过强的引导导致多样性丧失
+- 生成分布偏离真实分布
+- 难以平衡质量和多样性</p>
+</li>
+<li>
+<p><strong>计算开销</strong>
+- 每步需要额外的前向和反向传播
+- 内存占用增加
+- 采样速度显著降低</p>
+</li>
+</ol>
+<details>
+<summary>**练习 9.2：分析分类器引导的行为**</summary>
+<p>深入研究分类器引导在不同设置下的表现。</p>
+<ol>
+<li>
+<p><strong>引导强度实验</strong>：
+   - 在MNIST上训练扩散模型和分类器
+   - 测试不同引导强度 s ∈ [0, 0.5, 1, 2, 5, 10]
+   - 绘制生成质量vs多样性曲线</p>
+</li>
+<li>
+<p><strong>梯度可视化</strong>：
+   - 可视化不同时间步的分类器梯度
+   - 分析梯度方向的语义含义
+   - 研究梯度范数的变化</p>
+</li>
+<li>
+<p><strong>失效模式分析</strong>：
+   - 识别分类器引导失败的案例
+   - 分析过度引导的表现
+   - 设计改进策略</p>
+</li>
+<li>
+<p><strong>理论拓展</strong>：
+   - 推导最优引导强度的理论
+   - 研究引导对生成分布的影响
+   - 探索自适应引导强度</p>
+</li>
+</ol>
+</details>
+<h3 id="926">9.2.6 改进与变体</h3>
+<ol>
+<li><strong>截断引导</strong></li>
+</ol>
+<p>只在特定时间范围内应用引导，避免在噪声过大或过小时的不良影响：
+$$\tilde{\boldsymbol{\epsilon}} = \begin{cases}
+\boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}\nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t) &amp; \text{if } T_{start} &lt; t &lt; T_{end} \
+\boldsymbol{\epsilon}_\theta &amp; \text{otherwise}
+\end{cases}$$</p>
+<ol start="2">
+<li><strong>局部引导</strong></li>
+</ol>
+<p>使用空间掩码 $\mathbf{M}$ 只对图像的特定区域应用引导：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta - s\sqrt{1-\bar{\alpha}_t}(\mathbf{M} \odot \nabla \log p_\phi(\mathbf{c}|\mathbf{x}_t))$$
+这允许精细的空间控制。</p>
+<ol start="3">
+<li><strong>多分类器集成</strong></li>
+</ol>
+<p>组合多个分类器提供更稳健的引导：
+$$\nabla \log p_{ensemble}(\mathbf{c}|\mathbf{x}_t) = \sum_{i=1}^K w_i \nabla \log p_{\phi_i}(\mathbf{c}|\mathbf{x}_t)$$
+其中 $w_i$ 是各分类器的权重。
+🔬 <strong>研究方向：隐式分类器</strong><br />
+能否从扩散模型本身提取分类器，避免训练额外模型？这涉及到对扩散模型内部表示的深入理解。</p>
+<h3 id="927">9.2.7 与其他方法的联系</h3>
+<p>分类器引导与其他生成模型技术有深刻联系：</p>
+<ol>
+<li>
+<p><strong>与GAN的判别器引导类似</strong>
+- 都使用外部模型提供梯度信号
+- 都面临训练不稳定的问题</p>
+</li>
+<li>
+<p><strong>与能量模型的关系</strong>
+- 分类器定义了能量景观
+- 引导相当于在能量景观上的梯度下降</p>
+</li>
+<li>
+<p><strong>与强化学习的奖励引导</strong>
+- 分类器概率类似奖励信号
+- 可以借鉴RL中的技术（如PPO）</p>
+</li>
+</ol>
+<p>🌟 <strong>未来展望：统一的引导框架</strong><br />
+是否存在一个统一的理论框架，涵盖所有类型的引导？这可能需要从最优控制或变分推断的角度重新思考。</p>
+<h2 id="93-classifier-free-guidance_1">9.3 无分类器引导（Classifier-Free Guidance）</h2>
+<h3 id="931">9.3.1 动机与核心洞察</h3>
+<p>无分类器引导（CFG）解决了分类器引导的主要限制：不需要训练额外的分类器。核心思想是同时训练条件和无条件扩散模型，然后在采样时组合它们的预测。</p>
+<p>基本原理基于：
+$$\nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) = \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t) + \nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$$
+CFG通过隐式估计 $\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t)$ ：
+$$\nabla_{\mathbf{x}_t} \log p(\mathbf{c}|\mathbf{x}_t) \approx \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t|\mathbf{c}) - \nabla_{\mathbf{x}_t} \log p(\mathbf{x}_t)$$</p>
+<h3 id="932-dropout">9.3.2 训练策略：条件Dropout</h3>
+<p>关键创新是在训练时随机丢弃条件。具体过程：</p>
+<ol>
+<li>对于每个训练样本，以概率 $p_{uncond}$ 将条件替换为空条件 $\varnothing$</li>
+<li>使用修改后的条件进行标准扩散模型训练</li>
+<li>损失函数保持不变： $\mathcal{L} = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}[|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{masked})|^2]$</li>
+</ol>
+<p>其中：
+$$\mathbf{c}_{masked} = \begin{cases}
+\mathbf{c} &amp; \text{with probability } 1-p_{uncond} \
+\varnothing &amp; \text{with probability } p_{uncond}
+\end{cases}$$
+这使得单个模型能够同时学习条件分布 $p(\mathbf{x}|\mathbf{c})$ 和边缘分布 $p(\mathbf{x})$ 。</p>
+<p><strong>空条件的表示</strong>：</p>
+<ul>
+<li>对于文本条件：使用空字符串或特殊的 <code>[NULL]</code> token</li>
+<li>对于类别条件：使用额外的"无条件"类别</li>
+<li>对于图像条件：使用零张量或学习的空嵌入</li>
+</ul>
+<h3 id="933">9.3.3 采样公式</h3>
+<p>CFG的采样公式：
+$$\tilde{\boldsymbol{\epsilon}}_\theta(\mathbf{x}_t, t, \mathbf{c}) = (1 + w)\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - w\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$$
+其中：</p>
+<ul>
+<li>$w$ ：引导权重（guidance weight）</li>
+<li>$\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c})$ ：条件预测</li>
+<li>$\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)$ ：无条件预测</li>
+</ul>
+<p>这可以重写为：
+$$\tilde{\boldsymbol{\epsilon}}_\theta = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+显示了从无条件预测出发，朝条件方向移动的解释。</p>
+<h3 id="934">9.3.4 实现细节</h3>
+<p><strong>高效采样策略</strong>：</p>
+<p>为了避免两次独立的模型前向传播，可以批量处理条件和无条件预测：</p>
+<ol>
+<li>将输入 $\mathbf{x}_t$ 复制一份： $[\mathbf{x}_t, \mathbf{x}_t]$</li>
+<li>准备条件批次： $[\mathbf{c}, \varnothing]$</li>
+<li>单次前向传播得到： $[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}), \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$</li>
+<li>应用CFG公式组合预测</li>
+</ol>
+<p><strong>内存优化</strong>：</p>
+<ul>
+<li>对于大模型，可以顺序计算条件和无条件预测</li>
+<li>使用梯度检查点减少激活内存</li>
+<li>在低精度（FP16）下运行推理
+<strong>采样算法完整流程</strong>：</li>
+</ul>
+<ol>
+<li>初始化： $\mathbf{x}_T \sim \mathcal{N}(0, \mathbf{I})$</li>
+<li>对每个时间步 $t = T, T-1, ..., 1$ ：
+   - 计算条件和无条件预测
+   - 应用CFG公式： $\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$
+   - 执行采样步骤（DDPM或DDIM）</li>
+</ol>
+<h3 id="935">9.3.5 引导权重的选择</h3>
+<p>不同的 $w$ 值产生不同效果：</p>
+<p>| $w$ 值 | 效果 | 典型应用 |</p>
+<table>
+<thead>
+<tr>
+<th>$w$ 值</th>
+<th>效果</th>
+<th>典型应用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>无条件生成</td>
+<td>测试基线</td>
+</tr>
+<tr>
+<td>1</td>
+<td>标准条件生成</td>
+<td>保守生成</td>
+</tr>
+<tr>
+<td>3-5</td>
+<td>轻度引导</td>
+<td>平衡质量</td>
+</tr>
+<tr>
+<td>7.5</td>
+<td>标准引导</td>
+<td>默认设置</td>
+</tr>
+<tr>
+<td>10-20</td>
+<td>强引导</td>
+<td>高保真度</td>
+</tr>
+<tr>
+<td>&gt;20</td>
+<td>极端引导</td>
+<td>可能过饱和</td>
+</tr>
+</tbody>
+</table>
+<p><strong>动态引导调度</strong>：</p>
+<p>可以使用时变的引导权重，例如线性插值：
+$$w(t) = w_{start} \cdot (1 - t/T) + w_{end} \cdot (t/T)$$
+其中早期使用较强的引导（ $w_{start}$ 较大），后期逐渐减弱（ $w_{end}$ 较小），帮助模型在保持条件忠实度的同时提高细节质量。</p>
+<p>💡 <strong>实践洞察：引导权重与条件类型</strong><br />
+不同条件类型需要不同的引导强度。文本条件通常需要 w=7.5，而类别条件可能只需要 w=3。</p>
+<h3 id="936">9.3.6 理论分析</h3>
+<ol>
+<li><strong>为什么CFG有效？</strong></li>
+</ol>
+<p>CFG隐式地增强了条件的对数似然：
+$$\log \tilde{p}(\mathbf{x}|\mathbf{c}) = \log p(\mathbf{x}|\mathbf{c}) + w\log p(\mathbf{c}|\mathbf{x})$$
+这相当于在采样时重新加权条件的重要性。</p>
+<ol start="2">
+<li><strong>与变分推断的联系</strong></li>
+</ol>
+<p>CFG可以视为变分推断中的重要性加权：</p>
+<ul>
+<li>提高高条件似然区域的采样概率</li>
+<li>减少低条件似然区域的采样概率</li>
+</ul>
+<ol start="3">
+<li><strong>几何解释</strong></li>
+</ol>
+<p>在噪声预测空间中，CFG执行外推：</p>
+<ul>
+<li>从无条件预测出发</li>
+<li>沿着指向条件预测的方向移动</li>
+<li>可能超越条件预测（当 $w &gt; 1$ ）</li>
+</ul>
+<details>
+<summary>**练习 9.3：CFG的深入分析**</summary>
+<p>探索CFG的各种特性和改进方法。</p>
+<ol>
+<li>
+<p><strong>引导权重调度</strong>：
+   - 实现线性、余弦、指数调度
+   - 比较不同调度对生成质量的影响
+   - 找出最优的调度策略</p>
+</li>
+<li>
+<p><strong>条件dropout率研究</strong>：
+   - 测试 p_uncond ∈ [0.05, 0.1, 0.2, 0.5]
+   - 分析对模型泛化的影响
+   - 研究与引导权重的交互</p>
+</li>
+<li>
+<p><strong>多条件CFG</strong>：
+   - 实现支持多个条件的CFG
+   - 设计条件权重分配策略
+   - 处理条件冲突</p>
+</li>
+<li>
+<p><strong>理论扩展</strong>：
+   - 推导CFG的最优引导权重
+   - 分析CFG对生成分布的影响
+   - 研究CFG与其他采样方法的组合</p>
+</li>
+</ol>
+</details>
+<h3 id="937">9.3.7 高级技巧</h3>
+<ol>
+<li><strong>负向提示（Negative Prompting）</strong></li>
+</ol>
+<p>使用负条件来避免特定内容的生成。组合公式为：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg} [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+其中 $\mathbf{c}_{pos}$ 是期望的条件， $\mathbf{c}_{neg}$ 是要避免的条件， $w_{pos}$ 和 $w_{neg}$ 分别控制正向和负向引导的强度。</p>
+<ol start="2">
+<li><strong>多尺度引导</strong></li>
+</ol>
+<p>在不同时间步使用不同的引导策略。例如：</p>
+<ul>
+<li>早期阶段（ $t &gt; 0.8T$ ）：使用强语义引导（ $w=10$ ），确保整体结构正确</li>
+<li>中期阶段（ $0.3T &lt; t \leq 0.8T$ ）：使用平衡引导（ $w=7.5$ ）</li>
+<li>后期阶段（ $t \leq 0.3T$ ）：使用较弱引导（ $w=3$ ），保留细节多样性</li>
+</ul>
+<ol start="3">
+<li><strong>自适应CFG</strong></li>
+</ol>
+<p>根据预测的不确定性调整引导强度。一种方法是基于条件和无条件预测的差异：
+$$w_{adaptive} = w_{base} \cdot \exp(-\alpha \cdot ||\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)||)$$
+当预测差异较大时，说明模型对条件的理解存在不确定性，此时减小引导权重可以避免过度放大误差。</p>
+<p>🔬 <strong>研究方向：理论最优的引导</strong><br />
+当前的线性组合是否是最优的？是否存在非线性的组合方式能产生更好的结果？这需要从信息论角度深入分析。</p>
+<h3 id="938-cfg">9.3.8 CFG的优势与局限</h3>
+<p><strong>优势</strong>：</p>
+<ol>
+<li><strong>简洁性</strong>：不需要额外模型</li>
+<li><strong>灵活性</strong>：易于调整引导强度</li>
+<li><strong>通用性</strong>：适用于任何条件类型</li>
+<li><strong>效果好</strong>：实践中表现优异</li>
+</ol>
+<p><strong>局限</strong>：</p>
+<ol>
+<li><strong>计算开销</strong>：需要两次前向传播</li>
+<li><strong>训练要求</strong>：需要条件dropout</li>
+<li><strong>分布偏移</strong>：强引导可能导致分布偏离</li>
+<li><strong>模式丢失</strong>：可能降低多样性</li>
+</ol>
+<h3 id="939">9.3.9 与其他方法的比较</h3>
+<p>| 方法 | 额外模型 | 计算成本 | 灵活性 | 效果 |</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>额外模型</th>
+<th>计算成本</th>
+<th>灵活性</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分类器引导</td>
+<td>需要</td>
+<td>高（梯度）</td>
+<td>中</td>
+<td>好</td>
+</tr>
+<tr>
+<td>CFG</td>
+<td>不需要</td>
+<td>中（2x前向）</td>
+<td>高</td>
+<td>很好</td>
+</tr>
+<tr>
+<td>原始条件</td>
+<td>不需要</td>
+<td>低</td>
+<td>低</td>
+<td>一般</td>
+</tr>
+</tbody>
+</table>
+<p>🌟 <strong>未来趋势：统一引导理论</strong><br />
+CFG的成功启发了许多后续工作。未来可能出现统一的引导理论，涵盖所有条件生成方法，并提供最优引导策略的理论保证。</p>
+<h2 id="94_1">9.4 高级引导技术</h2>
+<h3 id="941">9.4.1 多条件组合</h3>
+<p>现实应用中常需要同时满足多个条件。多条件组合的关键是如何平衡不同条件的影响。</p>
+<ol>
+<li><strong>线性组合</strong></li>
+</ol>
+<p>最简单的方法是对多个条件进行线性加权：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + \sum_{i=1}^{n} w_i [\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_i) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+其中 $\mathbf{c}_i$ 是第 $i$ 个条件， $w_i$ 是对应的权重。权重需要满足 $\sum_i w_i = 1$ 以保持引导的整体强度。</p>
+<ol start="2">
+<li><strong>层次化条件</strong></li>
+</ol>
+<p>不同条件在不同尺度起作用。层次化条件策略可以将条件分为：</p>
+<ul>
+<li>全局条件：影响整体结构和布局</li>
+<li>局部条件：影响细节和纹理</li>
+</ul>
+<p>在早期阶段（ $t &gt; 0.5T$ ）应用全局条件，后期阶段（ $t \leq 0.5T$ ）应用局部条件。这种方法可以确保先建立正确的整体结构，再添加细节。</p>
+<ol start="3">
+<li><strong>条件图结构</strong></li>
+</ol>
+<p>使用图结构定义条件之间的依赖关系。每个条件节点可以有父节点，其影响传播遵循拓扑排序。这样可以实现复杂的条件依赖，如：“如果有人物，则添加背景”或“风格受主题影响”等。</p>
+<h3 id="942">9.4.2 负向提示技术</h3>
+<p>负向提示（Negative Prompting）是避免特定内容的强大工具。</p>
+<ol>
+<li><strong>基础负向提示</strong></li>
+</ol>
+<p>组合正向和负向条件的公式：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - w_{neg}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+这个公式使得生成朝着正向条件移动，同时远离负向条件。</p>
+<ol start="2">
+<li><strong>多负向提示</strong></li>
+</ol>
+<p>当需要避免多个不希望的属性时，可以使用多负向提示：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing) + w_{pos}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{pos}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)] - \sum_{i=1}^{n} w_{neg,i}[\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{c}_{neg,i}) - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \varnothing)]$$
+每个负向条件可以有不同的权重 $w_{neg,i}$ 。</p>
+<ol start="3">
+<li><strong>自适应负向强度</strong></li>
+</ol>
+<p>根据正负向条件的相似度调整负向强度：
+$$w_{neg} = w_{neg,base} \cdot (1 + \alpha \cdot \text{sim}(\mathbf{c}_{pos}, \mathbf{c}_{neg}))$$
+其中 $\text{sim}(\cdot,\cdot)$ 是余弦相似度。当正负向条件相似度高时（如“高质量”与“低质量”），增强负向强度更有必要。</p>
+<p>💡 <strong>实践技巧：负向提示的艺术</strong><br />
+好的负向提示应该具体但不过于限制。例如，"低质量"比"模糊"更通用，"过度饱和"比"太亮"更精确。</p>
+<h3 id="943">9.4.3 动态引导强度</h3>
+<p>固定的引导强度可能不是最优的。动态调整可以获得更好的结果。</p>
+<ol>
+<li><strong>时间相关的引导</strong></li>
+</ol>
+<p>使用余弦调度的引导权重：
+$$w(t) = w_{min} + (w_{max} - w_{min}) \cdot \frac{1 + \cos(\pi \cdot t/T)}{2}$$
+这种调度在初期和末期使用较弱的引导，中期使用较强的引导，形成平滑的过渡。</p>
+<ol start="2">
+<li><strong>内容相关的引导</strong></li>
+</ol>
+<p>基于当前生成内容与条件的对齐度调整引导强度。可以提取中间特征并计算与条件的对齐分数：
+$$w = \begin{cases}
+w_{strong} &amp; \text{if } \text{alignment}(\mathbf{x}_t, \mathbf{c}) &lt; \tau \
+w_{normal} &amp; \text{otherwise}
+\end{cases}$$
+其中 $\tau$ 是对齐阈值。</p>
+<ol start="3">
+<li><strong>不确定性相关的引导</strong></li>
+</ol>
+<p>通过多次采样估计模型预测的不确定性，并据此调整引导强度。当不确定性高时，减小引导强度以避免放大误差。
+    for _ in range(n_samples):
+        noise = model(x_t + small_noise(), t, c)
+        predictions.append(noise)</p>
+<div class="codehilite"><pre><span></span><code><span class="gh">#</span> 高不确定性时增强引导
+uncertainty = torch.stack(predictions).std(0).mean()
+w = w_base <span class="gs">* (1 + beta *</span> uncertainty)
+return w
+</code></pre></div>
+
+<p>```</p>
+<h3 id="944-controlnet">9.4.4 ControlNet与适配器方法</h3>
+<p>ControlNet提供了精确的空间控制，通过额外的条件输入（如边缘图、深度图）引导生成。</p>
+<ol>
+<li><strong>ControlNet基础架构</strong></li>
+</ol>
+<p>ControlNet通过复制基础模型的编码器结构，并使用零初始化的投影层将控制信号注入到基础模型中。关键设计点：</p>
+<ul>
+<li>控制编码器：复制基础模型的编码器权重</li>
+<li>零卷积：使用零初始化的卷积层确保训练初期不影响基础模型</li>
+<li>特征注入：在多个层级将控制特征添加到基础特征中</li>
+</ul>
+<ol start="2">
+<li><strong>多控制组合</strong></li>
+</ol>
+<p>同时使用多个控制信号（如深度图、边缘图、姿态图）时，可以通过加权组合各个控制网络的输出：
+$$\tilde{\boldsymbol{\epsilon}} = \boldsymbol{\epsilon}_{text} + \sum_{i} w_i \cdot \boldsymbol{\epsilon}_{control_i}$$
+其中 $\boldsymbol{\epsilon}_{text}$ 是文本引导的预测， $\boldsymbol{\epsilon}_{control_i}$ 是第 $i$ 个控制网络的输出， $w_i$ 是对应的权重。</p>
+<ol start="3">
+<li><strong>适配器方法</strong></li>
+</ol>
+<p>适配器（Adapter）是一种轻量级的条件注入方法，使用下投影-激活-上投影的结构：
+$$\mathbf{h} = \mathbf{x} + \text{UP}(\text{GELU}(\text{DOWN}(\mathbf{c})))$$
+其中：</p>
+<ul>
+<li>$\text{DOWN}$ ：降维投影， $\mathbb{R}^{d} \to \mathbb{R}^{d'}$ ， $d' &lt; d$</li>
+<li>$\text{UP}$ ：升维投影， $\mathbb{R}^{d'} \to \mathbb{R}^{d}$ ，零初始化</li>
+<li>$\text{GELU}$ ：非线性激活函数</li>
+</ul>
+<p>这种设计保持了参数效率，同时通过零初始化确保训练稳定性。</p>
+<details>
+<summary>**练习 9.4：设计复杂的引导系统**</summary>
+<p>构建一个支持多种高级引导技术的系统。</p>
+<ol>
+<li>
+<p><strong>组合引导器</strong>：
+   - 实现支持文本、图像、布局的多模态引导
+   - 设计条件优先级系统
+   - 处理条件冲突</p>
+</li>
+<li>
+<p><strong>动态调度器</strong>：
+   - 实现基于生成进度的引导调度
+   - 根据生成质量自适应调整
+   - 设计早停机制</p>
+</li>
+<li>
+<p><strong>控制网络集成</strong>：
+   - 实现简化版ControlNet
+   - 支持边缘、深度、分割图控制
+   - 设计控制强度的自动调整</p>
+</li>
+<li>
+<p><strong>评估系统</strong>：
+   - 设计条件一致性度量
+   - 实现多样性评估
+   - 构建自动化测试框架</p>
+</li>
+</ol>
+</details>
+<h3 id="945">9.4.5 引导技术的组合策略</h3>
+<ol>
+<li><strong>级联引导</strong></li>
+</ol>
+<p>级联引导通过逐步应用不同的条件来细化生成结果。每个阶段应用一个条件，并可选择地在阶段之间执行部分去噪：
+$$\mathbf{x}^{(i+1)} = \text{ApplyGuidance}(\mathbf{x}^{(i)}, t, \mathbf{c}_i, w_i)$$
+这种方法特别适合处理层次化的条件，如先应用全局布局条件，再应用局部细节条件。</p>
+<ol start="2">
+<li><strong>注意力引导的引导</strong></li>
+</ol>
+<p>使用模型内部的注意力图来调制引导强度。在注意力集中的区域使用更强的引导，在其他区域保持较弱的引导，以保护细节和多样性。</p>
+<p>实现步骤：</p>
+<ol>
+<li>首先计算无条件噪声预测，使用空条件token</li>
+<li>提取模型的交叉注意力图，这些图显示了模型对条件的关注程度</li>
+<li>基于注意力图计算空间变化的引导权重，高注意力区域获得更高权重</li>
+<li>将条件和无条件预测按空间权重进行加权组合</li>
+</ol>
+<p>这种方法的优势在于能够自适应地调整不同区域的引导强度，既保证了条件相关区域的准确生成，又保护了背景区域的自然多样性。</p>
+<ol start="3">
+<li><strong>元引导</strong></li>
+</ol>
+<p>元引导是一种高级技术，使用学习的模型来预测最优引导策略：</p>
+<ul>
+<li><strong>引导预测器</strong>：一个神经网络，根据当前状态预测最佳引导参数</li>
+<li><strong>上下文意识</strong>：根据不同的生成上下文调整引导策略</li>
+<li><strong>动态适应</strong>：在生成过程中实时调整引导参数</li>
+</ul>
+<p>元引导器的训练需要大量的（状态，最优引导参数）对。可以通过网格搜索或贝叶斯优化在验证集上找到最优参数，然后训练一个回归模型来预测这些参数。输入特征包括：</p>
+<ul>
+<li>当前时间步 $t$</li>
+<li>条件嵌入的统计量（均值、方差）</li>
+<li>当前噪声预测的不确定性</li>
+<li>历史引导效果的反馈</li>
+</ul>
+<p>这种方法的优势是能够自动适应不同的生成场景，无需手动调参。</p>
+<p>🔬 <strong>研究前沿：可学习的引导</strong><br />
+能否训练一个网络来学习最优的引导策略？这可能需要元学习或强化学习方法。</p>
+<h3 id="946">9.4.6 实际应用中的权衡</h3>
+<p><strong>质量 vs 多样性</strong>：</p>
+<ul>
+<li>强引导提高质量但降低多样性</li>
+<li>需要根据应用场景平衡</li>
+</ul>
+<p><strong>计算成本</strong>：</p>
+<ul>
+<li>多条件组合增加推理时间</li>
+<li>ControlNet需要额外内存</li>
+<li>需要考虑部署限制</li>
+</ul>
+<p><strong>用户体验</strong>：</p>
+<ul>
+<li>过多的控制选项可能困扰用户</li>
+<li>需要合理的默认值</li>
+<li>提供预设模板</li>
+</ul>
+<p>🌟 <strong>最佳实践：渐进式复杂度</strong><br />
+为用户提供分层的控制：基础用户使用简单文本，高级用户可以访问所有控制选项。</p>
+<h2 id="95_1">9.5 评估与优化</h2>
+<h3 id="951">9.5.1 条件一致性度量</h3>
+<p>评估生成内容与条件的匹配程度是关键挑战。</p>
+<ol>
+<li><strong>分类准确率</strong></li>
+</ol>
+<p>对于类别条件，可以使用预训练的分类器评估生成图像的类别一致性：
+$$\text{Accuracy} = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\arg\max_j p(y_j|\mathbf{x}_i) = c_i]$$
+其中 $p(y_j|\mathbf{x}_i)$ 是分类器对生成图像 $\mathbf{x}_i$ 的预测概率， $c_i$ 是目标类别。</p>
+<ol start="2">
+<li><strong>CLIP Score</strong></li>
+</ol>
+<p>对于文本条件，使用CLIP模型计算图像-文本的对齐度：
+$$\text{CLIP Score} = \mathbb{E}[\cos(\mathbf{f}_I(\mathbf{x}), \mathbf{f}_T(\mathbf{c}))]$$
+其中 $\mathbf{f}_I$ 和 $\mathbf{f}_T$ 分别是CLIP的图像和文本编码器， $\cos(\cdot,\cdot)$ 是余弦相似度。更高的CLIP分数表示更好的图像-文本对齐。</p>
+<ol start="3">
+<li><strong>结构相似度</strong></li>
+</ol>
+<p>对于空间控制（如ControlNet），可以使用结构相似性指标（SSIM）或边缘检测来评估：
+$$\text{SSIM} = \frac{(2\mu_x\mu_y + c_1)(2\sigma_{xy} + c_2)}{(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)}$$
+其中 $\mu$ 是均值， $\sigma$ 是标准差， $\sigma_{xy}$ 是协方差， $c_1, c_2$ 是稳定常数。</p>
+<ol start="4">
+<li><strong>语义一致性</strong></li>
+</ol>
+<p>使用预训练模型评估语义对齐。通过提取图像和条件的语义特征，计算它们之间的距离：
+$$\text{Semantic Consistency} = \frac{1}{1 + d(\mathbf{s}_I, \mathbf{s}_C)}$$
+其中 $\mathbf{s}_I$ 是图像的语义特征， $\mathbf{s}_C$ 是条件的语义特征， $d(\cdot,\cdot)$ 是距离度量（如L2距离）。</p>
+<h3 id="952">9.5.2 多样性与质量权衡</h3>
+<ol>
+<li><strong>多样性度量</strong></li>
+</ol>
+<p>评估生成样本的多样性可以使用多种指标：</p>
+<ul>
+<li><strong>特征空间多样性</strong>：计算生成样本在特征空间中的方差</li>
+<li><strong>成对距离</strong>：计算所有样本对之间的平均距离</li>
+<li><strong>覆盖度</strong>：评估生成分布对参考分布的覆盖程度</li>
+</ul>
+<ol start="2">
+<li><strong>质量-多样性前沿</strong></li>
+</ol>
+<p>通过测试不同的引导权重，可以绘制质量-多样性的权衡曲线。通常：</p>
+<ul>
+<li>低引导权重：高多样性、低质量</li>
+<li>高引导权重：低多样性、高质量</li>
+<li>最佳点：在两者之间找到平衡</li>
+</ul>
+<ol start="3">
+<li><strong>自动权衡选择</strong></li>
+</ol>
+<p>可以基于历史数据拟合质量和多样性与引导权重的关系，然后根据目标质量和多样性自动选择最佳引导权重：
+$$w^* = \arg\min_w |Q(w) - Q_{target}| + |D(w) - D_{target}|$$</p>
+<p>其中 $Q(w)$ 和 $D(w)$ 分别是质量和多样性关于引导权重的函数。</p>
+<h3 id="953">9.5.3 引导失效的诊断</h3>
+<ol>
+<li><strong>常见失效模式</strong></li>
+</ol>
+<p>条件引导可能出现的失效模式包括：</p>
+<ul>
+<li><strong>过度引导</strong>：生成结果过于饫和或失真</li>
+<li><strong>引导不足</strong>：条件与生成内容不匹配</li>
+<li><strong>模式崩塌</strong>：所有生成结果趋同</li>
+<li><strong>语义漂移</strong>：生成过程中偏离原始条件</li>
+</ul>
+<p>可以设计一个诊断系统来自动检测这些失效模式。</p>
+<ol start="2">
+<li><strong>过度引导检测</strong></li>
+</ol>
+<p>检测过度引导的指标包括：</p>
+<ul>
+<li><strong>饱和度异常</strong>：检查图像的颜色饱和度是否过高</li>
+<li><strong>多样性下降</strong>：评估多个生成样本之间的差异是否过小</li>
+<li><strong>细节丢失</strong>：检查高频信息是否被过度平滑</li>
+</ul>
+<ol start="3">
+<li><strong>语义漂移检测</strong></li>
+</ol>
+<p>语义漂移是指生成过程中逐渐偏离原始条件语义的现象。检测方法包括：</p>
+<p><strong>轨迹分析</strong>：</p>
+<ul>
+<li>在每个时间步 $t$ 提取中间状态 $\mathbf{x}_t$ 的语义特征</li>
+<li>使用预训练的CLIP或其他语义编码器计算特征 $\mathbf{f}_t = \text{Encoder}(\mathbf{x}_t)$</li>
+<li>计算与目标条件的语义距离： $d_t = ||\mathbf{f}_t - \mathbf{f}_{target}||_2$</li>
+<li>如果 $d_t$ 随时间增加而不是减少，则检测到语义漂移</li>
+</ul>
+<p><strong>一致性评分</strong>：</p>
+<ul>
+<li>定义语义一致性分数： $S_t = \cos(\mathbf{f}_t, \mathbf{f}_{target})$</li>
+<li>计算一致性分数的变化率： $\Delta S = S_t - S_{t-1}$</li>
+<li>如果连续多个步骤 $\Delta S &lt; 0$ ，表明存在语义漂移</li>
+</ul>
+<p><strong>早期干预策略</strong>：</p>
+<ul>
+<li>当检测到漂移时，可以增强引导强度： $w_{corrected} = w \cdot (1 + \alpha \cdot (1 - S_t))$</li>
+<li>或者回退到之前的状态并使用不同的采样策略</li>
+<li>在严重漂移时，可以重新初始化部分区域</li>
+</ul>
+<p>💡 <strong>调试技巧：可视化中间结果</strong><br />
+保存并可视化不同时间步的中间结果，可以帮助识别引导在哪个阶段失效。</p>
+<h3 id="954">9.5.4 实际应用案例</h3>
+<ol>
+<li><strong>文本到图像生成</strong></li>
+</ol>
+<p>完整的文本到图像生成管道包含以下关键步骤：</p>
+<p><strong>文本编码阶段</strong>：</p>
+<ul>
+<li>使用预训练的文本编码器（如CLIP文本编码器或T5）将输入文本转换为嵌入向量</li>
+<li>对于长文本，可能需要分词、截断或使用滑动窗口策略</li>
+<li>文本嵌入通常经过额外的投影层以匹配扩散模型的维度</li>
+</ul>
+<p><strong>条件注入策略</strong>：</p>
+<ul>
+<li>在U-Net的多个层级通过交叉注意力机制注入文本条件</li>
+<li>时间嵌入与文本嵌入可以联合处理： $\mathbf{e}_{combined} = \text{MLP}([\mathbf{e}_{time}, \mathbf{e}_{text}])$</li>
+<li>使用层归一化和dropout防止过拟合</li>
+</ul>
+<p><strong>采样过程优化</strong>：</p>
+<ul>
+<li>典型使用CFG权重 $w=7.5$ 作为默认值</li>
+<li>可以使用动态CFG调度，早期阶段使用较高权重确保语义一致</li>
+<li>DDIM采样器通常用于加速，50步即可获得高质量结果</li>
+</ul>
+<p><strong>质量增强技术</strong>：</p>
+<ul>
+<li>负向提示用于避免常见的质量问题（如"模糊"、"低质量"）</li>
+<li>可以使用多阶段生成：先生成低分辨率，再使用超分辨率模型</li>
+<li>后处理步骤如色彩校正、锐化可以进一步提升视觉质量</li>
+</ul>
+<ol start="2">
+<li><strong>图像编辑</strong></li>
+</ol>
+<p>图像编辑管道的关键组件：</p>
+<ul>
+<li><strong>控制信号提取</strong>：从原始图像中提取结构信息（如边缘、深度）</li>
+<li><strong>编辑指令编码</strong>：将文本编辑指令转换为条件向量</li>
+<li><strong>局部/全局编辑</strong>：根据是否有掩码选择编辑模式</li>
+<li><strong>条件生成</strong>：结合ControlNet保持结构一致性</li>
+</ul>
+<ol start="3">
+<li><strong>多模态生成</strong></li>
+</ol>
+<p>多模态生成系统的核心要素：</p>
+<ul>
+<li><strong>模态编码器</strong>：每个模态（文本、音频、草图等）需要专门的编码器</li>
+<li><strong>跨模态融合</strong>：将不同模态的条件融合成统一表示</li>
+<li><strong>权重分配</strong>：不同模态可能需要不同的影响权重</li>
+<li><strong>一致性保持</strong>：确保多个模态条件不会产生冲突</li>
+</ul>
+<details>
+<summary>**综合练习：构建生产级条件生成系统**</summary>
+<p>设计并实现一个完整的条件生成系统。</p>
+<ol>
+<li>
+<p><strong>系统架构</strong>：
+   - 模块化设计，支持插件式扩展
+   - 统一的API接口
+   - 错误处理和恢复机制</p>
+</li>
+<li>
+<p><strong>功能实现</strong>：
+   - 支持多种条件类型
+   - 自动参数优化
+   - 批处理和流式处理</p>
+</li>
+<li>
+<p><strong>性能优化</strong>：
+   - 模型量化和剪枝
+   - 缓存机制
+   - 并行化策略</p>
+</li>
+<li>
+<p><strong>监控与评估</strong>：
+   - 实时质量监控
+   - A/B测试框架
+   - 用户反馈集成</p>
+</li>
+<li>
+<p><strong>部署考虑</strong>：
+   - 容器化部署
+   - 负载均衡
+   - 版本管理</p>
+</li>
+</ol>
+</details>
+<h3 id="955">9.5.5 优化策略总结</h3>
+<p><strong>训练阶段优化</strong>：</p>
+<ol>
+<li>合理的条件dropout率（通常0.1）</li>
+<li>多任务学习平衡</li>
+<li>数据增强策略</li>
+<li>课程学习（从简单到复杂）</li>
+</ol>
+<p><strong>推理阶段优化</strong>：</p>
+<ol>
+<li>引导权重的自适应调整</li>
+<li>提前停止策略</li>
+<li>批处理优化</li>
+<li>结果缓存</li>
+</ol>
+<p><strong>系统级优化</strong>：</p>
+<ol>
+<li>模型蒸馏</li>
+<li>量化感知训练</li>
+<li>硬件加速（GPU/TPU优化）</li>
+<li>分布式推理</li>
+</ol>
+<h3 id="956">9.5.6 未来发展方向</h3>
+<ol>
+<li>
+<p><strong>自适应引导</strong>
+- 基于内容的动态调整
+- 学习型引导策略
+- 用户偏好建模</p>
+</li>
+<li>
+<p><strong>统一框架</strong>
+- 多种引导方法的统一理论
+- 可组合的引导模块
+- 标准化评估体系</p>
+</li>
+<li>
+<p><strong>效率提升</strong>
+- 一次前向传播的引导
+- 轻量级引导网络
+- 边缘设备部署</p>
+</li>
+</ol>
+<p>🌟 <strong>展望：智能引导系统</strong><br />
+未来的条件生成系统将更加智能，能够理解用户意图，自动选择最优引导策略，并在生成过程中动态调整，实现真正的"所想即所得"。</p>
+<h2 id="_2">本章小结</h2>
+<p>本章深入探讨了扩散模型的条件生成与引导技术，从基础的条件信息注入到高级的ControlNet方法。我们学习了：</p>
+<ul>
+<li><strong>条件扩散模型的基础</strong>：各种条件注入方式和架构设计</li>
+<li><strong>分类器引导</strong>：使用外部分类器梯度的经典方法</li>
+<li><strong>无分类器引导</strong>：简洁高效的CFG技术</li>
+<li><strong>高级引导技术</strong>：多条件组合、负向提示、动态引导等</li>
+<li><strong>评估与优化</strong>：全面的评估体系和优化策略</li>
+</ul>
+<p>这些技术使扩散模型从随机生成工具转变为精确可控的创作系统。下一章，我们将探讨潜在扩散模型，学习如何在压缩的潜在空间中高效地进行扩散建模。</p>
+<p><a href="index.html">← 返回目录</a> | 第9章 / 共14章 | <a href="chapter10.html">下一章 →</a></p>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter8.html" class="nav-link prev">← 第8章：采样算法与加速技术</a><a href="./chapter10.html" class="nav-link next">第10章：潜在扩散模型 (LDM) →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

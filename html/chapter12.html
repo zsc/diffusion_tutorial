@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第12章：文本扩散模型</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class="active"><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="index.html">← 返回目录</a> | 第12章 / 共14章 | <a href="chapter13.html">下一章 →</a></p>
+<h1 id="12">第12章：文本扩散模型</h1>
+<p>文本生成是扩散模型面临的独特挑战。与连续的图像空间不同，文本是离散的符号序列，这给扩散过程的设计带来了根本性的困难。本章将深入探讨如何将扩散模型的强大能力扩展到文本领域，包括处理离散状态空间的D3PM方法和在连续嵌入空间工作的Diffusion-LM。您将学习文本扩散的核心技术，理解离散与连续方法的权衡，掌握设计文本生成系统的关键原理。通过本章的学习，您将能够构建可控、高质量的文本生成模型，并理解其与自回归模型的本质区别。</p>
+<h2 id="_1">章节大纲</h2>
+<h3 id="121">12.1 文本扩散的独特挑战</h3>
+<ul>
+<li>离散性与连续性的鸿沟</li>
+<li>语言的结构约束</li>
+<li>评估指标的复杂性</li>
+<li>与自回归模型的比较</li>
+</ul>
+<h3 id="122-d3pm">12.2 离散扩散模型（D3PM）</h3>
+<ul>
+<li>离散状态空间的马尔可夫链</li>
+<li>转移矩阵的设计</li>
+<li>吸收态与均匀分布</li>
+<li>训练与采样算法</li>
+</ul>
+<h3 id="123">12.3 连续嵌入空间扩散</h3>
+<ul>
+<li>Diffusion-LM的核心思想</li>
+<li>嵌入与重建的挑战</li>
+<li>舍入策略与梯度估计</li>
+<li>语义保持的技巧</li>
+</ul>
+<h3 id="124">12.4 架构设计与条件控制</h3>
+<ul>
+<li>Transformer在文本扩散中的应用</li>
+<li>长度控制与位置编码</li>
+<li>语义条件与风格控制</li>
+<li>多语言与跨语言生成</li>
+</ul>
+<h3 id="125">12.5 应用案例与未来方向</h3>
+<ul>
+<li>可控文本生成</li>
+<li>文本编辑与改写</li>
+<li>对话系统中的应用</li>
+<li>与大语言模型的结合</li>
+</ul>
+<h2 id="121_1">12.1 文本扩散的独特挑战</h2>
+<h3 id="1211">12.1.1 离散性与连续性的鸿沟</h3>
+<p>文本扩散面临的核心挑战是离散token空间与连续扩散过程之间的不匹配：</p>
+<p><strong>离散文本的特性</strong>：</p>
+<ol>
+<li><strong>符号性质</strong>：词汇是离散符号，没有自然的距离度量</li>
+<li><strong>组合爆炸</strong>：词汇表大小V通常为10K-100K</li>
+<li><strong>硬边界</strong>：token之间没有"中间状态"</li>
+<li><strong>语义跳跃</strong>：相邻token可能语义完全不同</li>
+</ol>
+<p><strong>扩散模型的假设</strong>：</p>
+<ul>
+<li>连续状态空间</li>
+<li>高斯噪声添加</li>
+<li>平滑的概率密度</li>
+<li>梯度可微分</li>
+</ul>
+<p>这种根本性的不匹配导致了两种主要解决方案：</p>
+<ol>
+<li><strong>离散扩散</strong>：重新设计扩散过程以适应离散空间</li>
+<li><strong>嵌入空间扩散</strong>：在连续嵌入空间中进行扩散</li>
+</ol>
+<p>💡 <strong>关键洞察：离散与连续的桥梁</strong><br />
+成功的文本扩散模型必须在保持离散性约束的同时，利用连续空间的优势。这需要精心设计的映射函数和概率模型。</p>
+<h3 id="1212">12.1.2 语言的结构约束</h3>
+<p>自然语言具有丰富的结构，这些约束必须在扩散过程中得到尊重：</p>
+<p><strong>1. 语法约束</strong>：
+- 词性搭配规则
+- 句法树结构
+- 依存关系</p>
+<p><strong>2. 语义连贯性</strong>：
+- 上下文一致性
+- 主题相关性
+- 逻辑关系</p>
+<p><strong>3. 长程依赖</strong>：
+- 指代消解
+- 时态一致
+- 语篇结构</p>
+<p><strong>4. 多尺度结构</strong>：</p>
+<div class="codehilite"><pre><span></span><code>字符 → 子词 → 词 → 短语 → 句子 → 段落
+</code></pre></div>
+
+<p>传统的逐token自回归生成自然地维护了从左到右的依赖关系，而扩散模型需要显式地建模这些约束。</p>
+<p>🔬 <strong>研究线索：结构感知的噪声过程</strong><br />
+如何设计噪声过程，使其更多地破坏局部结构而保留全局语义？可以考虑语法树引导的噪声添加或基于依存关系的扩散核。</p>
+<h3 id="1213">12.1.3 评估指标的复杂性</h3>
+<p>文本生成的评估比图像生成更加复杂：</p>
+<p><strong>自动评估指标</strong>：</p>
+<ol>
+<li><strong>困惑度（Perplexity）</strong>：</li>
+</ol>
+<p>$$\text{PPL} = \exp\left(-\frac{1}{N}\sum_{i=1}^N \log p(x_i|x_{&lt; i})\right)$$</p>
+<ol start="2">
+<li>
+<p><strong>BLEU分数</strong>：
+$$\text{BLEU} = \text{BP} \cdot \exp\left(\sum_{n=1}^4 w_n \log p_n\right)$$
+其中 $p_n$ 是n-gram精确率</p>
+</li>
+<li>
+<p><strong>语义相似度</strong>：
+   - BERTScore
+   - BLEURT
+   - 嵌入余弦相似度</p>
+</li>
+</ol>
+<p><strong>人工评估维度</strong>：</p>
+<ul>
+<li>流畅性（Fluency）</li>
+<li>连贯性（Coherence）</li>
+<li>相关性（Relevance）</li>
+<li>创造性（Creativity）</li>
+</ul>
+<p><strong>评估的挑战</strong>：</p>
+<ul>
+<li>一对多映射：同一语义有多种表达</li>
+<li>主观性：质量判断因人而异</li>
+<li>任务依赖：不同应用需要不同指标</li>
+</ul>
+<h3 id="1214">12.1.4 与自回归模型的比较</h3>
+<p>理解扩散模型与主流自回归模型的区别至关重要：</p>
+<p><strong>自回归模型（GPT类）</strong>：</p>
+<ul>
+<li>优势：</li>
+<li>自然的因果结构</li>
+<li>训练稳定</li>
+<li>推理直观</li>
+<li>易于控制长度</li>
+<li>劣势：</li>
+<li>顺序生成慢</li>
+<li>错误累积</li>
+<li>难以全局编辑</li>
+<li>暴露偏差问题</li>
+</ul>
+<p><strong>扩散模型</strong>：</p>
+<ul>
+<li>优势：</li>
+<li>并行生成</li>
+<li>全局优化</li>
+<li>灵活的编辑</li>
+<li>双向上下文</li>
+<li>劣势：</li>
+<li>多步推理</li>
+<li>长度控制困难</li>
+<li>训练复杂</li>
+<li>离散性处理</li>
+</ul>
+<details>
+<summary>**练习 12.1：对比实验设计**</summary>
+<p>设计实验来深入理解文本扩散的特性。</p>
+<ol>
+<li>
+<p><strong>离散性影响分析</strong>：
+   - 实现简单的离散扩散过程
+   - 比较不同词汇表大小的影响
+   - 分析噪声过程的信息损失</p>
+</li>
+<li>
+<p><strong>结构保持实验</strong>：
+   - 设计保持句法结构的噪声方案
+   - 测试不同mask策略（随机vs结构化）
+   - 评估生成文本的语法正确性</p>
+</li>
+<li>
+<p><strong>评估指标相关性</strong>：
+   - 收集人工评分数据
+   - 计算各种自动指标
+   - 分析指标间的相关性和差异</p>
+</li>
+<li>
+<p><strong>生成模式对比</strong>：
+   - 实现简化版的自回归和扩散模型
+   - 比较生成速度、多样性、质量
+   - 分析各自的失败模式</p>
+</li>
+</ol>
+</details>
+<h3 id="1215">12.1.5 文本扩散的机遇</h3>
+<p>尽管面临挑战，文本扩散模型也带来了独特的机遇：</p>
+<p><strong>1. 灵活的生成控制</strong>：
+- 任意位置的条件约束
+- 全局属性控制（情感、风格）
+- 迭代优化过程</p>
+<p><strong>2. 更好的编辑能力</strong>：
+- 局部修改不影响全局
+- 保持上下文一致性
+- 支持多轮优化</p>
+<p><strong>3. 新的应用场景</strong>：
+- 填充任务（中间词预测）
+- 并行翻译
+- 文本风格转换</p>
+<p><strong>4. 与其他模态的统一</strong>：
+- 多模态扩散模型
+- 共享的生成框架
+- 跨模态转换</p>
+<p>🌟 <strong>前沿思考：扩散与自回归的融合</strong><br />
+能否设计一个模型，结合自回归的因果建模能力和扩散的全局优化优势？例如，使用扩散模型生成语义骨架，然后用自回归模型填充细节。</p>
+<h3 id="1216">12.1.6 技术路线图</h3>
+<p>解决文本扩散挑战的主要技术路线：</p>
+<p><strong>1. 离散状态空间方法</strong>：
+- D3PM（Discrete Denoising Diffusion Probabilistic Models）
+- Multinomial Diffusion
+- Masked Diffusion</p>
+<p><strong>2. 连续嵌入空间方法</strong>：
+- Diffusion-LM
+- CDCD（Continuous Diffusion for Categorical Data）
+- Latent Diffusion for Text</p>
+<p><strong>3. 混合方法</strong>：
+- Analog Bits
+- SUNDAE（Step-unrolled Diffusion Autoencoder）
+- 离散-连续桥接</p>
+<p><strong>4. 架构创新</strong>：
+- 自注意力机制的改进
+- 位置编码的设计
+- 条件机制的优化</p>
+<p>💡 <strong>实践建议：选择合适的方法</strong>  </p>
+<ul>
+<li>短文本生成：离散方法简单有效</li>
+<li>长文本生成：嵌入空间方法更稳定</li>
+<li>可控生成：考虑混合方法</li>
+<li>实时应用：需要特殊的加速技术</li>
+</ul>
+<p>通过理解这些挑战和机遇，我们可以更好地设计和应用文本扩散模型。接下来，我们将深入探讨具体的技术实现。</p>
+<h2 id="122-d3pm_1">12.2 离散扩散模型（D3PM）</h2>
+<h3 id="1221">12.2.1 离散状态空间的马尔可夫链</h3>
+<p>D3PM（Discrete Denoising Diffusion Probabilistic Models）通过将连续扩散过程替换为离散马尔可夫链来处理离散数据。核心思想是定义一个从数据分布逐渐过渡到先验分布的离散随机过程。</p>
+<p><strong>前向过程定义</strong>：</p>
+<p>对于离散状态 $x \in {1, 2, ..., K}$ （K是词汇表大小），前向过程定义为：
+$$q(x_t|x_{t-1}) = \text{Cat}(x_t; \mathbf{Q}_t x_{t-1})$$
+其中 $\mathbf{Q}_t \in \mathbb{R}^{K \times K}$ 是转移矩阵， $\text{Cat}$ 表示分类分布。</p>
+<p><strong>转移矩阵的性质</strong>：</p>
+<ol>
+<li><strong>行随机矩阵</strong>： $\sum_j Q_{ij} = 1$</li>
+<li><strong>可逆性</strong>：早期时刻的 $\mathbf{Q}_t$ 接近单位矩阵</li>
+<li><strong>收敛性</strong>： $\mathbf{Q}_T$ 使分布收敛到先验</li>
+</ol>
+<p><strong>累积转移矩阵</strong>：
+$$\bar{\mathbf{Q}}_t = \mathbf{Q}_1 \mathbf{Q}_2 \cdots \mathbf{Q}_t$$
+这允许我们直接从 $x_0$ 采样 $x_t$ ：
+$$q(x_t|x_0) = \text{Cat}(x_t; \bar{\mathbf{Q}}_t x_0)$$
+💡 <strong>设计原则：平衡信息保留与噪声添加</strong><br />
+转移矩阵的设计需要在保持足够信息（用于反向去噪）和添加足够噪声（用于探索）之间取得平衡。太少的噪声导致模式崩溃，太多的噪声使去噪任务过难。</p>
+<h3 id="1222">12.2.2 转移矩阵的设计</h3>
+<p>D3PM提供了几种转移矩阵的设计方案：</p>
+<p><strong>1. 均匀转移（Uniform Transition）</strong>：
+$$\mathbf{Q}_t = (1-\beta_t)\mathbf{I} + \beta_t \mathbf{1}\mathbf{1}^T/K$$
+其中 $\beta_t$ 是噪声调度， $\mathbf{1}$ 是全1向量。这种设计以概率 $\beta_t$ 将状态替换为均匀随机状态。</p>
+<p><strong>2. 吸收态转移（Absorbing State）</strong>：
+$$Q_{ij} = \begin{cases}
+1-\beta_t &amp; \text{if } i=j \neq m \
+\beta_t &amp; \text{if } j=m \
+1 &amp; \text{if } i=j=m \
+0 &amp; \text{otherwise}
+\end{cases}$$
+其中 $m$ 是特殊的MASK token。这种设计逐渐将所有token转换为MASK。</p>
+<p><strong>3. 语义感知转移</strong>：
+基于词嵌入相似度设计转移概率：
+$$Q_{ij} \propto \exp(-|\mathbf{e}_i - \mathbf{e}_j|^2/\tau_t)$$
+其中 $\mathbf{e}_i$ 是词嵌入， $\tau_t$ 是温度参数。</p>
+<p>🔬 <strong>研究方向：自适应转移矩阵</strong><br />
+能否学习数据依赖的转移矩阵？例如，频繁共现的词之间有更高的转移概率。这可能需要神经网络来参数化 $\mathbf{Q}_t$ 。</p>
+<h3 id="1223">12.2.3 反向过程与变分下界</h3>
+<p><strong>反向过程参数化</strong>：
+$$p_\theta(x_{t-1}|x_t) = \text{Cat}(x_{t-1}; \boldsymbol{\mu}_\theta(x_t, t))$$
+其中 $\boldsymbol{\mu}_\theta$ 是神经网络预测的分布。</p>
+<p><strong>后验分布</strong>（当 $x_0$ 已知时）：
+$$q(x_{t-1}|x_t, x_0) = \frac{q(x_t|x_{t-1})q(x_{t-1}|x_0)}{q(x_t|x_0)}$$
+对于离散情况，这可以通过矩阵运算精确计算：
+$$q(x_{t-1}|x_t, x_0) \propto \mathbf{Q}_t^T \odot \bar{\mathbf{Q}}_{t-1}$$
+其中 $\odot$ 表示逐元素乘积。</p>
+<p><strong>变分下界（VLB）</strong>：
+$$\mathcal{L}_\text{VLB} = \mathbb{E}_q\left[\sum_{t=2}^T D_\text{KL}(q(x_{t-1}|x_t,x_0) | p_\theta(x_{t-1}|x_t)) + \log p_\theta(x_0|x_1)\right]$$
+其中KL散度对于离散分布有闭式解：
+$$D_\text{KL}(p|q) = \sum_i p_i \log \frac{p_i}{q_i}$$</p>
+<h3 id="1224">12.2.4 训练算法与实现细节</h3>
+<p><strong>损失函数选择</strong>：</p>
+<ol>
+<li><strong>VLB损失</strong>：理论最优但可能不稳定</li>
+<li>
+<p><strong>交叉熵损失</strong>：
+$$\mathcal{L}_\text{CE} = -\mathbb{E}_{x_0,t}\left[\log p_\theta(x_0|x_t)\right]$$</p>
+</li>
+<li>
+<p><strong>混合损失</strong>：
+$$\mathcal{L} = \mathcal{L}_\text{CE} + \lambda \mathcal{L}_\text{VLB}$$
+<strong>训练算法</strong>：</p>
+</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>输入：数据集 D，噪声调度 β，步数 T
+1. 初始化模型参数 θ
+2. repeat
+3.   采样 x_0 ~ D
+4.   采样 t ~ Uniform(1, T)
+5.   计算 x_t ~ q(x_t|x_0) 使用累积转移矩阵
+6.   计算后验 q(x_{t-1}|x_t, x_0)
+7.   预测 p_θ(x_{t-1}|x_t) = Model(x_t, t)
+8.   计算损失 L = KL(q||p_θ)
+9.   更新 θ
+10. until 收敛
+</code></pre></div>
+
+<p><strong>实现技巧</strong>：</p>
+<ul>
+<li>使用one-hot编码表示离散状态</li>
+<li>预计算并缓存转移矩阵</li>
+<li>使用稳定的log-space计算</li>
+<li>添加数值稳定性的small epsilon</li>
+</ul>
+<details>
+<summary>**练习 12.2：实现D3PM核心组件**</summary>
+<p>深入理解D3PM的实现细节。</p>
+<ol>
+<li>
+<p><strong>转移矩阵实验</strong>：
+   - 实现三种转移矩阵设计
+   - 可视化不同时间步的转移模式
+   - 分析信息保留程度</p>
+</li>
+<li>
+<p><strong>后验计算</strong>：
+   - 推导后验分布的矩阵形式
+   - 实现高效的批量计算
+   - 验证概率归一化</p>
+</li>
+<li>
+<p><strong>损失函数比较</strong>：
+   - 实现VLB和CE损失
+   - 在toy数据上比较收敛速度
+   - 分析梯度稳定性</p>
+</li>
+<li>
+<p><strong>采样算法优化</strong>：
+   - 实现基础采样算法
+   - 探索加速采样技巧
+   - 比较不同温度的影响</p>
+</li>
+</ol>
+</details>
+<h3 id="1225">12.2.5 采样与生成策略</h3>
+<p><strong>基础采样算法</strong>：</p>
+<div class="codehilite"><pre><span></span><code>输入：模型 p_θ，步数 T，温度 τ
+1. 初始化 x_T ~ Uniform(1, K)
+2. for t = T to 1:
+3.   预测分布 p = p_θ(·|x_t)
+4.   应用温度：p_i ← p_i^{1/τ}
+5.   重归一化：p ← p / Σp_i
+6.   采样 x_{t-1} ~ Cat(p)
+7. return x_0
+</code></pre></div>
+
+<p><strong>高级采样技巧</strong>：</p>
+<ol>
+<li><strong>Top-k采样</strong>：只从概率最高的k个token中采样</li>
+<li><strong>Nucleus采样</strong>：从累积概率达到p的最小token集合中采样</li>
+<li><strong>重参数化技巧</strong>：使用Gumbel-Softmax for梯度估计</li>
+<li><strong>条件采样</strong>：固定部分token进行条件生成</li>
+</ol>
+<p><strong>生成质量控制</strong>：</p>
+<ul>
+<li><strong>温度调节</strong>：低温度→确定性，高温度→多样性</li>
+<li><strong>重复惩罚</strong>：降低已生成token的概率</li>
+<li><strong>长度控制</strong>：通过特殊的结束token或长度条件</li>
+</ul>
+<p>💡 <strong>实践技巧：平衡质量与多样性</strong><br />
+通常需要在生成质量和多样性之间权衡。建议从较低温度（0.7-0.8）开始，根据具体任务调整。对于创造性任务使用更高温度，对于事实性任务使用更低温度。</p>
+<h3 id="1226-d3pm">12.2.6 D3PM的优势与局限</h3>
+<p><strong>优势</strong>：</p>
+<ol>
+<li><strong>理论完备</strong>：保持了扩散模型的理论框架</li>
+<li><strong>灵活性高</strong>：支持任意离散空间</li>
+<li><strong>可解释性</strong>：转移矩阵有明确含义</li>
+<li><strong>双向建模</strong>：自然支持填充和编辑任务</li>
+</ol>
+<p><strong>局限性</strong>：</p>
+<ol>
+<li><strong>计算开销</strong>：需要存储和计算大型转移矩阵</li>
+<li><strong>扩展性</strong>：词汇表大小受限于内存</li>
+<li><strong>语义鸿沟</strong>：离散转移可能破坏语义连续性</li>
+<li><strong>训练不稳定</strong>：离散采样导致梯度估计困难</li>
+</ol>
+<p><strong>改进方向</strong>：</p>
+<ul>
+<li>稀疏转移矩阵减少计算</li>
+<li>分层词汇表处理大规模词汇</li>
+<li>结合连续嵌入改善语义</li>
+<li>使用强化学习优化离散决策</li>
+</ul>
+<p>🌟 <strong>前沿探索：离散与连续的统一</strong><br />
+最新研究尝试统一离散和连续扩散，例如通过将离散token视为连续空间中的点，或使用混合离散-连续变量。这可能是未来的重要方向。</p>
+<h2 id="123_1">12.3 连续嵌入空间扩散</h2>
+<h3 id="1231-diffusion-lm">12.3.1 Diffusion-LM的核心思想</h3>
+<p>Diffusion-LM通过在连续嵌入空间中进行扩散来避免离散性带来的困难。基本流程是：</p>
+<ol>
+<li><strong>嵌入</strong>：将离散token映射到连续空间</li>
+<li><strong>扩散</strong>：在嵌入空间中运行标准扩散过程</li>
+<li><strong>重建</strong>：将去噪后的嵌入映射回离散token</li>
+</ol>
+<p><strong>数学框架</strong>：</p>
+<p>设词嵌入矩阵为 $\mathbf{E} \in \mathbb{R}^{K \times d}$ ，其中K是词汇表大小，d是嵌入维度。</p>
+<ul>
+<li><strong>嵌入步骤</strong>： $\mathbf{e}_0 = \mathbf{E}[x_0]$ （索引操作）</li>
+<li><strong>前向扩散</strong>： $q(\mathbf{e}_t|\mathbf{e}_{t-1}) = \mathcal{N}(\mathbf{e}_t; \sqrt{1-\beta_t}\mathbf{e}_{t-1}, \beta_t\mathbf{I})$</li>
+<li><strong>反向去噪</strong>： $p_\theta(\mathbf{e}_{t-1}|\mathbf{e}_t) = \mathcal{N}(\mathbf{e}_{t-1}; \boldsymbol{\mu}_\theta(\mathbf{e}_t, t), \boldsymbol{\Sigma}_\theta(\mathbf{e}_t, t))$</li>
+</ul>
+<p><strong>关键挑战</strong>：如何从连续嵌入恢复离散token？</p>
+<p>💡 <strong>核心洞察：嵌入空间的几何结构</strong><br />
+成功的关键在于学习一个具有良好几何结构的嵌入空间，使得语义相似的词在空间中接近，且去噪过程能保持这种结构。</p>
+<h3 id="1232">12.3.2 嵌入与重建的挑战</h3>
+<p><strong>挑战1：离散化误差</strong></p>
+<p>从连续嵌入 $\hat{\mathbf{e}}_0$ 恢复离散token最直接的方法是最近邻搜索：
+$$\hat{x}_0 = \arg\min_{i \in [K]} |\hat{\mathbf{e}}_0 - \mathbf{E}[i]|^2$$
+但这种硬舍入会导致：</p>
+<ul>
+<li>梯度无法反向传播</li>
+<li>累积误差</li>
+<li>训练不稳定</li>
+</ul>
+<p><strong>挑战2：嵌入崩塌</strong></p>
+<p>如果没有适当的正则化，所有词嵌入可能崩塌到一个点，使得重建变得不可能。</p>
+<p><strong>挑战3：分布不匹配</strong></p>
+<p>扩散过程假设高斯分布，但词嵌入的自然分布可能远非高斯。</p>
+<h3 id="1233">12.3.3 舍入策略与梯度估计</h3>
+<p><strong>1. 软最大值（Soft-max）重建</strong>：
+$$p(x_i|\hat{\mathbf{e}}_0) = \frac{\exp(-|\hat{\mathbf{e}}_0 - \mathbf{E}[i]|^2/\tau)}{\sum_j \exp(-|\hat{\mathbf{e}}_0 - \mathbf{E}[j]|^2/\tau)}$$
+这保持了可微性，但计算开销大。</p>
+<p><strong>2. Straight-Through估计器</strong>：
+- 前向：使用硬舍入 $\hat{x}_0 = \text{argmin}_i |\hat{\mathbf{e}}_0 - \mathbf{E}[i]|^2$
+- 反向：假装没有舍入，直接传递梯度</p>
+<p><strong>3. Gumbel-Softmax重参数化</strong>：
+$$\hat{x}_0 = \text{softmax}((\log \pi + g)/\tau)$$
+其中 $\pi_i \propto \exp(-|\hat{\mathbf{e}}_0 - \mathbf{E}[i]|^2)$ ， $g$ 是Gumbel噪声。</p>
+<p><strong>4. 强化学习方法</strong>：
+将离散化视为策略，使用REINFORCE或其他策略梯度方法。</p>
+<p>🔬 <strong>研究方向：可学习的舍入</strong><br />
+能否学习一个神经网络来执行最优的舍入操作？这个网络可以考虑局部上下文和全局一致性。</p>
+<h3 id="1234">12.3.4 语义保持的技巧</h3>
+<p><strong>1. 嵌入正则化</strong>：</p>
+<ul>
+<li>
+<p><strong>对比学习损失</strong>：
+$$\mathcal{L}_\text{contrast} = -\log \frac{\exp(\text{sim}(\mathbf{e}_i, \mathbf{e}_j^+))}{\sum_k \exp(\text{sim}(\mathbf{e}_i, \mathbf{e}_k))}$$
+其中 $\mathbf{e}_j^+$ 是正样本（语义相似）。</p>
+</li>
+<li>
+<p><strong>均匀性损失</strong>：
+$$\mathcal{L}_\text{uniform} = \log \mathbb{E}_{i,j}\left[\exp(-2|\mathbf{e}_i - \mathbf{e}_j|^2)\right]$$
+防止嵌入崩塌。</p>
+</li>
+</ul>
+<p><strong>2. 自监督预训练</strong>：</p>
+<p>使用大规模文本数据预训练嵌入空间：</p>
+<ul>
+<li>Masked Language Modeling</li>
+<li>Next Sentence Prediction</li>
+<li>Contrastive Learning</li>
+</ul>
+<p><strong>3. 锚点嵌入</strong>：</p>
+<p>固定一些高频词的嵌入作为锚点，保持空间结构：
+$$\mathbf{E}_\text{anchor} = \text{frozen}, \quad \mathbf{E}_\text{rest} = \text{learnable}$$</p>
+<details>
+<summary>**练习 12.3：探索嵌入空间扩散**</summary>
+<p>深入理解连续嵌入空间扩散的特性。</p>
+<ol>
+<li>
+<p><strong>嵌入空间可视化</strong>：
+   - 使用t-SNE/UMAP可视化词嵌入
+   - 追踪扩散过程中的轨迹
+   - 分析语义聚类的保持程度</p>
+</li>
+<li>
+<p><strong>舍入策略比较</strong>：
+   - 实现四种舍入方法
+   - 比较重建准确率
+   - 分析梯度流和训练稳定性</p>
+</li>
+<li>
+<p><strong>正则化实验</strong>：
+   - 测试不同正则化强度
+   - 观察嵌入分布的变化
+   - 找到防止崩塌的最小正则化</p>
+</li>
+<li>
+<p><strong>混合方法设计</strong>：
+   - 结合离散和连续的优势
+   - 设计自适应切换机制
+   - 评估计算效率和生成质量</p>
+</li>
+</ol>
+</details>
+<h3 id="1235">12.3.5 训练策略与优化</h3>
+<p><strong>两阶段训练</strong>：</p>
+<ol>
+<li>
+<p><strong>阶段1：嵌入空间学习</strong>
+   - 固定扩散模型，只训练嵌入
+   - 使用重建损失和正则化
+   - 确保嵌入空间质量</p>
+</li>
+<li>
+<p><strong>阶段2：联合优化</strong>
+   - 解冻所有参数
+   - 端到端训练
+   - 微调嵌入和扩散模型</p>
+</li>
+</ol>
+<p><strong>损失函数设计</strong>：
+$$\mathcal{L}_\text{total} = \mathcal{L}_\text{diffusion} + \lambda_1 \mathcal{L}_\text{reconstruct} + \lambda_2 \mathcal{L}_\text{regularize}$$
+其中：</p>
+<ul>
+<li>$\mathcal{L}_\text{diffusion}$ ：标准扩散损失</li>
+<li>$\mathcal{L}_\text{reconstruct}$ ：离散重建损失</li>
+<li>$\mathcal{L}_\text{regularize}$ ：嵌入正则化损失</li>
+</ul>
+<p><strong>优化技巧</strong>：</p>
+<ul>
+<li>使用较小的学习率for嵌入矩阵</li>
+<li>梯度裁剪防止不稳定</li>
+<li>早停基于验证集困惑度</li>
+</ul>
+<h3 id="1236-diffusion-lm">12.3.6 Diffusion-LM的扩展与变体</h3>
+<p><strong>1. 分层Diffusion-LM</strong>：
+- 字符级→子词级→词级的分层扩散
+- 不同层次使用不同的噪声调度
+- 支持可变长度生成</p>
+<p><strong>2. 潜在Diffusion-LM</strong>：
+- 使用VAE学习更紧凑的潜在空间
+- 在潜在空间进行扩散
+- 类似于图像的LDM</p>
+<p><strong>3. 混合离散-连续模型</strong>：
+- 高频词使用离散扩散
+- 低频词使用连续扩散
+- 自适应选择机制</p>
+<p>💡 <strong>实践建议：选择合适的变体</strong>  </p>
+<ul>
+<li>短文本：基础Diffusion-LM足够</li>
+<li>长文本：考虑分层或潜在变体</li>
+<li>特定领域：可能需要定制嵌入空间</li>
+<li>多语言：需要特殊的嵌入对齐</li>
+</ul>
+<h3 id="1237">12.3.7 与其他方法的比较</h3>
+<p><strong>Diffusion-LM vs D3PM</strong>：</p>
+<p>| 方面 | Diffusion-LM | D3PM |</p>
+<table>
+<thead>
+<tr>
+<th>方面</th>
+<th>Diffusion-LM</th>
+<th>D3PM</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>理论基础</td>
+<td>连续扩散</td>
+<td>离散马尔可夫链</td>
+</tr>
+<tr>
+<td>计算效率</td>
+<td>高（矩阵乘法）</td>
+<td>低（大转移矩阵）</td>
+</tr>
+<tr>
+<td>扩展性</td>
+<td>好（嵌入维度固定）</td>
+<td>差（随词汇表增长）</td>
+</tr>
+<tr>
+<td>语义保持</td>
+<td>依赖嵌入质量</td>
+<td>可显式设计</td>
+</tr>
+<tr>
+<td>训练稳定性</td>
+<td>中等</td>
+<td>较差</td>
+</tr>
+</tbody>
+</table>
+<p><strong>优势总结</strong>：</p>
+<ul>
+<li>利用预训练嵌入</li>
+<li>计算效率更高</li>
+<li>更容易扩展到大词汇表</li>
+<li>与连续模态统一框架</li>
+</ul>
+<p><strong>劣势总结</strong>：</p>
+<ul>
+<li>离散化误差难以避免</li>
+<li>需要高质量嵌入空间</li>
+<li>可能丢失精确的token信息</li>
+<li>训练更加复杂</li>
+</ul>
+<p>🌟 <strong>未来展望：统一的文本生成框架</strong><br />
+理想的文本扩散模型应该结合离散和连续方法的优势，支持多粒度生成，并与其他模态无缝集成。这需要在理论和实践上的进一步突破。</p>
+<h2 id="124_1">12.4 架构设计与条件控制</h2>
+<h3 id="1241-transformer">12.4.1 Transformer在文本扩散中的应用</h3>
+<p>文本扩散模型主要使用Transformer架构，但需要特殊的适配：</p>
+<p><strong>标准Transformer的修改</strong>：</p>
+<ol>
+<li>
+<p><strong>时间嵌入注入</strong>：
+   - 将时间步 $t$ 编码为向量 $\mathbf{t}_\text{emb} = \text{MLP}(\text{sinusoidal}(t))$
+   - 通过AdaLN或交叉注意力注入每层</p>
+</li>
+<li>
+<p><strong>双向注意力</strong>：
+   - 与自回归模型不同，使用完全的双向注意力
+   - 所有位置可以互相看到，支持全局优化</p>
+</li>
+<li>
+<p><strong>位置编码选择</strong>：
+   - 绝对位置编码：简单但限制最大长度
+   - 相对位置编码：更灵活，支持可变长度
+   - RoPE（旋转位置编码）：保持相对距离信息</p>
+</li>
+</ol>
+<p><strong>架构示例</strong>：</p>
+<div class="codehilite"><pre><span></span><code>输入嵌入 → [Transformer Block × N] → 输出投影
+          ↑
+      时间条件注入
+</code></pre></div>
+
+<p>每个Transformer Block包含：</p>
+<ul>
+<li>Multi-Head Self-Attention（双向）</li>
+<li>时间条件的AdaLN或FiLM</li>
+<li>Feed-Forward Network</li>
+<li>残差连接</li>
+</ul>
+<p>💡 <strong>设计考虑：注意力模式的选择</strong><br />
+虽然使用全局注意力理论上最优，但对于长文本可能需要稀疏注意力模式（如局部窗口、稀疏模式）来控制计算复杂度。</p>
+<h3 id="1242">12.4.2 长度控制与位置编码</h3>
+<p>文本扩散的一个独特挑战是处理可变长度序列：</p>
+<p><strong>长度预测与控制</strong>：</p>
+<ol>
+<li>
+<p><strong>显式长度条件</strong>：
+   - 将目标长度作为额外条件： $p_\theta(\mathbf{x}_{t-1}|\mathbf{x}_t, t, L)$
+   - 训练时使用真实长度，推理时指定</p>
+</li>
+<li>
+<p><strong>特殊标记方法</strong>：
+   - 使用[PAD]标记填充到固定长度
+   - 使用[EOS]标记表示序列结束
+   - 在扩散过程中保持这些标记的语义</p>
+</li>
+<li>
+<p><strong>动态长度生成</strong>：
+   - 先生成长度： $L \sim p_\theta(L|\mathbf{c})$
+   - 然后生成对应长度的内容</p>
+</li>
+</ol>
+<p><strong>位置编码策略</strong>：</p>
+<ol>
+<li>
+<p><strong>固定最大长度</strong>：
+   <code>PE[pos, 2i] = sin(pos/10000^(2i/d))
+   PE[pos, 2i+1] = cos(pos/10000^(2i/d))</code></p>
+</li>
+<li>
+<p><strong>相对位置编码</strong>：
+   - T5风格：学习的相对位置偏置
+   - ALiBi：线性衰减的注意力偏置</p>
+</li>
+<li>
+<p><strong>分段位置编码</strong>：
+   - 句子级 + 词级的层次化编码
+   - 支持超长文本生成</p>
+</li>
+</ol>
+<p>🔬 <strong>研究挑战：长度与内容的解耦</strong><br />
+如何设计架构使得长度控制不影响内容质量？一种思路是使用两个独立的扩散过程，分别生成长度和内容。</p>
+<h3 id="1243">12.4.3 语义条件与风格控制</h3>
+<p><strong>多种条件机制</strong>：</p>
+<ol>
+<li>
+<p><strong>前缀条件（Prefix Conditioning）</strong>：
+   - 将条件文本作为前缀拼接
+   - 简单但占用序列长度</p>
+</li>
+<li>
+<p><strong>交叉注意力（Cross-Attention）</strong>：
+   <code>Attention(Q_content, K_condition, V_condition)</code></p>
+</li>
+</ol>
+<ul>
+<li>内容query，条件key/value</li>
+<li>灵活且表达力强</li>
+</ul>
+<ol start="3">
+<li><strong>FiLM调制（Feature-wise Linear Modulation）</strong>：
+$$\mathbf{h} = \gamma(\mathbf{c}) \odot \mathbf{h} + \beta(\mathbf{c})$$</li>
+</ol>
+<ul>
+<li>计算高效</li>
+<li>全局调制效果</li>
+</ul>
+<p><strong>风格控制技术</strong>：</p>
+<ol>
+<li>
+<p><strong>风格嵌入</strong>：
+   - 学习风格向量：formal, casual, poetic等
+   - 通过插值实现风格混合</p>
+</li>
+<li>
+<p><strong>细粒度属性控制</strong>：
+   - 情感：positive/negative/neutral
+   - 复杂度：简单/复杂句式
+   - 时态：过去/现在/将来</p>
+</li>
+<li>
+<p><strong>示例驱动的风格</strong>：
+   - 从参考文本提取风格
+   - 使用对比学习对齐风格空间</p>
+</li>
+</ol>
+<details>
+<summary>**练习 12.4：实现条件控制机制**</summary>
+<p>探索不同的条件控制方法。</p>
+<ol>
+<li>
+<p><strong>条件机制比较</strong>：
+   - 实现三种条件注入方法
+   - 比较对生成质量的影响
+   - 分析计算开销</p>
+</li>
+<li>
+<p><strong>多条件融合</strong>：
+   - 设计同时控制内容、风格、长度的机制
+   - 处理条件冲突
+   - 实现条件强度调节</p>
+</li>
+<li>
+<p><strong>可控性评估</strong>：
+   - 设计自动评估指标
+   - 人工评估控制精度
+   - 分析失败案例</p>
+</li>
+<li>
+<p><strong>交互式控制</strong>：
+   - 实现渐进式编辑
+   - 支持局部条件约束
+   - 设计用户友好的接口</p>
+</li>
+</ol>
+</details>
+<h3 id="1244">12.4.4 多语言与跨语言生成</h3>
+<p>文本扩散模型在多语言场景下的应用：</p>
+<p><strong>多语言架构设计</strong>：</p>
+<ol>
+<li>
+<p><strong>共享嵌入空间</strong>：
+   - 所有语言共享词嵌入矩阵
+   - 使用语言对齐技术（如MUSE）
+   - 支持零样本跨语言生成</p>
+</li>
+<li>
+<p><strong>语言特定组件</strong>：
+   - 语言ID嵌入
+   - 特定语言的子网络
+   - 适配器（Adapter）模块</p>
+</li>
+<li>
+<p><strong>统一词表vs分离词表</strong>：
+   - 统一：简单但词表爆炸
+   - 分离：需要对齐机制
+   - 混合：高频词统一，低频词分离</p>
+</li>
+</ol>
+<p><strong>跨语言应用</strong>：</p>
+<ol>
+<li>
+<p><strong>零样本翻译</strong>：
+   - 源语言→嵌入空间→目标语言
+   - 不需要平行语料</p>
+</li>
+<li>
+<p><strong>代码切换（Code-switching）</strong>：
+   - 同一句子中混合多种语言
+   - 自然的多语言生成</p>
+</li>
+<li>
+<p><strong>跨语言风格迁移</strong>：
+   - 保持内容，改变语言风格
+   - 文化适应性调整</p>
+</li>
+</ol>
+<h3 id="1245">12.4.5 高效架构设计</h3>
+<p><strong>模型压缩技术</strong>：</p>
+<ol>
+<li>
+<p><strong>知识蒸馏</strong>：
+   - 大模型→小模型
+   - 保持生成质量
+   - 加速推理</p>
+</li>
+<li>
+<p><strong>量化</strong>：
+   - INT8/INT4量化
+   - 量化感知训练
+   - 动态量化</p>
+</li>
+<li>
+<p><strong>稀疏化</strong>：
+   - 结构化剪枝
+   - 非结构化剪枝
+   - 动态稀疏</p>
+</li>
+</ol>
+<p><strong>推理优化</strong>：</p>
+<ol>
+<li>
+<p><strong>缓存机制</strong>：
+   - KV缓存（虽然对扩散模型作用有限）
+   - 中间结果缓存
+   - 增量更新</p>
+</li>
+<li>
+<p><strong>并行化策略</strong>：
+   - 多个去噪步骤并行
+   - 批量推理
+   - 模型并行</p>
+</li>
+<li>
+<p><strong>早停机制</strong>：
+   - 动态确定去噪步数
+   - 基于质量的早停
+   - 自适应采样</p>
+</li>
+</ol>
+<p>💡 <strong>实践建议：架构选择指南</strong>  </p>
+<ul>
+<li>研究原型：使用标准Transformer，关注算法创新</li>
+<li>生产部署：考虑模型压缩和推理优化</li>
+<li>特定领域：可能需要定制架构</li>
+<li>资源受限：探索轻量级变体</li>
+</ul>
+<h3 id="1246">12.4.6 与大语言模型的集成</h3>
+<p><strong>集成策略</strong>：</p>
+<ol>
+<li>
+<p><strong>串联模式</strong>：
+   - LLM生成草稿→扩散模型优化
+   - 扩散模型生成→LLM后处理</p>
+</li>
+<li>
+<p><strong>并联模式</strong>：
+   - 同时运行，结果融合
+   - 互相提供条件信号</p>
+</li>
+<li>
+<p><strong>嵌入模式</strong>：
+   - 扩散模块嵌入LLM
+   - 作为特殊的生成头</p>
+</li>
+</ol>
+<p><strong>优势互补</strong>：</p>
+<ul>
+<li>LLM：逻辑推理、知识利用</li>
+<li>扩散：全局优化、可控编辑</li>
+<li>结合：兼具两者优势</li>
+</ul>
+<p>🌟 <strong>前沿方向：统一的生成范式</strong><br />
+未来可能出现统一自回归和扩散的模型，在不同任务和场景下自适应选择生成策略。这需要新的理论框架和训练方法。</p>
+<h2 id="125_1">12.5 应用案例与未来方向</h2>
+<h3 id="1251">12.5.1 可控文本生成</h3>
+<p>文本扩散模型在可控生成方面展现出独特优势：</p>
+<p><strong>1. 填充任务（Text Infilling）</strong>：</p>
+<p>扩散模型天然支持任意位置的条件约束：</p>
+<ul>
+<li><strong>中间词预测</strong>：给定开头和结尾，生成中间部分</li>
+<li><strong>掩码语言建模</strong>：填充多个[MASK]位置</li>
+<li><strong>模板填充</strong>：保持模板结构，填充内容</li>
+</ul>
+<p>示例应用：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">输入</span><span class="err">：</span><span class="n">The</span><span class="w"> </span><span class="o">[</span><span class="n">MASK</span><span class="o">]</span><span class="w"> </span><span class="n">jumped</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="o">[</span><span class="n">MASK</span><span class="o">]</span><span class="w"> </span><span class="n">fence</span><span class="p">.</span>
+<span class="n">输出</span><span class="err">：</span><span class="n">The</span><span class="w"> </span><span class="n">cat</span><span class="w"> </span><span class="n">jumped</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">wooden</span><span class="w"> </span><span class="n">fence</span><span class="p">.</span>
+</code></pre></div>
+
+<p><strong>2. 文本编辑（Text Editing）</strong>：</p>
+<p>通过部分去噪实现精确编辑：</p>
+<ul>
+<li><strong>局部修改</strong>：只改变指定部分</li>
+<li><strong>保持上下文</strong>：维持整体连贯性</li>
+<li><strong>迭代优化</strong>：多轮编辑改进</li>
+</ul>
+<p>编辑流程：</p>
+<ol>
+<li>将原文本加噪到中间步骤 $t$</li>
+<li>修改需要编辑的部分</li>
+<li>从步骤 $t$ 开始去噪</li>
+<li>得到编辑后的文本</li>
+</ol>
+<p><strong>3. 属性控制生成</strong>：</p>
+<p>精确控制生成文本的各种属性：</p>
+<ul>
+<li><strong>情感控制</strong>：正面/负面/中性</li>
+<li><strong>风格控制</strong>：正式/非正式/诗意</li>
+<li><strong>复杂度控制</strong>：简单/复杂句式</li>
+<li><strong>主题控制</strong>：指定话题领域</li>
+</ul>
+<p>💡 <strong>应用亮点：细粒度控制</strong><br />
+与自回归模型相比，扩散模型可以在生成过程的任意阶段注入控制信号，实现更精细的控制。</p>
+<h3 id="1252">12.5.2 文本改写与风格转换</h3>
+<p><strong>1. 释义生成（Paraphrasing）</strong>：</p>
+<p>保持语义，改变表达：</p>
+<ul>
+<li>同义词替换</li>
+<li>句式变换</li>
+<li>详略调整</li>
+</ul>
+<p>技术方法：</p>
+<ul>
+<li>在语义嵌入空间约束</li>
+<li>使用对比学习保持语义</li>
+<li>多样性与忠实度平衡</li>
+</ul>
+<p><strong>2. 风格迁移（Style Transfer）</strong>：</p>
+<p>改变文本风格而保持内容：</p>
+<ul>
+<li>现代文→古文</li>
+<li>口语→书面语</li>
+<li>简单→复杂</li>
+</ul>
+<p>实现策略：</p>
+<ul>
+<li>解耦内容和风格表示</li>
+<li>使用平行语料训练</li>
+<li>无监督的循环一致性</li>
+</ul>
+<p><strong>3. 简化与扩展</strong>：</p>
+<ul>
+<li><strong>文本简化</strong>：复杂→简单，保持信息</li>
+<li><strong>文本扩展</strong>：简洁→详细，添加细节</li>
+<li><strong>摘要生成</strong>：长文→短文，提取要点</li>
+</ul>
+<h3 id="1253">12.5.3 对话系统中的应用</h3>
+<p><strong>1. 对话回复生成</strong>：</p>
+<p>扩散模型的优势：</p>
+<ul>
+<li>全局一致性：考虑整个对话历史</li>
+<li>多样性：生成多种合理回复</li>
+<li>可编辑性：根据反馈调整回复</li>
+</ul>
+<p><strong>2. 对话改写</strong>：</p>
+<ul>
+<li>提升回复质量</li>
+<li>调整语气和风格</li>
+<li>纠正事实错误</li>
+</ul>
+<p><strong>3. 多轮对话规划</strong>：</p>
+<ul>
+<li>生成对话策略</li>
+<li>预测对话走向</li>
+<li>优化长期目标</li>
+</ul>
+<details>
+<summary>**练习 12.5：实现文本应用**</summary>
+<p>动手实现文本扩散的应用。</p>
+<ol>
+<li>
+<p><strong>填充任务实现</strong>：
+   - 设计掩码策略
+   - 实现条件采样
+   - 评估填充质量</p>
+</li>
+<li>
+<p><strong>编辑系统构建</strong>：
+   - 实现加噪-编辑-去噪流程
+   - 设计编辑强度控制
+   - 测试不同编辑类型</p>
+</li>
+<li>
+<p><strong>风格转换实验</strong>：
+   - 收集平行风格数据
+   - 训练风格转换模型
+   - 评估内容保持度</p>
+</li>
+<li>
+<p><strong>对话应用开发</strong>：
+   - 集成到对话系统
+   - 实现实时编辑
+   - 用户体验优化</p>
+</li>
+</ol>
+</details>
+<h3 id="1254">12.5.4 与大语言模型的协同</h3>
+<p><strong>1. 质量提升</strong>：
+- LLM生成初稿
+- 扩散模型优化表达
+- 结合两者优势</p>
+<p><strong>2. 事实性增强</strong>：
+- LLM提供事实内容
+- 扩散模型改善流畅性
+- 保持准确性</p>
+<p><strong>3. 创造性写作</strong>：
+- LLM提供故事框架
+- 扩散模型丰富细节
+- 迭代改进</p>
+<p><strong>集成架构示例</strong>：</p>
+<div class="codehilite"><pre><span></span><code>用户输入 → LLM（内容生成） → 扩散模型（优化） → 输出
+         ↑                              ↓
+         ← ← ← ← 反馈循环 ← ← ← ← ← ← ←
+</code></pre></div>
+
+<p>🔬 <strong>研究机会：最优集成策略</strong><br />
+如何设计LLM和扩散模型的最优集成方式？什么任务适合串联，什么适合并联？这需要系统性的实验研究。</p>
+<h3 id="1255">12.5.5 评估方法与基准</h3>
+<p><strong>自动评估指标</strong>：</p>
+<ol>
+<li>
+<p><strong>生成质量</strong>：
+   - 困惑度（Perplexity）
+   - BLEU/ROUGE（与参考对比）
+   - BERTScore（语义相似度）</p>
+</li>
+<li>
+<p><strong>多样性</strong>：
+   - Self-BLEU（生成内容间的相似度）
+   - Distinct-n（n-gram多样性）
+   - 熵度量</p>
+</li>
+<li>
+<p><strong>可控性</strong>：
+   - 属性准确率
+   - 条件一致性
+   - 编辑距离</p>
+</li>
+</ol>
+<p><strong>人工评估框架</strong>：</p>
+<ul>
+<li>流畅性评分</li>
+<li>相关性评分</li>
+<li>创造性评分</li>
+<li>整体质量评分</li>
+</ul>
+<p><strong>基准数据集</strong>：</p>
+<ul>
+<li>文本填充：CLOTH、LAMBaDA</li>
+<li>风格转换：GYAFC、Shakespeare</li>
+<li>对话：PersonaChat、MultiWOZ</li>
+<li>通用生成：WikiText、BookCorpus</li>
+</ul>
+<h3 id="1256">12.5.6 未来研究方向</h3>
+<p><strong>1. 理论突破</strong>：
+- 离散与连续的统一理论
+- 最优传输视角的文本扩散
+- 信息论分析框架</p>
+<p><strong>2. 架构创新</strong>：
+- 自适应去噪步数
+- 层次化扩散模型
+- 神经架构搜索</p>
+<p><strong>3. 训练方法</strong>：
+- 自监督预训练
+- 强化学习微调
+- 对抗训练提升</p>
+<p><strong>4. 应用拓展</strong>：
+- 代码生成
+- 结构化数据生成
+- 多模态文本生成</p>
+<p><strong>5. 效率优化</strong>：
+- 一步生成模型
+- 模型压缩技术
+- 硬件加速</p>
+<p>💡 <strong>开放挑战</strong>：</p>
+<ol>
+<li><strong>长文本生成</strong>：如何高效生成数千词的连贯文本？</li>
+<li><strong>实时应用</strong>：如何将推理时间降至毫秒级？</li>
+<li><strong>可解释性</strong>：如何理解扩散过程中的语义变化？</li>
+<li><strong>公平性</strong>：如何避免和减少偏见？</li>
+</ol>
+<h3 id="1257">12.5.7 总结与展望</h3>
+<p>文本扩散模型开辟了文本生成的新范式：</p>
+<p><strong>主要贡献</strong>：</p>
+<ol>
+<li>提供了非自回归的生成方法</li>
+<li>实现了灵活的条件控制</li>
+<li>支持全局优化和编辑</li>
+<li>统一了离散和连续建模</li>
+</ol>
+<p><strong>当前局限</strong>：</p>
+<ol>
+<li>推理速度仍需提升</li>
+<li>长文本生成存在挑战</li>
+<li>训练成本较高</li>
+<li>理论理解不完整</li>
+</ol>
+<p><strong>未来展望</strong>：
+文本扩散模型有望成为文本生成的重要范式之一，特别是在需要精细控制、全局优化和灵活编辑的场景中。随着理论和技术的进步，我们期待看到：</p>
+<ul>
+<li>更快的生成速度</li>
+<li>更好的生成质量</li>
+<li>更广泛的应用场景</li>
+<li>与其他技术的深度融合</li>
+</ul>
+<p>🌟 <strong>结语</strong><br />
+文本扩散模型代表了生成式AI的一个重要方向。通过本章的学习，您已经掌握了文本扩散的核心概念、技术方法和应用场景。继续探索这个充满机遇的领域，您将能够推动文本生成技术的边界，创造出更智能、更可控的文本生成系统。</p>
+<h2 id="_2">本章小结</h2>
+<p>本章深入探讨了文本扩散模型的理论基础和实践技术：</p>
+<ol>
+<li><strong>独特挑战</strong>：理解了离散文本与连续扩散之间的根本矛盾，以及语言结构带来的约束</li>
+<li><strong>技术路线</strong>：掌握了D3PM的离散扩散和Diffusion-LM的嵌入空间扩散两种主要方法</li>
+<li><strong>架构设计</strong>：学习了Transformer在文本扩散中的应用和各种条件控制机制</li>
+<li><strong>实际应用</strong>：了解了文本编辑、风格转换、对话生成等丰富的应用场景</li>
+<li><strong>未来方向</strong>：探讨了与大语言模型的集成以及领域的发展趋势</li>
+</ol>
+<p>下一章，我们将进入扩散模型的广阔应用领域，探索图像生成、编辑、超分辨率、3D生成等激动人心的应用。</p>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter11.html" class="nav-link prev">← 第11章：视频扩散模型</a><a href="./chapter13.html" class="nav-link next">第13章：扩散模型的应用 →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

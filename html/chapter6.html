@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章：流匹配 (Flow Matching)</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class="active"><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="index.html">← 返回目录</a> | 第6章 / 共14章 | <a href="chapter7.html">下一章 →</a></p>
+<h1 id="6-flow-matching">第6章：流匹配 (Flow Matching)</h1>
+<p>流匹配是生成建模领域的一个新兴范式，它巧妙地结合了连续正则化流（Continuous Normalizing Flows）的理论优雅性和扩散模型的实践有效性。本章将深入探讨流匹配的核心思想：如何通过学习简单的向量场来构建复杂分布之间的最优传输路径。您将理解流匹配如何统一了看似不同的生成模型框架，以及它在计算效率和理论保证方面的独特优势。通过本章的学习，您将掌握设计和训练流匹配模型的关键技术，并理解其与扩散模型、最优传输理论的深刻联系。</p>
+<h2 id="_1">章节大纲</h2>
+<h3 id="61">6.1 从正则化流到流匹配</h3>
+<ul>
+<li>连续正则化流（CNF）的基本概念</li>
+<li>流匹配的动机：避免似然计算的计算瓶颈</li>
+<li>条件流匹配（Conditional Flow Matching）框架</li>
+</ul>
+<h3 id="62">6.2 最优传输视角</h3>
+<ul>
+<li>Monge-Kantorovich问题与Wasserstein距离</li>
+<li>动态最优传输与Benamou-Brenier公式</li>
+<li>流匹配作为最优传输的实现</li>
+</ul>
+<h3 id="63">6.3 流匹配的数学基础</h3>
+<ul>
+<li>概率路径与边缘保持性质</li>
+<li>向量场的参数化与学习</li>
+<li>流匹配目标函数的推导</li>
+</ul>
+<h3 id="64">6.4 与扩散模型的联系</h3>
+<ul>
+<li>概率流ODE的统一视角</li>
+<li>从score matching到flow matching</li>
+<li>计算效率的比较分析</li>
+</ul>
+<h3 id="65">6.5 实践中的流匹配</h3>
+<ul>
+<li>路径选择：线性插值vs最优传输</li>
+<li>采样算法与ODE求解器选择</li>
+<li>条件生成与引导技术</li>
+</ul>
+<h2 id="61_1">6.1 从正则化流到流匹配</h2>
+<h3 id="611">6.1.1 连续正则化流的回顾</h3>
+<p>连续正则化流（Continuous Normalizing Flows, CNF）提供了一种优雅的方式来建模复杂概率分布之间的变换。与离散的正则化流不同，CNF通过一个连续时间的动力系统来定义变换。想象一下，数据点像是河流中的叶子，随着时间的推移被向量场推动——这就是CNF的核心思想。</p>
+<p>在离散正则化流中，我们通过一系列精心设计的可逆变换层（如耦合层、自回归流等）来构建从简单分布到复杂分布的映射。每一层都必须满足严格的可逆性约束，这极大地限制了模型的设计空间。而CNF则采用了一种截然不同的方法：它将这种离散的层叠结构替换为一个连续的动力系统，让数据点在向量场的引导下平滑地流动。</p>
+<p>具体来说，CNF定义了一个时间相关的常微分方程（ODE）：</p>
+<p>$\frac{d\mathbf{x}_t}{dt} = v_t(\mathbf{x}_t), \quad t \in [0,1]$</p>
+<p>其中 $v_t: \mathbb{R}^d \to \mathbb{R}^d$ 是时间相关的向量场，它告诉我们在时刻 $t$ ，位于 $\mathbf{x}_t$ 的点应该以什么速度和方向移动。这个向量场就像是一个随时间变化的"风场"，推动着数据点从简单分布（如标准高斯）流向复杂的目标分布。</p>
+<p>要真正理解CNF的力量，让我们深入探讨向量场的含义。在物理学中，向量场描述了空间中每一点的某种矢量量——比如流体的速度场、电磁场等。在CNF中，向量场 $v_t(\mathbf{x}_t)$ 描述了概率质量的"流速"。如果我们将概率分布想象成一种"概率流体"，那么向量场就告诉我们这种流体在每个位置、每个时刻应该如何流动。</p>
+<p>给定初始分布 $p_0$ （通常是简单的高斯分布），通过求解这个ODE，我们可以得到任意时刻 $t$ 的分布 $p_t$ 。这个过程是完全可逆的——如果我们知道向量场，就可以从任意时刻的分布推导出其他时刻的分布，这种双向性是CNF的一个重要特征。</p>
+<p>数学上，这种可逆性通过ODE的存在唯一性定理来保证。只要向量场 $v_t$ 满足适当的光滑性条件（如Lipschitz连续），ODE的解就是唯一的，并且可以反向求解。这意味着：</p>
+<ul>
+<li><strong>前向过程</strong>：从 $\mathbf{x}_0$ 出发，沿着向量场积分到时刻 $t$ ，得到 $\mathbf{x}_t$</li>
+<li><strong>反向过程</strong>：从 $\mathbf{x}_t$ 出发，沿着 $-v_t$ 积分回到时刻 $0$ ，恢复 $\mathbf{x}_0$</li>
+</ul>
+<p>这种双向性使得CNF既可以用于生成（从噪声到数据），也可以用于推断（从数据到潜在表示）。</p>
+<p>CNF的关键优势在于其理论的优雅性。变换的雅可比行列式——它告诉我们变换如何改变体积元素——可以通过以下公式计算：</p>
+<p>$\log p_1(\mathbf{x}_1) = \log p_0(\mathbf{x}_0) - \int_0^1 \nabla \cdot v_t(\mathbf{x}_t) dt$</p>
+<p>这里 $\nabla \cdot v_t$ 是向量场的散度，可以使用 <code>torch.autograd</code> 高效计算。这个公式的直观理解是：如果向量场在某个区域是发散的（散度为正），那么该区域的概率密度会降低；反之，如果向量场是收敛的（散度为负），概率密度会增加。</p>
+<p>让我们通过一个具体的例子来理解这个公式。考虑一个二维的情况，其中向量场在某个圆形区域内是向外发散的（像一个源），而在区域外是向内收敛的（像一个汇）。随着时间的推移：</p>
+<ul>
+<li>圆内的概率质量会被"推出"，导致该区域的密度降低</li>
+<li>圆外的概率质量会被"吸入"特定区域，导致那里的密度增加</li>
+<li>散度正好量化了这种局部的"膨胀"或"收缩"效应</li>
+</ul>
+<p>这个密度变化公式实际上是流体力学中连续性方程的一个特例。在流体力学中，连续性方程描述了质量守恒；在概率论中，它描述了概率守恒。这种跨学科的联系使得我们可以借用流体力学的直觉和工具来理解和设计生成模型。</p>
+<p>这种连续性带来了几个重要优势：</p>
+<ul>
+<li><strong>灵活性</strong>：不需要像离散流那样精心设计每一层的可逆变换。我们只需要参数化一个向量场，而神经网络可以轻松地表示任意复杂的向量场。</li>
+<li><strong>表达能力</strong>：理论上，任何两个分布都可以通过某个CNF连接。这是因为对于任意两个概率分布，总存在一个向量场可以将一个变换为另一个（尽管找到这个向量场可能很困难）。</li>
+<li><strong>数值稳定性</strong>：使用现代ODE求解器可以获得高精度的数值解。与离散流中可能出现的数值不稳定性（如雅可比行列式的爆炸）相比，CNF的连续性质使得数值计算更加稳定。</li>
+<li><strong>内存效率</strong>：在反向传播时，我们可以使用伴随敏感度方法（adjoint sensitivity method），避免存储整个前向轨迹，大大减少内存使用。</li>
+</ul>
+<p>CNF还与许多其他数学概念有着深刻的联系。例如：</p>
+<ul>
+<li><strong>动力系统理论</strong>：CNF本质上是一个时变动力系统，我们可以借用动力系统的工具来分析其行为，如稳定性、吸引子、分岔等。</li>
+<li><strong>最优控制理论</strong>：学习最优的向量场可以被视为一个最优控制问题，其中向量场是控制输入，目标是最小化某种成本函数。</li>
+<li><strong>黎曼几何</strong>：在概率分布的流形上，CNF定义了一种几何流，类似于黎曼几何中的测地流或Ricci流。</li>
+</ul>
+<p>🔬 <strong>研究线索：向量场的几何性质</strong><br />
+CNF中向量场的几何性质（如旋度、散度）如何影响生成质量？是否可以通过约束向量场的几何特性（例如无旋场、保体积变换）来获得更好的生成模型？这涉及到微分几何和李群理论的深刻应用。例如：</p>
+<ul>
+<li><strong>无旋场（梯度场）</strong>：如果向量场是某个势函数的梯度，那么流动路径是否会更加"直接"？</li>
+<li><strong>保体积变换</strong>：如果约束散度为零（不可压缩流），是否可以获得更稳定的训练？</li>
+<li><strong>辛结构保持</strong>：在某些应用中（如哈密顿系统），保持辛结构可能很重要。</li>
+</ul>
+<h3 id="612-cnf">6.1.2 传统CNF的计算瓶颈</h3>
+<p>尽管CNF在理论上优雅，但在实践中面临严重的计算挑战。让我们深入理解为什么这些挑战会成为实际应用的障碍。</p>
+<p>要理解这些挑战的严重性，让我们首先回顾CNF的训练目标。在最大似然估计框架下，我们希望最大化观测数据的对数似然：</p>
+<p>$\mathcal{L}(\theta) = \mathbb{E}_{\mathbf{x}_1 \sim p_{data}}[\log p_\theta(\mathbf{x}_1)]$</p>
+<p>其中 $p_\theta$ 是由参数化向量场 $v_\theta$ 定义的模型分布。看起来简单，但计算这个目标函数却异常复杂。</p>
+<ol>
+<li><strong>似然计算的开销</strong>：计算 $\log p_1(\mathbf{x}_1)$ 需要执行一个复杂的计算流程：</li>
+</ol>
+<ul>
+<li>
+<p><strong>反向ODE求解</strong>：给定一个数据点 $\mathbf{x}_1$ ，我们需要反向求解ODE从 $t=1$ 到 $t=0$ ，找到对应的初始点 $\mathbf{x}_0$ 。这就像是逆着河流追溯叶子的起点，计算上需要多步数值积分。</p>
+<p>具体来说，我们需要求解：
+ $\frac{d\mathbf{x}_t}{dt} = -v_{1-t}(\mathbf{x}_t), \quad \mathbf{x}_{t=0} = \mathbf{x}_1$</p>
+<p>这个反向积分过程通常需要使用数值ODE求解器，如Runge-Kutta方法。每一步都需要评估向量场，而在深度学习中，这意味着一次神经网络的前向传播。</p>
+</li>
+<li>
+<p><strong>轨迹积分</strong>：沿着整个轨迹，我们需要累积散度项 $\int_0^1 \nabla \cdot v_t(\mathbf{x}_t) dt$ 。这要求在每个积分步骤都计算向量场的散度。</p>
+<p>这个积分必须与ODE求解同步进行，因为我们需要知道每个时刻的位置 $\mathbf{x}_t$ 才能计算该点的散度。这创造了一个耦合的计算过程：
+ ```
+ 对于每个ODE求解步骤：</p>
+<ol>
+<li>计算当前位置的向量场 v_t(x_t)</li>
+<li>计算向量场的散度 ∇·v_t(x_t)</li>
+<li>更新位置 x_t</li>
+<li>累积散度贡献到总积分
+    ```</li>
+</ol>
+<ul>
+<li>
+<p><strong>神经网络调用</strong>：每个ODE求解步骤都需要调用神经网络来评估向量场 $v_t(\mathbf{x}_t)$ ，在训练过程中这意味着大量的前向和反向传播。</p>
+<p>让我们量化这个开销：假设我们使用一个相对简单的ODE求解器，需要20步来获得足够的精度。那么：</p>
+<ul>
+<li>每个数据点需要20次神经网络前向传播</li>
+<li>在反向传播时，梯度需要通过这20步传回，导致计算图极深</li>
+<li>内存需求随着步数线性增长</li>
+</ul>
+</li>
+</ul>
+<p>想象一下，对于一张 $256 \times 256$ 的RGB图像（196,608维），每个训练样本可能需要数十次神经网络评估，这使得训练变得极其缓慢。在实践中，训练一个高质量的CNF模型可能需要数周时间，即使在强大的GPU集群上。</p>
+</li>
+</ul>
+<ol start="2">
+<li>
+<p><strong>训练的不稳定性</strong>：直接最大化似然需要精确的ODE求解，但这在高维空间中充满挑战：</p>
+<ul>
+<li>
+<p><strong>数值误差累积</strong>：ODE求解器的每一步都会引入小的数值误差，这些误差会沿着轨迹累积，特别是在高维空间中。</p>
+<p>考虑一个简单的例子：假设每步的相对误差是 $\epsilon = 10^{-6}$ （这已经是相当高的精度）。经过 $n$ 步后，最坏情况下的误差可能达到 $n\epsilon$ 。对于需要100步的复杂流，累积误差可能达到 $10^{-4}$ ，这在高维空间中可能导致完全错误的结果。</p>
+<p>更糟糕的是，这些误差在反向传播时会被放大。如果前向过程有误差，那么计算的梯度也会有误差，导致参数更新不准确。</p>
+</li>
+<li>
+<p><strong>梯度爆炸/消失</strong>：反向传播通过整个ODE轨迹时，梯度可能会指数级地增长或衰减，导致训练不稳定。</p>
+<p>这个问题的根源在于链式法则。考虑简化的情况，梯度的传播大致遵循：
+$\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\partial \mathbf{x}_{t_i}}{\partial \mathbf{x}_{t_{i-1}}} \cdot \frac{\partial \mathcal{L}}{\partial \mathbf{x}_T}$</p>
+<p>如果每个雅可比矩阵 $\frac{\partial \mathbf{x}_{t_i}}{\partial \mathbf{x}_{t_{i-1}}}$ 的谱范数大于1，梯度会指数增长；如果小于1，梯度会指数衰减。在深度ODE中控制这些谱范数是一个未解决的难题。</p>
+</li>
+<li>
+<p><strong>步长选择困境</strong>：使用较大步长会降低精度，使用较小步长会大幅增加计算成本。</p>
+<p>这是一个典型的精度-效率权衡：</p>
+<ul>
+<li>大步长（如 $\Delta t = 0.1$ ）：快速但不准确，可能导致训练不收敛</li>
+<li>小步长（如 $\Delta t = 0.001$ ）：准确但极其缓慢，一个epoch可能需要数天</li>
+<li>自适应步长：理论上最优，但实现复杂，且在反向传播时带来额外挑战</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>散度计算的复杂度</strong>：散度 $\nabla \cdot v_t = \sum_{i=1}^d \frac{\partial v_{t,i}}{\partial x_i}$ 的计算是一个关键瓶颈：</p>
+<ul>
+<li>
+<p><strong>精确计算</strong>：对于 $d$ 维数据，需要计算 $d$ 个偏导数。使用自动微分，这需要 $O(d)$ 次反向传播，每次计算一个维度的导数。</p>
+<p>让我们详细分析这个计算过程。假设向量场网络的前向传播成本是 $C$ ，那么：</p>
+<ul>
+<li>计算一个偏导数 $\frac{\partial v_{t,i}}{\partial x_i}$ 需要一次反向传播，成本约为 $C$</li>
+<li>计算完整散度需要 $d$ 次这样的计算，总成本为 $dC$</li>
+<li>对于图像（$d \sim 10^5$），这意味着计算散度比计算向量场本身慢10万倍！</li>
+</ul>
+</li>
+<li>
+<p><strong>Hutchinson迹估计</strong>：虽然可以使用随机估计方法将复杂度降到 $O(1)$ ，但代价是引入方差：
+    $$\nabla \cdot v_t \approx \mathbb{E}_{\epsilon \sim \mathcal{N}(0, I)}[\epsilon^T \nabla_x (v_t \cdot \epsilon)]$$</p>
+<p>这种方法的原理是利用了迹的随机估计。具体来说：</p>
+<ul>
+<li>采样一个随机向量 $\epsilon \sim \mathcal{N}(0, I)$</li>
+<li>计算 $v_t \cdot \epsilon$ （向量场与随机向量的内积）</li>
+<li>对这个标量函数关于 $x$ 求梯度</li>
+<li>计算结果与 $\epsilon$ 的内积</li>
+</ul>
+<p>虽然计算复杂度降低了，但这种估计是有偏的，需要多个样本来降低方差。在实践中，可能需要5-10个样本才能获得可靠的估计，这部分抵消了计算节省。</p>
+</li>
+<li>
+<p><strong>方差-偏差权衡</strong>：使用更多的Hutchinson样本可以降低方差，但会增加计算成本。这创造了另一个困难的超参数选择问题。研究表明，不当的方差会严重影响模型的最终性能。</p>
+</li>
+</ul>
+<p>对于图像等高维数据，即使是 $O(1)$ 的估计也需要仔细调节以平衡方差和计算成本。</p>
+</li>
+</ol>
+<p><strong>实际影响</strong>：这些计算瓶颈的综合效应是灾难性的。一个在CIFAR-10这样的小数据集上训练的CNF模型，可能需要：</p>
+<ul>
+<li>数百个GPU小时的训练时间</li>
+<li>精心调节的数值求解器设置</li>
+<li>大量的工程努力来稳定训练</li>
+<li>仍然可能无法达到其他生成模型的性能</li>
+</ul>
+<p>这解释了为什么尽管CNF在理论上优雅，在实践中却很少被采用——直到流匹配的出现改变了这一局面。</p>
+<p>### 6.1.3 流匹配：回避似然计算的巧妙方案</p>
+<p>流匹配（Flow Matching）的核心洞察是一个范式转换：与其费力地通过似然优化来间接学习向量场，不如直接学习连接两个分布的向量场本身。这个想法既简单又深刻，它彻底改变了我们训练连续流模型的方式。</p>
+<p>要理解这个范式转换的重要性，让我们回顾一下传统CNF和流匹配的根本区别：</p>
+<p><strong>传统CNF的间接学习</strong>：</p>
+<ul>
+<li>目标：最大化数据的似然 $p_\theta(\mathbf{x})$</li>
+<li>方法：通过复杂的ODE求解和散度计算来评估似然</li>
+<li>问题：计算成本高昂，训练不稳定</li>
+</ul>
+<p><strong>流匹配的直接学习</strong>：</p>
+<ul>
+<li>目标：学习正确的向量场 $v_\theta \approx u_t$</li>
+<li>方法：直接监督向量场的预测</li>
+<li>优势：避免了ODE求解和散度计算</li>
+</ul>
+<p>让我们用一个类比来理解：假设你想教一个机器人从A点走到B点。传统CNF的方法就像是：让机器人尝试各种路径，然后根据到达B点的概率来调整。这需要机器人完整地走完路径，记录轨迹，计算到达的可能性——整个过程繁琐且容易出错。</p>
+<p>而流匹配的方法是：直接告诉机器人在每个位置应该朝哪个方向走，走多快。我们不需要让机器人真的走完全程才能评估它的表现，只需要检查它在每个位置的"速度向量"是否正确。这种方法更直接、更高效。</p>
+<p>具体来说，给定源分布 $p_0$ （如标准高斯）和目标分布 $p_1$ （数据分布），流匹配的目标是学习一个向量场 $v_\theta$ ，使得：</p>
+<p>$\min_\theta \mathbb{E}_{t \sim \mathcal{U}[0,1], \mathbf{x}_t \sim p_t} |v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t)|^2$</p>
+<p>这个目标函数的含义是：</p>
+<ul>
+<li>在任意时刻 $t \in [0,1]$ </li>
+<li>对于该时刻分布 $p_t$ 中的任意点 $\mathbf{x}_t$ </li>
+<li>我们希望模型预测的向量场 $v_\theta(t, \mathbf{x}_t)$ 尽可能接近真实的向量场 $u_t(\mathbf{x}_t)$ </li>
+</ul>
+<p>其中 $u_t$ 是生成概率路径 $p_t$ 的"真实"向量场——它定义了粒子应该如何移动才能实现从 $p_0$ 到 $p_1$ 的变换。</p>
+<p><strong>流匹配的理论基础</strong></p>
+<p>流匹配的有效性基于一个重要的理论结果：如果我们能够准确地学习向量场 $v_\theta \approx u_t$ ，那么通过求解ODE：</p>
+<p>$\frac{d\mathbf{x}_t}{dt} = v_\theta(t, \mathbf{x}_t), \quad \mathbf{x}_0 \sim p_0$</p>
+<p>得到的分布 $\mathbf{x}_1$ 将近似于目标分布 $p_1$ 。这个结果的直观理解是：如果我们知道了正确的"流速"，那么跟随这个流动就能到达正确的目的地。</p>
+<p>数学上，这可以通过以下方式理解。设 $p_t^\theta$ 是由学习到的向量场 $v_\theta$ 生成的概率路径，$p_t$ 是真实的概率路径。如果 $v_\theta \approx u_t$ ，那么：</p>
+<p>$\frac{\partial p_t^\theta}{\partial t} + \nabla \cdot (p_t^\theta v_\theta) \approx \frac{\partial p_t}{\partial t} + \nabla \cdot (p_t u_t) = 0$</p>
+<p>这意味着 $p_t^\theta \approx p_t$ ，特别是 $p_1^\theta \approx p_1$ 。</p>
+<p><strong>流匹配的优势</strong></p>
+<ol>
+<li>
+<p><strong>计算效率</strong>：</p>
+<ul>
+<li>不需要在训练时求解ODE</li>
+<li>不需要计算散度或雅可比行列式</li>
+<li>每个训练步骤只需要一次神经网络前向传播</li>
+</ul>
+</li>
+<li>
+<p><strong>训练稳定性</strong>：</p>
+<ul>
+<li>避免了通过长ODE轨迹的梯度传播</li>
+<li>没有数值误差的累积</li>
+<li>梯度计算简单明了</li>
+</ul>
+</li>
+<li>
+<p><strong>实现简单</strong>：</p>
+<ul>
+<li>训练循环与标准的监督学习相同</li>
+<li>不需要复杂的ODE求解器或伴随方法</li>
+<li>易于调试和优化</li>
+</ul>
+</li>
+</ol>
+<p>但这里有一个关键挑战：<strong>如何获得训练样本 $(t, \mathbf{x}_t, u_t(\mathbf{x}_t))$ ？</strong></p>
+<p>这个挑战的本质是一个"循环依赖"问题：</p>
+<ul>
+<li>我们不知道中间分布 $p_t$ 的具体形式，如何从中采样 $\mathbf{x}_t$ ？</li>
+<li>我们不知道真实向量场 $u_t$ ，如何获得监督信号？</li>
+</ul>
+<p>更具体地说，考虑以下困难：</p>
+<ol>
+<li>
+<p><strong>中间分布的未知性</strong>：给定 $p_0$ 和 $p_1$ ，存在无穷多种可能的概率路径 ${p_t}_{t \in [0,1]}$ 连接它们。每种路径对应不同的向量场。我们应该选择哪一种？</p>
+</li>
+<li>
+<p><strong>向量场的隐式定义</strong>：即使我们选定了一种概率路径，对应的向量场 $u_t$ 通常也没有解析形式。它是通过连续性方程隐式定义的：
+      $\frac{\partial p_t}{\partial t} + \nabla \cdot (p_t u_t) = 0$
+      从这个方程解出 $u_t$ 是非平凡的。</p>
+</li>
+<li>
+<p><strong>采样的困难</strong>：即使我们知道了 $u_t$ ，从中间分布 $p_t$ 采样通常也需要求解从 $p_0$ 出发的ODE——这正是我们想要避免的！</p>
+</li>
+</ol>
+<p>这看起来是一个"鸡生蛋"的问题：要学习向量场，需要知道中间分布；要知道中间分布，需要知道向量场。传统的解决方案可能会陷入迭代优化的复杂过程中。</p>
+<p>条件流匹配正是为了打破这个循环而设计的。它的关键洞察是：与其试图直接处理复杂的边缘分布和向量场，不如构造简单的条件分布，然后利用边缘化的性质来恢复我们需要的目标。这种方法既优雅又实用，让流匹配从一个理论上有趣但实践上困难的想法，变成了一个强大的实用工具。</p>
+<p>### 6.1.4 条件流匹配框架</p>
+<p>条件流匹配（Conditional Flow Matching, CFM）通过构造条件概率路径巧妙地解决了采样问题。这个方法的优雅之处在于，它将一个复杂的全局问题分解为许多简单的局部问题。</p>
+<p>核心思想可以分为三个关键步骤：</p>
+<ol>
+<li>
+<p><strong>定义条件路径</strong>：与其试图直接构造从整个分布 $p_0$ 到 $p_1$ 的复杂路径，CFM为每一对点构造简单的条件路径。对每个数据点 $\mathbf{x}_1 \sim p_1$ 和对应的噪声点 $\mathbf{x}_0 \sim p_0$ ，定义一个简单的路径连接它们。最常用的是线性插值：</p>
+<p>$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$</p>
+<p>这就像是为每对起点和终点画一条直线。虽然单条直线很简单，但所有直线的集合可以形成复杂的流场。</p>
+</li>
+<li>
+<p><strong>条件向量场</strong>：对于线性路径，计算对应的向量场非常简单。如果粒子沿着直线从 $\mathbf{x}_0$ 移动到 $\mathbf{x}_1$ ，它的速度是恒定的：</p>
+<p>$u_t(\mathbf{x}_t | \mathbf{x}_0, \mathbf{x}_1) = \frac{d\mathbf{x}_t}{dt} = \mathbf{x}_1 - \mathbf{x}_0$</p>
+<p>注意这个向量场不依赖于时间 $t$ ——粒子始终以相同的速度沿直线移动。这种简单性是线性插值的一大优势。</p>
+</li>
+<li>
+<p><strong>边缘化的魔法</strong>：CFM的关键洞察是一个深刻的数学事实：如果我们对所有可能的 $(\mathbf{x}_0, \mathbf{x}_1)$ 对进行平均（边缘化），得到的边缘向量场 $u_t(\mathbf{x}_t)$ 正好生成了从 $p_0$ 到 $p_1$ 的有效流。</p>
+<p>直观地说，虽然每条单独的路径只连接一对点，但当我们考虑所有可能的路径时，它们的集体效应创造了一个将整个分布 $p_0$ 变换到 $p_1$ 的向量场。</p>
+</li>
+</ol>
+<p>这种方法的美妙之处在于，它将一个困难的问题（学习复杂的全局向量场）转化为一个简单的问题（匹配条件向量场）。更重要的是，这种转化使得训练变得极其高效。</p>
+<p>💡 <strong>实现技巧：高效采样</strong><br />
+   CFM的训练算法惊人地简单：</p>
+<ol>
+<li>采样时间 $t \sim \mathcal{U}[0,1]$ </li>
+<li>采样噪声 $\mathbf{x}_0 \sim p_0$ 和数据 $\mathbf{x}_1 \sim p_1$ </li>
+<li>计算插值点 $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ </li>
+<li>训练网络最小化 $|v_\theta(t, \mathbf{x}_t) - (\mathbf{x}_1 - \mathbf{x}_0)|^2$ </li>
+</ol>
+<p>整个过程完全避免了ODE求解、似然计算和复杂的采样过程！每个训练步骤的计算成本与训练一个简单的回归网络相当。</p>
+<p>🔬 <strong>研究线索：非线性路径设计</strong><br />
+   虽然线性路径简单有效，但它们可能不是最优的。研究问题包括：如何设计更好的条件路径？例如，可以考虑测地线路径（在某种度量下的最短路径）、避开低密度区域的路径、或者学习数据依赖的路径。这是一个活跃的研究领域，涉及最优传输理论和流形学习。</p>
+<p>## 6.2 最优传输视角</p>
+<p>流匹配与最优传输（Optimal Transport, OT）理论有着深刻的联系。要理解这种联系，让我们先从一个直观的例子开始：想象你是一个物流公司的经理，需要将仓库中的货物运送到各个商店。OT理论研究的正是如何以"最低成本"完成这种分配任务——只不过在我们的情况中，"货物"是概率质量，"运输"是从一个分布到另一个分布的变换。</p>
+<p>### 6.2.1 Monge-Kantorovich问题与Wasserstein距离</p>
+<p>最优传输理论有着悠久的历史，可以追溯到18世纪法国数学家Gaspard Monge的工作。Monge最初研究的问题非常实际：如何以最小的工作量将一堆沙土搬运到另一个地方来建造防御工事。这个看似简单的问题，实际上蕴含着深刻的数学结构。</p>
+<p><strong>Monge问题</strong>的现代表述是：寻找一个映射 $T: \mathbb{R}^d \to \mathbb{R}^d$ ，使得：</p>
+<ol>
+<li><strong>质量守恒</strong>：如果 $\mathbf{x}_0 \sim p_0$ ，则 $T(\mathbf{x}_0) \sim p_1$ 。这意味着映射 $T$ 将源分布 $p_0$ 完全变换为目标分布 $p_1$ 。</li>
+<li><strong>成本最小</strong>：总的"运输成本"最小化：</li>
+</ol>
+<p>$\inf_T \int_{\mathbb{R}^d} c(\mathbf{x}_0, T(\mathbf{x}_0)) p_0(\mathbf{x}_0) d\mathbf{x}_0$</p>
+<p>其中 $c(\mathbf{x}, \mathbf{y})$ 是成本函数，它衡量将单位质量从 $\mathbf{x}$ 运送到 $\mathbf{y}$ 的代价。</p>
+<p><strong>成本函数的选择</strong>至关重要：</p>
+<ul>
+<li><strong>欧氏距离平方</strong> $c(\mathbf{x}, \mathbf{y}) = |\mathbf{x} - \mathbf{y}|^2$ ：这是最常用的选择，它鼓励短距离运输，具有良好的数学性质。</li>
+<li><strong>欧氏距离</strong> $c(\mathbf{x}, \mathbf{y}) = |\mathbf{x} - \mathbf{y}|$ ：更直观但数学处理上稍复杂。</li>
+<li><strong>其他度量</strong>：可以根据具体问题设计，如考虑地形的运输成本。</li>
+</ul>
+<p>然而，Monge问题有一个根本性的限制：它要求每个源点必须整体地映射到一个目标点。这在某些情况下可能没有解。例如，如果源分布是一个点质量，而目标分布是均匀分布，那么没有办法通过一个确定性映射来实现这种变换。</p>
+<p><strong>Kantorovich的松弛</strong>解决了这个问题。与其寻找确定性映射，Kantorovich允许"分割"质量——一个源点的质量可以被分配到多个目标点。数学上，这通过引入联合分布（或称"传输计划"）$\pi(\mathbf{x}, \mathbf{y})$ 来实现：</p>
+<p>$\inf_\pi \int_{\mathbb{R}^d \times \mathbb{R}^d} c(\mathbf{x}, \mathbf{y}) d\pi(\mathbf{x}, \mathbf{y})$</p>
+<p>其中 $\pi$ 的边缘分布必须分别是 $p_0$ 和 $p_1$ 。</p>
+<p><strong>Wasserstein距离</strong>是当成本函数为距离的幂次时，最优传输成本的特殊情况：</p>
+<ul>
+<li>$W_p(p_0, p_1) = \left(\inf_\pi \int |\mathbf{x} - \mathbf{y}|^p d\pi(\mathbf{x}, \mathbf{y})\right)^{1/p}$</li>
+</ul>
+<p>特别地，$W_2$ （使用平方欧氏距离）在理论和应用中最为重要，因为它与许多几何和物理概念自然地联系在一起。</p>
+<p>### 6.2.2 动态最优传输与Benamou-Brenier公式</p>
+<p>静态的Monge-Kantorovich问题告诉我们最优的"配对方案"，但没有告诉我们质量是如何从源移动到目标的。Benamou和Brenier在2000年提出了一个革命性的想法：与其只关注起点和终点，不如研究整个运输过程的动力学。</p>
+<p>想象一下密度分布的演化就像流体的流动。在每个时刻 $t \in [0,1]$ ，我们有一个概率分布 $p_t$ ，它从 $p_0$ 开始，最终到达 $p_1$ 。这个演化由一个速度场 $v_t$ 驱动，满足<strong>连续性方程</strong>：</p>
+<p>$\frac{\partial p_t}{\partial t} + \nabla \cdot (p_t v_t) = 0$</p>
+<p>这个方程有着深刻的物理含义：</p>
+<ul>
+<li>$\frac{\partial p_t}{\partial t}$ 是密度的时间变化率</li>
+<li>$\nabla \cdot (p_t v_t)$ 是概率流的散度</li>
+<li>方程表达了质量守恒：密度的增加等于流入减去流出</li>
+</ul>
+<p><strong>Benamou-Brenier公式</strong>将最优传输问题重新表述为一个变分问题：</p>
+<p>$W_2^2(p_0, p_1) = \inf_{p_t, v_t} \int_0^1 \int_{\mathbb{R}^d} |v_t(\mathbf{x})|^2 p_t(\mathbf{x}) d\mathbf{x} dt$</p>
+<p>这个公式的美妙之处在于它的物理直觉：</p>
+<ul>
+<li>被积函数 $|v_t(\mathbf{x})|^2 p_t(\mathbf{x})$ 可以理解为"动能密度"</li>
+<li>整个积分是路径的总"动能"</li>
+<li>最优传输路径是使总动能最小的路径</li>
+</ul>
+<p>这种动态视角带来了几个重要洞察：</p>
+<ol>
+<li>
+<p><strong>最短路径原理</strong>：在Wasserstein-2几何中，最优传输路径是连接两个分布的"测地线"（最短路径）。就像在曲面上两点之间的最短路径是测地线一样。</p>
+</li>
+<li>
+<p><strong>位移插值</strong>：最优传输路径提供了一种在分布之间进行插值的自然方式。对于时刻 $t$ 的分布 $p_t$ ，它是 $p_0$ 和 $p_1$ 的"位移插值"（displacement interpolation），保持了分布的几何结构。</p>
+</li>
+<li>
+<p><strong>速度场的特性</strong>：最优传输的速度场有一个重要性质——它是某个势函数的梯度（至少在适当的正则性条件下）：
+      $v_t(\mathbf{x}) = \nabla \phi_t(\mathbf{x})$</p>
+<p>这意味着最优传输的流动是"无旋的"，没有涡流或循环。</p>
+</li>
+</ol>
+<p>### 6.2.3 流匹配作为最优传输的实现</p>
+<p>现在我们可以理解流匹配与最优传输之间的深刻联系了。流匹配可以被视为一种实用的方法来近似求解最优传输问题，而不需要直接处理其计算复杂性。</p>
+<p><strong>理论联系</strong>：
+   流匹配的目标函数——最小化模型向量场 $v_\theta$ 与真实向量场 $u_t$ 之间的L2距离——与Benamou-Brenier公式有着密切的关系。让我们仔细分析这种联系：</p>
+<ol>
+<li>
+<p><strong>当使用最优传输路径时</strong>：如果我们在条件流匹配中使用的概率路径 $p_t$ 正好是最优传输路径（即Wasserstein测地线），那么：</p>
+<ul>
+<li>对应的向量场 $u_t$ 就是最优传输的速度场</li>
+<li>学习到的 $v_\theta$ 将逼近最优传输映射</li>
+<li>生成的样本将沿着最优路径从噪声移动到数据</li>
+</ul>
+</li>
+<li>
+<p><strong>线性插值的情况</strong>：在实践中，我们通常使用简单的线性插值路径：</p>
+<ul>
+<li>条件路径：$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$</li>
+<li>这不是最优传输路径（除非在非常特殊的情况下）</li>
+<li>但它仍然定义了一个有效的传输方案</li>
+</ul>
+</li>
+</ol>
+<p><strong>为什么线性插值也有效？</strong></p>
+<p>虽然线性插值不是最优的，但它有几个实际优势：</p>
+<ol>
+<li><strong>计算简单</strong>：目标向量场是常数 $\mathbf{x}_1 - \mathbf{x}_0$ ，极易计算</li>
+<li><strong>稳定性</strong>：线性路径避免了复杂的曲线运动，减少了数值不稳定性</li>
+<li><strong>足够好</strong>：对于许多应用，线性插值提供的路径质量已经足够</li>
+</ol>
+<p><strong>最优传输引导的改进</strong>：</p>
+<p>研究者们提出了多种方法来结合最优传输的理论优势和流匹配的实践效率：</p>
+<ol>
+<li>
+<p><strong>OT-CFM（Optimal Transport Conditional Flow Matching）</strong>：</p>
+<ul>
+<li>使用最优传输理论来设计更好的条件路径</li>
+<li>例如，使用mini-batch最优传输来估计更好的配对</li>
+<li>在保持计算效率的同时提高生成质量</li>
+</ul>
+</li>
+<li>
+<p><strong>动态最优传输正则化</strong>：</p>
+<ul>
+<li>在流匹配损失中加入鼓励"直线"路径的正则项</li>
+<li>这隐式地鼓励学习接近最优传输的解</li>
+</ul>
+</li>
+<li>
+<p><strong>多尺度最优传输</strong>：</p>
+<ul>
+<li>在不同的特征尺度上应用最优传输原理</li>
+<li>特别适用于具有层次结构的数据（如图像）</li>
+</ul>
+</li>
+</ol>
+<p><strong>实践意义</strong>：</p>
+<p>流匹配作为最优传输的实现，为我们提供了：</p>
+<ul>
+<li><strong>理论基础</strong>：最优传输理论提供了坚实的数学基础</li>
+<li><strong>实用算法</strong>：避免了直接求解OT问题的计算困难</li>
+<li><strong>灵活性</strong>：可以在效率和最优性之间进行权衡</li>
+</ul>
+<p>🔬 <strong>研究线索：最优传输与生成质量</strong><br />
+   一个开放的研究问题是：在什么条件下，使用更接近最优传输的路径会显著提高生成质量？这涉及到数据流形的几何性质、噪声分布的选择、以及具体应用场景的需求。特别是在高维空间中，"最优"的含义本身就需要仔细定义。</p>
+<p>## 6.3 流匹配的数学基础</p>
+<p>流匹配的有效性依赖于一个优雅的数学性质：<strong>直接匹配条件向量场可以正确地学习到边缘向量场</strong>。</p>
+<p>### 6.3.1 概率路径与边缘保持性质</p>
+<p>让我们更正式地定义这个思想。</p>
+<ol>
+<li><strong>联合分布</strong>：我们首先定义一个源分布 $p_0$ 和目标分布 $p_1$ 的联合分布（或称“耦合”） $q(\mathbf{x}_0, \mathbf{x}_1)$ 。最简单的选择是独立耦合 $q(\mathbf{x}_0, \mathbf{x}_1) = p_0(\mathbf{x}_0) p_1(\mathbf{x}_1)$ 。</li>
+<li><strong>条件概率路径</strong>：给定一对样本 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$ ，我们定义一个条件概率路径 $p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 。这是一个随时间 $t$ 演化的分布，满足 $p_0(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_0)$ 和 $p_1(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_1)$ 。</li>
+<li><strong>边缘概率路径</strong>：通过对联合分布 $q$ 进行积分，我们可以得到边缘概率路径：
+       $p_t(\mathbf{x}) = \int p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) q(\mathbf{x}_0, \mathbf{x}_1) d\mathbf{x}_0 d\mathbf{x}_1$
+       这个边缘路径 $p_t$ 描述了从 $p_0$ 到 $p_1$ 的连续变换。</li>
+</ol>
+<p>### 6.3.2 向量场的推导</p>
+<p>与概率路径对应，我们也有条件向量场 $u_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 和边缘向量场 $u_t(\mathbf{x})$ 。它们通过连续性方程联系在一起。一个关键的数学结论是，边缘向量场是条件向量场在后验分布 $q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)$ 下的期望：</p>
+<p>$u_t(\mathbf{x}_t) = \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)}[u_t(\mathbf{x}_t | \mathbf{x}_0, \mathbf{x}_1)]$</p>
+<p>### 6.3.3 流匹配目标函数</p>
+<p>我们的目标是让模型 $v_\theta(t, \mathbf{x})$ 学习边缘向量场 $u_t(\mathbf{x})$ 。损失函数为：
+   $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t)|^2] dt$
+   直接优化这个损失函数是困难的，因为我们无法轻易地从 $p_t$ 或 $u_t$ 中采样。</p>
+<p>然而，通过巧妙的数学变换，可以证明这个损失函数等价于一个更容易处理的<strong>条件流匹配（CFM）</strong>损失：
+   $L_{CFM}(\theta) = \int_0^1 \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1)} \mathbb{E}_{p_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)} [|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2] dt$</p>
+<p>这个形式的妙处在于，我们可以通过以下方式简单地获得训练样本：</p>
+<ol>
+<li>采样 $t \sim \mathcal{U}[0,1]$ 。</li>
+<li>采样一对 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$ 。</li>
+<li>采样 $\mathbf{x}_t \sim p_t(\cdot|\mathbf{x}_0, \mathbf{x}_1)$ 。</li>
+<li>计算条件向量场 $u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)$ 。</li>
+<li>用梯度下降优化 $|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2$ 。</li>
+</ol>
+<p>对于线性插值路径 $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ ，后两步变得极其简单： $\mathbf{x}_t$ 是确定的，向量场就是 $\mathbf{x}_1 - \mathbf{x}_0$ 。这使得训练过程完全“模拟免费”（simulation-free）。</p>
+<p>## 6.4 与扩散模型的联系</p>
+<p>流匹配框架与我们在前几章学习的扩散模型有着深刻的统一性。</p>
+<p>### 6.4.1 概率流ODE的统一视角</p>
+<p>回想一下，任何扩散SDE都对应一个概率流ODE：
+   $dx_t = [f(x_t, t) - \frac{1}{2} g(t)^2 \nabla_{x_t} \log p_t(x_t)] dt$
+   这个ODE描述了一个确定性的从噪声到数据的变换路径，它本身就是一个连续正则化流！它的向量场是 $v_t(x_t) = f(x_t, t) - \frac{1}{2} g(t)^2 s_\theta(x_t, t)$ 。</p>
+<ul>
+<li><strong>扩散模型</strong>通过学习分数函数 $s_\theta(x_t, t) \approx \nabla_{x_t} \log p_t(x_t)$ 来间接定义这个向量场。</li>
+<li><strong>流匹配</strong>则直接学习这个向量场 $v_\theta(t, \mathbf{x}_t)$ 。</li>
+</ul>
+<p>### 6.4.2 从分数匹配到流匹配</p>
+<p>分数匹配的目标是：
+   $L_{SM}(\theta) = \int_0^T \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{s}_\theta(t, \mathbf{x}_t) - \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)|^2] dt$
+   流匹配的目标是：
+   $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{v}_\theta(t, \mathbf{x}_t) - \mathbf{u}_t(\mathbf{x}_t)|^2] dt$
+   两者都在学习一个与时间相关的函数（分数或向量场），以定义一个从噪声到数据的ODE。流匹配可以看作是更广义的框架，而扩散模型的概率流ODE是其中的一个特例。</p>
+<p>### 6.4.3 计算效率的比较分析</p>
+<p>流匹配在训练效率上通常优于传统的扩散模型：</p>
+<ul>
+<li><strong>模拟免费</strong>：流匹配的训练不需要像扩散模型那样前向模拟SDE来产生带噪声的样本 $x_t$ 。它通过简单的插值直接构造训练对，避免了数值误差和计算开销。</li>
+<li><strong>路径灵活性</strong>：扩散模型被锁定在由SDE定义的特定概率路径上。流匹配可以选择任意（通常更简单）的路径，如线性插值，这简化了目标向量场的计算（例如，对于线性路径，目标是常数 $\mathbf{x}_1 - \mathbf{x}_0$ ）。</li>
+<li><strong>一步到位</strong>：扩散模型通常需要先学习分数，然后构建ODE。流匹配直接学习ODE的向量场，更加直接。</li>
+</ul>
+<p>## 6.5 实践中的流匹配</p>
+<p>### 6.5.1 路径选择：线性插值 vs 最优传输</p>
+<p>在实践中，如何选择条件概率路径 $p_t(\mathbf{x}|\mathbf{x}_0, \mathbf{x}_1)$ 是一个关键的设计决策。</p>
+<ul>
+<li><strong>线性插值</strong>：这是最简单和最常用的选择。路径是确定的直线： $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ 。对应的条件向量场是常数 $\mathbf{u}_t = \mathbf{x}_1 - \mathbf{x}_0$ 。这种方法的优点是极其简单高效。</li>
+<li><strong>最优传输引导</strong>：虽然线性插值不是最优传输路径，但研究表明，使用更接近真实OT路径的插值方案可以提高生成质量。例如，"Optimal Transport-Guided Conditional Flow Matching" (OT-CFM) 提出了一种修正线性插值的方法，使其更好地匹配数据流形。</li>
+<li><strong>扩散路径</strong>：我们也可以使用扩散SDE本身定义的路径。这表明流匹配可以被用来重新推导和训练扩散模型，突显了其框架的统一性。</li>
+</ul>
+<p>### 6.5.2 采样算法与ODE求解器选择</p>
+<p>训练完成后，我们得到了一个向量场 $v_\theta(t, \mathbf{x})$ 。生成新样本的过程就是求解从 $t=0$ 到 $t=1$ 的ODE：</p>
+<ol>
+<li>从先验分布中采样一个噪声点 $\mathbf{x}_0 \sim p_0$ 。</li>
+<li>使用数值ODE求解器求解 $\frac{d\mathbf{x}_t}{dt} = v_\theta(t, \mathbf{x}_t)$ ，从 $\mathbf{x}_0$ 开始，积分到 $t=1$ 。</li>
+<li>最终得到的 $\mathbf{x}_1$ 就是一个生成的样本。</li>
+</ol>
+<p>由于这是一个标准的ODE，我们可以利用数值分析领域的各种高效求解器：</p>
+<ul>
+<li><strong>简单求解器</strong>：如欧拉法或改进欧拉法（Heun法），需要较多的评估步数（NFE）。</li>
+<li><strong>高阶求解器</strong>：如经典的四阶龙格-库塔法（RK45）。</li>
+<li><strong>自适应求解器</strong>：如Dopri5，可以根据解的局部复杂度自动调整步长，通常能以更少的NFE达到高精度。</li>
+</ul>
+<p>### 6.5.3 条件生成与引导技术</p>
+<p>在流匹配中实现条件生成非常自然。如果我们要生成以条件 $c$ 为指导的样本，只需将 $c$ 作为额外输入提供给神经网络即可：
+   $v_\theta(t, \mathbf{x}, c)$
+   训练目标也相应地变为条件期望：
+   $\min_\theta \mathbb{E}_{p(c)} \mathbb{E}_{t, q(\mathbf{x}_0, \mathbf{x}_1|c)} [|v_\theta(t, \mathbf{x}_t, c) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2]$
+   这使得流匹配可以轻松地应用于文本到图像、类别条件生成等任务。</p>
+<details markdown="block">
+   <summary markdown="off">**练习 6.2：设计一个流匹配模型**</summary>
+
+   假设你的任务是学习一个从二维标准高斯分布 $p\_0$ 到一个“月牙”形状的二维分布 $p\_1$ 的生成模型。
+
+   1. **网络架构**：你会如何设计向量场网络 $v\_\theta(t, \mathbf{x})$ ？输入和输出应该是什么维度？时间 $t$ 应该如何编码并输入到网络中？（提示：参考Transformer中的位置编码思想）
+
+   2. **训练流程**：写出使用线性插值的CFM训练该模型的伪代码。
+
+   3. **采样比较**：
+      - 使用欧拉法编写采样过程的伪代码。
+      - 如果使用自适应步长的RK45求解器，你期望在采样速度和质量上看到什么变化？
+
+   4. **研究拓展**：
+      - “月牙”分布具有非平凡的拓扑结构。线性插值路径是否会遇到问题？（提示：考虑路径是否会穿过低密度区域）
+      - 你能否设计一种简单的非线性路径，可能更适合这个任务？例如，在插值中加入一个与 $t(1-t)$ 成正比的垂直于 $(\mathbf{x}\_1 - \mathbf{x}\_0)$ 的项，来模拟曲线路径。
+
+   </details>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter5.html" class="nav-link prev">← 第5章：连续时间扩散模型 (PDE/SDE)</a><a href="./chapter7.html" class="nav-link next">第7章：扩散Transformer (DiT) →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

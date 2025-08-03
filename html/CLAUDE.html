@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扩散模型教程项目说明</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class="active"><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p>（交流可以用英文，本文档中文，保留这句）</p>
+<h1 id="_1">扩散模型教程项目说明</h1>
+<h2 id="_2">项目目标</h2>
+<p>编写一份 扩散模型设计的由浅入深的教程markdown，要包含大量的习题和参考答案（答案默认折叠）。合适时提及相关 pytorch 函数名但不写代码。
+项目特色是，包含大量的可继续研究的线索</p>
+<h2 id="_3">工具说明</h2>
+<p>当需要时，可以通过 <code>gemini -p "深入回答：&lt;要问的问题&gt; -m gemini-2.5-pro"</code> 来获取 gemini-2.5-pro 的参考意见(gemini 系只问 gemini-2.5-pro 不问别人)
+当需要时，可以通过 `echo "&lt;要问的问题&gt;"|llm -m 4.1 来获取 gpt-4.1 的参考意见</p>
+<h2 id="_4">教程大纲</h2>
+<h3 id="14">最终章节结构（14章 + 附录）</h3>
+<ol>
+<li><strong>第1章：扩散模型导论</strong> - 基本概念、历史发展、前向扩散过程</li>
+<li><strong>第2章：神经网络架构：U-Net与ViT</strong> - 扩散模型中的去噪网络架构，U-Net详解，Vision Transformer在扩散模型中的应用</li>
+<li><strong>第3章：去噪扩散概率模型 (DDPM)</strong> - 核心原理、变分下界、训练算法</li>
+<li><strong>第4章：基于分数的生成模型</strong> - Score matching、Langevin dynamics</li>
+<li><strong>第5章：连续时间扩散模型 (PDE/SDE)</strong> - 随机微分方程、概率流ODE、Fokker-Planck方程</li>
+<li><strong>第6章：流匹配 (Flow Matching)</strong> - 连续正则化流、最优传输视角、与扩散模型的联系</li>
+<li><strong>第7章：扩散Transformer (DiT)</strong> - Diffusion Transformer架构、与U-Net的对比、可扩展性分析</li>
+<li><strong>第8章：采样算法与加速技术</strong> - DDIM、DPM-Solver等快速采样方法</li>
+<li><strong>第9章：条件生成与引导技术</strong> - Classifier guidance、classifier-free guidance</li>
+<li><strong>第10章：潜在扩散模型 (LDM)</strong> - Stable Diffusion架构</li>
+<li><strong>第11章：视频扩散模型</strong> - 时序建模、3D U-Net、视频生成的挑战与方法</li>
+<li><strong>第12章：文本扩散模型</strong> - D3PM、Diffusion-LM、embedding空间扩散</li>
+<li><strong>第13章：扩散模型的应用</strong> - 图像生成、编辑、超分辨率、3D生成</li>
+<li><strong>第14章：前沿研究与未来方向</strong> - 一致性模型、扩散模型的未来发展趋势</li>
+</ol>
+<p><strong>附录A：测度论与随机过程速成</strong> - 为第5章PDE/SDE内容提供数学基础
+<strong>附录B：倒向随机微分方程 (BSDE) 速成</strong> - 理解扩散模型反向过程的数学工具</p>
+<h3 id="_5">内容设计原则</h3>
+<ol>
+<li>
+<p><strong>PDE/SDE章节方法</strong>：
+   - 先介绍直觉和实际实现
+   - 然后进行完整推导，包括reverse SDE
+   - 测度论和随机微积分速成课程放在附录</p>
+</li>
+<li>
+<p><strong>文本扩散模型重点</strong>：
+   - 离散状态空间扩散（如D3PM）
+   - 连续embedding空间扩散（如Diffusion-LM）
+   - 两者并重</p>
+</li>
+<li>
+<p><strong>交互元素</strong>：
+   - 保持简单，先用静态图像
+   - 逐步增加交互性</p>
+</li>
+<li>
+<p><strong>编程语言和框架</strong>：
+   - Python/PyTorch（不用JAX）
+   - 方法可以高级，但限于toy data</p>
+</li>
+<li>
+<p><strong>章节依赖性</strong>：
+   - 每章尽量自包含
+   - 文本扩散模型章节（第8章）设计为独立可读</p>
+</li>
+<li>
+<p><strong>练习设计</strong>：
+   - 理论和实现混合
+   - 包含挑战题
+   - 难度递进</p>
+</li>
+<li>
+<p><strong>代码框架</strong>：
+   - 逐章构建mini-library
+   - 提供skeleton code让学生填充</p>
+</li>
+<li>
+<p><strong>前置知识</strong>：
+   - 假设学生已有概率论、神经网络基础、PyTorch经验
+   - 在首页明确说明这些前置要求</p>
+</li>
+</ol>
+<h2 id="_6">章节格式要求</h2>
+<p>每个章节应包含：</p>
+<ol>
+<li><strong>开篇段落</strong> - 引入本章主题，说明学习目标</li>
+<li><strong>丰富的文字描述</strong> - 不仅是公式，要有充分的文字解释和直观说明</li>
+<li><strong>本章小结</strong> - 总结要点，预告下一章内容</li>
+</ol>
+<h2 id="_7">输出大小控制</h2>
+<p><strong>重要原则</strong>：</p>
+<ul>
+<li>输入可以是章节级别的请求（如"创建第2章"）</li>
+<li>但输出必须限制在一个小节（section）的大小，不超过</li>
+<li>有时甚至要在子小节（subsection）级别工作</li>
+<li>这样确保每次生成的内容精炼且高质量</li>
+</ul>
+<h3 id="_8">统一样式要求</h3>
+<ol>
+<li><strong>使用共享CSS/JS文件</strong> - 将通用样式抽取到 <code>common.css</code> 和 <code>common.js</code></li>
+<li><strong>长代码和练习答案默认折叠</strong> - 使用统一的折叠/展开机制</li>
+<li><strong>响应式设计</strong> - 确保移动端友好</li>
+<li><strong>数学公式</strong> - 使用KaTeX渲染</li>
+<li><strong>代码高亮</strong> - 使用Prism.js或类似库</li>
+</ol>
+<h1 id="important-instruction-reminders">important-instruction-reminders</h1>
+<p>Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.</p>
+            </article>
+            
+            <nav class="page-nav"><a href="./appendix-c.html" class="nav-link prev">← 附录C：信息几何与分数函数的力学解释</a><a href="./PROJECT_STATUS.html" class="nav-link next">扩散模型教程项目状态 →</a></nav>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>附录A：测度论与随机过程速成</title>
+    <link rel="stylesheet" href="./assets/style.css">
+    <link rel="stylesheet" href="./assets/highlight.css">
+    <script src="./assets/script.js" defer></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: false,
+                packages: {'[+]': ['noerrors']}
+            },
+            options: {
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            loader: {
+                load: ['[tex]/noerrors']
+            }
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>目录</h3>
+                <button id="sidebar-toggle" class="sidebar-toggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class="active"><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+        </nav>
+        
+        <main class="content">
+            <article>
+                <p><a href="index.html">← 返回目录</a> | 附录A | <a href="appendix-b.html">附录B →</a></p>
+<h1 id="a">附录A：测度论与随机过程速成</h1>
+<p>本附录为理解第5章（连续时间扩散模型）提供必要的数学基础。我们将快速回顾测度论的核心概念，介绍布朗运动和随机微分方程（SDE）的基本知识。这不是一门完整的数学课程，而是为理解扩散模型所需的最小知识集，旨在建立直觉并熟悉核心工具。</p>
+<h2 id="a1">A.1 测度论基础</h2>
+<h3 id="a11">A.1.1 为什么需要测度论？</h3>
+<p>让我们从一个简单但深刻的问题开始：<strong>在区间[0,1]上随机选一个点，这个点恰好是有理数的概率是多少？</strong></p>
+<p>直觉可能会说：“有理数有无穷多个，所以概率应该不为零。”但实际上，这个概率是0。这个反直觉的结果揭示了我们需要一个比传统集合论更精细的数学框架来处理“无穷”。测度论正是为此而生，它严格定义了“长度”、“面积”、“体积”乃至“概率”等概念。</p>
+<h3 id="a12-">A.1.2 σ-代数与测度</h3>
+<ul>
+<li><strong>σ-代数 (σ-algebra)</strong>: 在一个样本空间 <code>Ω</code> 中，并非所有子集都能被合理地赋予概率。σ-代数 <code>F</code> 是 <code>Ω</code> 的一个子集族，它包含了我们所有感兴趣的“事件”，并对补、可数并等运算封闭。</li>
+<li><strong>测度 (Measure)</strong>: 测度 <code>μ</code> 是一个定义在σ-代数 <code>F</code> 上的函数，它为每个事件赋予一个非负的“大小”。当 <code>μ(Ω) = 1</code> 时，这个测度就是一个<strong>概率测度</strong> <code>P</code>。</li>
+</ul>
+<blockquote>
+<p><strong>定义 A.1 (概率空间)</strong>
+一个概率空间是一个三元组 <code>(Ω, F, P)</code>，其中：</p>
+<ul>
+<li><code>Ω</code> 是样本空间（所有可能结果的集合）。</li>
+<li><code>F</code> 是 <code>Ω</code> 上的一个σ-代数（所有可测事件的集合）。</li>
+<li><code>P</code> 是定义在 <code>F</code> 上的一个概率测度。</li>
+</ul>
+</blockquote>
+<p>💡 <strong>关键洞察</strong>：有理数集的勒贝格测度（长度）为0，是因为虽然有理数是可数无穷的，但每个单点的测度都是0。根据测度的可数可加性，可数个0相加仍然是0。</p>
+<h3 id="a13">A.1.3 随机变量与条件期望</h3>
+<ul>
+<li><strong>随机变量 (Random Variable)</strong>: 一个随机变量 <code>X</code> 是一个从样本空间 <code>Ω</code> 到实数 <code>R</code> 的函数，它必须是“可测的”，即对于任何数值区间，我们都能找到其在样本空间中对应的事件。</li>
+<li><strong>滤波 (Filtration)</strong>: 滤波 <code>{F_t}</code> 是一个随时间 <code>t</code> 递增的σ-代数序列，<code>F_s ⊆ F_t</code> 对所有 <code>s ≤ t</code> 成立。它代表了信息的累积过程，<code>F_t</code> 包含了到时刻 <code>t</code> 为止所有已知的信息。</li>
+<li><strong>条件期望 (Conditional Expectation)</strong>: <code>E[X | F_t]</code> 代表在已知时刻 <code>t</code> 信息 <code>F_t</code> 的情况下，对随机变量 <code>X</code> 的最优估计。</li>
+</ul>
+<details>
+<summary>**练习 A.1：σ-代数**</summary>
+<p>设 <code>Ω = {1, 2, 3, 4}</code>。</p>
+<ol>
+<li>构造包含事件 <code>A = {1, 2}</code> 的最小σ-代数 <code>σ(A)</code>。</li>
+<li>如果再加入事件 <code>B = {2, 3}</code>，最小σ-代数 <code>σ(A, B)</code> 是什么？</li>
+</ol>
+<p><strong>解答：</strong></p>
+<ol>
+<li><code>σ(A)</code> 必须对补运算封闭，所以必须包含 <code>A^c = {3, 4}</code>。同时必须包含全集和空集。因此 <code>σ(A) = {∅, {1, 2}, {3, 4}, {1, 2, 3, 4}}</code>。</li>
+<li><code>σ(A, B)</code> 必须包含 <code>A</code> 和 <code>B</code>，以及它们的所有交、并、补运算的组合。例如 <code>A ∩ B = {2}</code>，<code>A ∪ B = {1, 2, 3}</code>，<code>(A ∪ B)^c = {4}</code> 等。最终可以生成 <code>Ω</code> 的幂集（所有16个子集）。</li>
+</ol>
+</details>
+<h2 id="a2-brownian-motion">A.2 布朗运动 (Brownian Motion)</h2>
+<p>布朗运动是随机过程理论的基石，也是扩散模型的数学核心。</p>
+<blockquote>
+<p><strong>定义 A.2 (标准布朗运动)</strong>
+一个随机过程 <code>{B_t}</code> 称为标准布朗运动（或维纳过程），如果：</p>
+<ol>
+<li><strong>起点确定</strong>: <code>B_0 = 0</code>。</li>
+<li><strong>独立增量</strong>: 对任意 <code>0 ≤ s &lt; t</code>，增量 <code>B_t - B_s</code> 独立于过去的路径 <code>{B_u : u ≤ s}</code>。</li>
+<li><strong>高斯增量</strong>: <code>B_t - B_s</code> 服从均值为0，方差为 <code>t-s</code> 的正态分布，即 <code>B_t - B_s ~ N(0, t-s)</code>。</li>
+<li><strong>路径连续</strong>: 路径 <code>t ↦ B_t</code> 是连续函数。</li>
+</ol>
+</blockquote>
+<p><strong>布朗运动的深刻性质</strong>:</p>
+<ul>
+<li><strong>无处可微</strong>: 布朗运动的路径虽然连续，但在任何一点都是不可微的。它的“速度”是无穷的。</li>
+<li><strong>二次变差非零</strong>: 在普通微积分中 <code>(dt)^2 = 0</code>，但在随机微积分中，<code>(dB_t)^2 = dt</code>。这是两者最核心的区别，也是伊藤公式中出现修正项的根源。</li>
+<li><strong>鞅 (Martingale)</strong>: 布朗运动是一个鞅，即 <code>E[B_t | F_s] = B_s</code> for <code>s &lt; t</code>。这意味着对未来的最优预测就是当前的值。</li>
+</ul>
+<h2 id="a3">A.3 随机积分与伊藤公式</h2>
+<p>由于布朗运动的奇异性质，传统的黎曼积分不适用。我们需要一种新的积分理论——随机积分。</p>
+<h3 id="a31-ito-integral">A.3.1 伊藤积分 (Itô Integral)</h3>
+<p>伊藤积分 <code>∫f_s dB_s</code> 的定义在黎曼和中，总是取被积函数在区间的<strong>左端点</strong>的值。这个选择保证了被积函数 <code>f_s</code> 不会“预见”到噪声 <code>dB_s</code> 的未来，从而使得积分结果仍然是一个鞅。</p>
+<p>⚡ <strong>理论要点</strong>：伊藤积分和另一种常见的斯特拉托诺维奇（Stratonovich）积分（取中点）会导致不同的结果。物理学中常用后者，因为它遵循普通的链式法则。金融和概率论中常用前者，因为它具有鞅性质。扩散模型理论建立在伊藤积分之上。</p>
+<h3 id="a32-itos-formula">A.3.2 伊藤公式 (Itô's Formula)</h3>
+<p>伊藤公式是随机微积分的链式法则，是处理SDE最重要的工具。</p>
+<blockquote>
+<p><strong>定理 A.3 (伊藤公式)</strong>
+设 <code>X_t</code> 满足SDE <code>dX_t = μ_t dt + σ_t dB_t</code>，<code>f(x, t)</code> 是一个足够光滑的函数，则：
+</p>
+</blockquote>
+<p>$$df(X_t, t) = \left(\frac{\partial f}{\partial t} + \mu_t \frac{\partial f}{\partial x} + \frac{1}{2}\sigma_t^2 \frac{\partial^2 f}{\partial x^2}\right)dt + \sigma_t \frac{\partial f}{\partial x} dB_t$$</p>
+<blockquote>
+<p>核心区别在于比普通链式法则多出的一项：<code>1/2 * σ_t^2 * ∂^2f/∂x^2</code>，这被称为<strong>伊藤修正项</strong>，它正是来源于 <code>(dB_t)^2 = dt</code>。</p>
+</blockquote>
+<details>
+<summary>**练习 A.2：伊藤公式的应用**</summary>
+<ol>
+<li><strong>推导</strong>：设 <code>B_t</code> 是标准布朗运动，使用伊藤公式计算 <code>d(B_t^3)</code>。</li>
+<li><strong>证明</strong>：证明 <code>M_t = exp(B_t - t/2)</code> 是一个鞅。</li>
+<li><strong>研究思路</strong>：<ul>
+<li><strong>问题1</strong>：对 <code>f(x) = x^3</code> 应用伊藤公式，其中 <code>μ_t=0, σ_t=1</code>。<code>df = (1/2 * 1^2 * 6B_t)dt + (3B_t^2 * 1)dB_t = 3B_t dt + 3B_t^2 dB_t</code>。</li>
+<li><strong>问题2</strong>：对 <code>f(x,t) = exp(x - t/2)</code> 应用伊藤公式。<code>df = (-1/2 * f)dt + (0)dt + (1/2 * 1^2 * f)dt + (f * 1)dB_t = f dB_t</code>。由于结果的 <code>dt</code> 项（漂移项）为0，所以它是一个鞅。</li>
+</ul>
+</li>
+</ol>
+</details>
+<h2 id="a4-sdes">A.4 随机微分方程 (SDEs)</h2>
+<p>SDE描述了受随机扰动影响的动态系统，是扩散模型的数学语言。</p>
+<blockquote>
+<p><strong>定义 A.4 (SDE)</strong>
+一个典型的SDE具有形式：</p>
+<p>$$dX_t = b(X_t, t)dt + \sigma(X_t, t)dB_t$$</p>
+<ul>
+<li><strong>漂移项 <code>b(X_t, t)</code></strong>: 描述系统的确定性平均行为。</li>
+<li><strong>扩散项 <code>σ(X_t, t)</code></strong>: 描述随机波动的强度。</li>
+</ul>
+</blockquote>
+<p><strong>存在唯一性</strong>：如果漂移和扩散系数满足Lipschitz连续性和线性增长条件，那么SDE存在唯一的强解。这保证了我们讨论的扩散过程是良定义的。</p>
+<h2 id="a5">A.5 数值方法简介</h2>
+<p>大多数SDE没有解析解，需要数值方法来模拟。</p>
+<ul>
+<li>
+<p><strong>Euler-Maruyama方法</strong>: 最简单的数值格式，直接将SDE离散化：
+  <code>X_{n+1} = X_n + b(X_n)Δt + σ(X_n) * sqrt(Δt) * Z_n</code>，其中 <code>Z_n ~ N(0, 1)</code>。</p>
+</li>
+<li>
+<p><strong>Milstein方法</strong>: 更高阶的方法，通过加入一个修正项来获得更高的收敛精度，特别是当扩散系数 <code>σ</code> 不为常数时。</p>
+</li>
+</ul>
+<p>💡 <strong>实践洞察</strong>：数值模拟显示，对于扩散系数依赖于状态 <code>X_t</code> 的SDE（例如金融中的一些模型），Milstein方法比Euler-Maruyama方法能更精确地收敛到真实解。对于扩散模型中常见的 <code>σ</code> 只依赖于时间 <code>t</code> 的情况，两种方法的差别不大。</p>
+<h2 id="a6">A.6 与扩散模型的深层联系</h2>
+<p>现在，我们可以将这些数学工具与扩散模型联系起来。</p>
+<h3 id="a61-sde">A.6.1 前向与反向SDE</h3>
+<ul>
+<li>
+<p><strong>前向SDE</strong>: 精心设计的、将数据 <code>x_0</code> 转化为噪声 <code>x_T</code> 的过程。例如VP-SDE：
+  <code>dx = -1/2 * β(t) * x dt + sqrt(β(t)) * dB_t</code></p>
+</li>
+<li>
+<p><strong>反向SDE</strong>: Anderson定理告诉我们，存在一个对应的反向过程，其漂移项必须由分数函数 <code>∇log p_t(x)</code> 来修正：
+  <code>dx = [f(x, t) - g(t)^2 * ∇log p_t(x)] dt + g(t) d(bar(W)_t)</code>
+  这揭示了<strong>学习生成模型等价于学习分数函数</strong>。</p>
+</li>
+</ul>
+<h3 id="a62-ode">A.6.2 概率流ODE</h3>
+<ul>
+<li>
+<p>每个SDE都对应一个确定性的ODE，称为概率流ODE，它描述了概率密度的平均流动方向：
+  <code>dx = [f(x, t) - 1/2 * g(t)^2 * ∇log p_t(x)] dt</code></p>
+</li>
+<li>
+<p>由于没有随机项，可以使用高效的ODE数值求解器进行快速、确定性的采样。这是DDIM等快速采样算法的理论基础。</p>
+</li>
+</ul>
+<h3 id="a63-fokker-planck">A.6.3 Fokker-Planck方程</h3>
+<ul>
+<li>这是一个偏微分方程（PDE），它从宏观上描述了概率密度 <code>p(x, t)</code> 随时间的演化。</li>
+<li>它将微观的粒子运动（SDE）与宏观的密度变化（PDE）联系起来，是进行理论分析的强大工具。</li>
+</ul>
+<details>
+<summary>**综合练习：统一视角**</summary>
+<p>考虑一个简单的一维Ornstein-Uhlenbeck过程：<code>dX_t = -θX_t dt + σdB_t</code>。</p>
+<ol>
+<li><strong>稳态分布</strong>：使用Fokker-Planck方程，证明其稳态分布为 <code>N(0, σ^2/(2θ))</code>。</li>
+<li><strong>分数函数</strong>：写出其稳态分布的分数函数。</li>
+<li><strong>反向SDE</strong>：写出在稳态下的反向SDE。</li>
+<li><strong>概率流ODE</strong>：写出在稳态下的概率流ODE。</li>
+</ol>
+<p><strong>解答思路</strong>：</p>
+<ol>
+<li>在Fokker-Planck方程中令 <code>∂p/∂t = 0</code>，得到一个关于 <code>p(x)</code> 的常微分方程，求解可得高斯分布。</li>
+<li>对于高斯分布 <code>N(μ, Σ^2)</code>，分数函数为 <code>-(x-μ)/Σ^2</code>。</li>
+<li>将分数函数代入Anderson定理的公式。</li>
+<li>将分数函数代入概率流ODE的公式。你会发现，在稳态下，ODE的漂移项恰好是前向SDE漂移项的两倍。</li>
+</ol>
+</details>
+<h2 id="a7">A.7 进一步学习资源</h2>
+<ul>
+<li><strong>Øksendal, B. "Stochastic Differential Equations"</strong>: SDE的经典入门教材，理论与应用并重。</li>
+<li><strong>Evans, L.C. "An Introduction to Stochastic Differential Equations"</strong>: 更侧重于PDE方法的SDE介绍，适合数学背景较强的读者。</li>
+<li><strong>Särkkä, S., &amp; Solin, A. "Applied Stochastic Differential Equations"</strong>: 侧重于数值方法和实际应用的优秀书籍。</li>
+</ul>
+            </article>
+            
+            <nav class="page-nav"><a href="./chapter14.html" class="nav-link prev">← 第14章：前沿研究与未来方向</a><a href="./appendix-b.html" class="nav-link next">附录B：倒向随机微分方程 (BSDE) 速成 →</a></nav>
+        </main>
+    </div>
+</body>
+</html>
