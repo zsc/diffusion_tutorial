@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./">
     <title>第14章：前沿研究与未来方向</title>
-    <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/highlight.css">
-    <script src="./assets/script.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/highlight.css">
+    <script src="assets/script.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         window.MathJax = {
@@ -14,14 +15,14 @@
                 inlineMath: [['$', '$']],
                 displayMath: [['$$', '$$']],
                 processEscapes: false,
-                packages: {'[+]': ['noerrors']}
+                packages: {'[+]': ['noerrors', 'ams']}
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
             },
             loader: {
-                load: ['[tex]/noerrors']
+                load: ['[tex]/noerrors', '[tex]/ams']
             }
         };
     </script>
@@ -37,7 +38,159 @@
                     <span></span>
                 </button>
             </div>
-            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class="active"><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-search-input" placeholder="搜索..." autocomplete="off">
+            </div>
+            <div id="tree-container">
+                <nav class="tree-nav" role="tree">
+                    <div class="tree-item " >
+                        <a href="index.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter1.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第1章：扩散模型导论</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter2.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第2章：神经网络架构：U-Net与ViT</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter3.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第3章：去噪扩散概率模型 (DDPM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter4.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第4章：基于分数的生成模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter5.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第5章：连续时间扩散模型 (PDE/SDE)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter6.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第6章：流匹配 (Flow Matching)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter7.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第7章：扩散Transformer (DiT)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter8.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第8章：采样算法与加速技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter9.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第9章：条件生成与引导技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter10.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第10章：潜在扩散模型 (LDM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter11.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第11章：视频扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter12.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第12章：文本扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter13.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第13章：扩散模型的应用</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item active" >
+                        <a href="chapter14.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第14章：前沿研究与未来方向</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-a.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录A：测度论与随机过程速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-b.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录B：倒向随机微分方程 (BSDE) 速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-c.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录C：信息几何与分数函数的力学解释</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="CLAUDE.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目说明</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="PROJECT_STATUS.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目状态</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="README.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
         </nav>
         
         <main class="content">
@@ -108,19 +261,23 @@ $$\mathcal{L}(\theta) = \mathbb{E}_{t,\mathbf{x}_0,\boldsymbol{\epsilon}}\left[|
 <p>一步生成是一致性模型最激动人心的特性。让我们深入探讨这个看似不可能的任务是如何实现的。</p>
 <p><strong>生成过程的革命性简化</strong>：</p>
 <ol>
-<li><strong>一步生成的魔法</strong>：
-   <code>z ~ N(0, I)  # 采样噪声
-   x_0 = f_θ(z, T)  # 一步生成</code></li>
+<li><strong>一步生成的魔法</strong>：</li>
 </ol>
+<div class="codehilite"><pre><span></span><code>z ~ N(0, I)  # 采样噪声
+x_0 = f_θ(z, T)  # 一步生成
+</code></pre></div>
+
 <p>这两行简单的过程背后隐藏着深刻的变革。传统扩散模型需要模拟整个反向扩散过程，就像倒放一部电影，需要经历每一帧。而一致性模型直接跳到结局，这种"时间旅行"般的能力来自于对整个轨迹的深度理解。</p>
 <p>从信息论角度看，纯噪声 $z$ 实际上编码了生成样本的所有随机性。一致性模型学会了如何解码这种随机性，直接映射到有意义的数据分布。这个过程类似于密码学中的一次性密码本（one-time pad），噪声就是密钥，模型就是解码器。</p>
 <ol start="2">
-<li><strong>多步细化的灵活性</strong>（可选）：
-   <code>x_T ~ N(0, I)
-   for t in [T-1, ..., 1]:
-       x_t = 采样过程(x_{t+1}, t)
-       x_0 = f_θ(x_t, t)  # 细化</code></li>
+<li><strong>多步细化的灵活性</strong>（可选）：</li>
 </ol>
+<div class="codehilite"><pre><span></span><code>x_T ~ N(0, I)
+for t in [T-1, ..., 1]:
+    x_t = 采样过程(x_{t+1}, t)
+    x_0 = f_θ(x_t, t)  # 细化
+</code></pre></div>
+
 <p>尽管一步生成已经很强大，一致性模型仍然保留了多步细化的能力。这种设计哲学体现了"最好的系统是灵活的系统"。用户可以根据质量要求和计算预算，在速度和质量之间自由权衡。</p>
 <p>多步细化过程中，每一步都在纠正前一步可能的误差，逐渐逼近真实分布。这个过程类似于数值分析中的迭代求精（iterative refinement），初始的粗略解通过反复迭代变得越来越精确。</p>
 <p><strong>技术细节的深度解析</strong>：</p>
@@ -194,7 +351,7 @@ $$f_\theta(\mathbf{x}_t, t) = c_\text{skip}(t)\mathbf{x}_t + c_\text{out}(t)F_\t
 <p><strong>ODE轨迹的传承</strong>：扩散模型的概率流ODE定义了从噪声到数据的确定性轨迹。一致性模型学习的正是这些轨迹的"高速公路"——直接连接起点和终点的映射。</p>
 </li>
 </ul>
-<p>蒸馏过程的数学本质是：给定教师模型的ODE轨迹 ${\mathbf{x}_t}_{t=0}^T$，一致性模型学习满足 $f_\theta(\mathbf{x}_t, t) = \mathbf{x}_0$ 的映射。这个过程保留了扩散模型的生成质量，同时获得了巨大的速度提升。</p>
+<p>蒸馏过程的数学本质是：给定教师模型的ODE轨迹 $\{\mathbf{x}_t\}_{t=0}^T$，一致性模型学习满足 $f_\theta(\mathbf{x}_t, t) = \mathbf{x}_0$ 的映射。这个过程保留了扩散模型的生成质量，同时获得了巨大的速度提升。</p>
 <ol start="2">
 <li><strong>独立训练：开辟新天地</strong></li>
 </ol>
@@ -651,15 +808,15 @@ $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})
 <h3 id="1432">14.3.2 计算效率的根本性突破</h3>
 <p><strong>1. 稀疏化技术</strong>：</p>
 <ul>
-<li>
-<p><strong>动态稀疏注意力</strong>：
-  <code>只计算重要的注意力连接
-  稀疏度随时间步动态调整
-  早期步骤更稀疏，后期更密集</code></p>
-</li>
-<li>
-<p><strong>结构化稀疏</strong>：</p>
-</li>
+<li><strong>动态稀疏注意力</strong>：</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>只计算重要的注意力连接
+稀疏度随时间步动态调整
+早期步骤更稀疏，后期更密集
+</code></pre></div>
+
+<ul>
+<li><strong>结构化稀疏</strong>：</li>
 <li>块稀疏：以块为单位的稀疏模式</li>
 <li>低秩分解：注意力矩阵的低秩近似</li>
 <li>蝶形变换： $O(N\log N)$ 复杂度</li>
@@ -673,12 +830,14 @@ $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})
 <p>动态调整：根据时间步调整精度</p>
 </li>
 <li>
-<p><strong>量化感知训练</strong>：
-  <code>训练时模拟量化效果
-  学习量化友好的权重分布
-  保持生成质量</code></p>
+<p><strong>量化感知训练</strong>：</p>
 </li>
 </ul>
+<div class="codehilite"><pre><span></span><code>训练时模拟量化效果
+学习量化友好的权重分布
+保持生成质量
+</code></pre></div>
+
 <p><strong>3. 并行化策略</strong>：</p>
 <ul>
 <li><strong>模型并行</strong>：</li>
@@ -725,10 +884,12 @@ $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})
 </ul>
 <p><strong>3. 蒸馏新方法</strong>：</p>
 <ul>
-<li>
-<p><strong>渐进式蒸馏</strong>：
-  <code>1000步教师 → 100步学生 → 10步学生 → 1步学生</code></p>
-</li>
+<li><strong>渐进式蒸馏</strong>：</li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="mf">1000</span><span class="n">步教师</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">100</span><span class="n">步学生</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">10</span><span class="n">步学生</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="mf">1</span><span class="n">步学生</span>
+</code></pre></div>
+
+<ul>
 <li>
 <p><strong>特征蒸馏</strong>：
   不仅蒸馏输出，还蒸馏中间特征</p>
@@ -908,13 +1069,13 @@ $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})
 <p><strong>1. 气候建模与天气预报</strong>：</p>
 <p>扩散模型在地球科学中的革命性应用：</p>
 <ul>
-<li>
-<p><strong>高分辨率气候模拟</strong>：
-  <code>低分辨率物理模型 → 扩散超分辨率 → 高分辨率预测</code></p>
-</li>
-<li>
-<p><strong>极端天气事件预测</strong>：</p>
-</li>
+<li><strong>高分辨率气候模拟</strong>：</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>低分辨率物理模型 → 扩散超分辨率 → 高分辨率预测
+</code></pre></div>
+
+<ul>
+<li><strong>极端天气事件预测</strong>：</li>
 <li>生成罕见事件样本</li>
 <li>不确定性量化</li>
 <li>
@@ -998,10 +1159,12 @@ $$\mathbb{E}[\mathcal{L}(\theta)] - \hat{\mathcal{L}}(\theta) \leq O(\sqrt{d/n})
 <p><strong>1. 创意放大器</strong>：</p>
 <p>AI作为人类创意的增强工具：</p>
 <ul>
-<li>
-<p><strong>灵感生成</strong>：
-  <code>粗略想法 → AI扩展 → 人类筛选 → AI细化 → 最终作品</code></p>
-</li>
+<li><strong>灵感生成</strong>：</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>粗略想法 → AI扩展 → 人类筛选 → AI细化 → 最终作品
+</code></pre></div>
+
+<ul>
 <li>
 <p><strong>风格探索</strong>：
   一个想法的多种表现</p>
@@ -1553,7 +1716,7 @@ AI的创造力是否有上限？如果有，这个上限由什么决定？如果
 <p><em>感谢您的阅读。愿扩散模型的优雅激发您的创造力，愿您的研究如扩散过程般，从随机中诞生秩序，从噪声中创造美好。</em></p>
             </article>
             
-            <nav class="page-nav"><a href="./chapter13.html" class="nav-link prev">← 第13章：扩散模型的应用</a><a href="./appendix-a.html" class="nav-link next">附录A：测度论与随机过程速成 →</a></nav>
+            <nav class="page-nav"><a href="chapter13.html" class="nav-link prev">← 第13章：扩散模型的应用</a><a href="appendix-a.html" class="nav-link next">附录A：测度论与随机过程速成 →</a></nav>
         </main>
     </div>
 </body>

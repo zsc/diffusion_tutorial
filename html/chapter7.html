@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./">
     <title>第7章：扩散Transformer (DiT)</title>
-    <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/highlight.css">
-    <script src="./assets/script.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/highlight.css">
+    <script src="assets/script.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         window.MathJax = {
@@ -14,14 +15,14 @@
                 inlineMath: [['$', '$']],
                 displayMath: [['$$', '$$']],
                 processEscapes: false,
-                packages: {'[+]': ['noerrors']}
+                packages: {'[+]': ['noerrors', 'ams']}
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
             },
             loader: {
-                load: ['[tex]/noerrors']
+                load: ['[tex]/noerrors', '[tex]/ams']
             }
         };
     </script>
@@ -37,7 +38,159 @@
                     <span></span>
                 </button>
             </div>
-            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class="active"><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-search-input" placeholder="搜索..." autocomplete="off">
+            </div>
+            <div id="tree-container">
+                <nav class="tree-nav" role="tree">
+                    <div class="tree-item " >
+                        <a href="index.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter1.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第1章：扩散模型导论</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter2.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第2章：神经网络架构：U-Net与ViT</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter3.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第3章：去噪扩散概率模型 (DDPM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter4.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第4章：基于分数的生成模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter5.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第5章：连续时间扩散模型 (PDE/SDE)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter6.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第6章：流匹配 (Flow Matching)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item active" >
+                        <a href="chapter7.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第7章：扩散Transformer (DiT)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter8.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第8章：采样算法与加速技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter9.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第9章：条件生成与引导技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter10.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第10章：潜在扩散模型 (LDM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter11.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第11章：视频扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter12.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第12章：文本扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter13.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第13章：扩散模型的应用</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter14.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第14章：前沿研究与未来方向</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-a.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录A：测度论与随机过程速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-b.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录B：倒向随机微分方程 (BSDE) 速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-c.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录C：信息几何与分数函数的力学解释</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="CLAUDE.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目说明</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="PROJECT_STATUS.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目状态</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="README.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
         </nav>
         
         <main class="content">
@@ -800,22 +953,24 @@ $$\gamma_t = \gamma \cdot \exp(-\lambda t/T)$$
 <p><strong>学习率调度的关键性</strong></p>
 <p>DiT对学习率调度特别敏感。推荐的配置：</p>
 <ol>
-<li>
-<p><strong>Warmup阶段</strong>：
-   <code>lr = base_lr * (current_step / warmup_steps)
-   warmup_steps = 10000  # 对于ImageNet规模</code></p>
-</li>
-<li>
-<p><strong>余弦退火</strong>：
-   <code>lr = min_lr + 0.5 * (base_lr - min_lr) * (1 + cos(π * step / total_steps))</code></p>
-</li>
-<li>
-<p><strong>关键超参数</strong>：
+<li><strong>Warmup阶段</strong>：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>lr = base_lr * (current_step / warmup_steps)
+warmup_steps = 10000  # 对于ImageNet规模
+</code></pre></div>
+
+<ol start="2">
+<li><strong>余弦退火</strong>：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>lr = min_lr + 0.5 <span class="gs">* (base_lr - min_lr) *</span> (1 + cos(π * step / total_steps))
+</code></pre></div>
+
+<ol start="3">
+<li><strong>关键超参数</strong>：
    - base_lr: 1e-4 (AdamW)
    - min_lr: 1e-6
    - weight_decay: 0.0 (仅对非bias/norm参数)
-   - beta1: 0.9, beta2: 0.95 (比标准0.999更激进)</p>
-</li>
+   - beta1: 0.9, beta2: 0.95 (比标准0.999更激进)</li>
 </ol>
 <p>💡 <strong>实践经验：学习率与模型规模</strong><br />
 更大的模型往往需要更小的学习率。经验公式：
@@ -896,27 +1051,27 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
 <p><strong>分布式训练策略</strong></p>
 <p>对于大规模DiT训练：</p>
 <ol>
-<li>
-<p><strong>数据并行（DDP）</strong>：
-   <code>python
-   model = torch.nn.parallel.DistributedDataParallel(
-       model, device_ids=[local_rank],
-       find_unused_parameters=False  # DiT不需要
-   )</code></p>
-</li>
-<li>
-<p><strong>梯度检查点</strong>：
-   节省内存，允许更大批量：
-   <code>python
-   # 对深层模型启用
-   if model_depth &gt; 24:
-       model.enable_gradient_checkpointing()</code></p>
-</li>
-<li>
-<p><strong>张量并行</strong>（对于超大模型）：
+<li><strong>数据并行（DDP）</strong>：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">parallel</span><span class="o">.</span><span class="n">DistributedDataParallel</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span> <span class="n">device_ids</span><span class="o">=</span><span class="p">[</span><span class="n">local_rank</span><span class="p">],</span>
+    <span class="n">find_unused_parameters</span><span class="o">=</span><span class="kc">False</span>  <span class="c1"># DiT不需要</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<ol start="2">
+<li><strong>梯度检查点</strong>：
+   节省内存，允许更大批量：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 对深层模型启用</span>
+<span class="k">if</span> <span class="n">model_depth</span> <span class="o">&gt;</span> <span class="mi">24</span><span class="p">:</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">enable_gradient_checkpointing</span><span class="p">()</span>
+</code></pre></div>
+
+<ol start="3">
+<li><strong>张量并行</strong>（对于超大模型）：
    - 将注意力头分布到多个GPU
-   - 使用专门的库如Megatron-LM或FairScale</p>
-</li>
+   - 使用专门的库如Megatron-LM或FairScale</li>
 </ol>
 <p>🔬 <strong>研究线索：通信优化</strong><br />
 在多节点训练中，通信成为瓶颈。探索梯度压缩、异步更新等技术在DiT训练中的应用。</p>
@@ -931,13 +1086,14 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
    - 典型加速：2-3x，质量损失&lt;1% FID</p>
 </li>
 <li>
-<p><strong>混合精度推理</strong>：
-   <code>python
-   with torch.cuda.amp.autocast():
-       # 大部分计算在FP16
-       output = model(x, t, c)</code></p>
+<p><strong>混合精度推理</strong>：</p>
 </li>
 </ol>
+<div class="codehilite"><pre><span></span><code><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">amp</span><span class="o">.</span><span class="n">autocast</span><span class="p">():</span>
+    <span class="c1"># 大部分计算在FP16</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+</code></pre></div>
+
 <p><strong>缓存优化</strong></p>
 <p>虽然DiT不像自回归模型那样受益于KV缓存，但仍有优化空间：</p>
 <ol>
@@ -966,11 +1122,13 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
 </ol>
 <p>探索降低注意力复杂度的方法：</p>
 <ul>
-<li>
-<p><strong>局部窗口注意力</strong>：
-  <code>将图像分成窗口，仅在窗口内计算注意力
-  复杂度：O(n²) → O(n·w²), w是窗口大小</code></p>
-</li>
+<li><strong>局部窗口注意力</strong>：</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>将图像分成窗口，仅在窗口内计算注意力
+复杂度：O(n²) → O(n·w²), w是窗口大小
+</code></pre></div>
+
+<ul>
 <li>
 <p><strong>线性注意力</strong>：
   使用核技巧近似softmax注意力</p>
@@ -1041,12 +1199,13 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
 <h3 id="755">7.5.5 实际部署考虑</h3>
 <p><strong>内存管理策略</strong></p>
 <ol>
-<li>
-<p><strong>激活检查点</strong>：
-   <code>python
-   # 仅保存必要的激活值
-   torch.utils.checkpoint.checkpoint(block, x, use_reentrant=False)</code></p>
-</li>
+<li><strong>激活检查点</strong>：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="c1"># 仅保存必要的激活值</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">use_reentrant</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+<ol start="2">
 <li>
 <p><strong>动态批处理</strong>：
    根据输入分辨率动态调整批量大小</p>
@@ -1065,16 +1224,17 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
    - 通道剪枝减少隐藏维度</p>
 </li>
 <li>
-<p><strong>编译优化</strong>：
-   <code>python
-   # PyTorch 2.0+
-   compiled_model = torch.compile(model, mode="reduce-overhead")</code></p>
+<p><strong>编译优化</strong>：</p>
 </li>
-<li>
-<p><strong>硬件特定优化</strong>：
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="c1"># PyTorch 2.0+</span>
+<span class="n">compiled_model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;reduce-overhead&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<ol start="3">
+<li><strong>硬件特定优化</strong>：
    - 使用TensorRT或ONNX Runtime
-   - 针对特定GPU架构优化</p>
-</li>
+   - 针对特定GPU架构优化</li>
 </ol>
 <p><strong>鲁棒性增强</strong></p>
 <p>生产环境需要的额外考虑：</p>
@@ -1116,13 +1276,14 @@ $$\text{lr}_{\text{optimal}} \propto \frac{1}{\sqrt{\text{model_size}}}$$</p>
 <p><strong>标准化努力</strong></p>
 <p>社区正在推动的标准化：</p>
 <ol>
-<li>
-<p><strong>统一的接口</strong>：
-   <code>python
-   class StandardDiT:
-       def forward(self, x, timestep, condition=None, **kwargs):
-           # 统一的前向传播接口</code></p>
-</li>
+<li><strong>统一的接口</strong>：</li>
+</ol>
+<div class="codehilite"><pre><span></span><code><span class="k">class</span> <span class="nc">StandardDiT</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">timestep</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="c1"># 统一的前向传播接口</span>
+</code></pre></div>
+
+<ol start="2">
 <li>
 <p><strong>预训练模型zoo</strong>：
    不同规模、不同数据集的checkpoint</p>
@@ -1231,7 +1392,7 @@ DiT开启了扩散模型的新纪元，但这仅仅是开始。无论你是研�
 <p><a href="chapter6.html">← 第6章：流匹配</a> | <a href="index.html">返回目录</a> | <a href="chapter8.html">第8章：采样算法与加速技术 →</a></p>
             </article>
             
-            <nav class="page-nav"><a href="./chapter6.html" class="nav-link prev">← 第6章：流匹配 (Flow Matching)</a><a href="./chapter8.html" class="nav-link next">第8章：采样算法与加速技术 →</a></nav>
+            <nav class="page-nav"><a href="chapter6.html" class="nav-link prev">← 第6章：流匹配 (Flow Matching)</a><a href="chapter8.html" class="nav-link next">第8章：采样算法与加速技术 →</a></nav>
         </main>
     </div>
 </body>

@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./">
     <title>扩散模型教程</title>
-    <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/highlight.css">
-    <script src="./assets/script.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/highlight.css">
+    <script src="assets/script.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         window.MathJax = {
@@ -14,14 +15,14 @@
                 inlineMath: [['$', '$']],
                 displayMath: [['$$', '$$']],
                 processEscapes: false,
-                packages: {'[+]': ['noerrors']}
+                packages: {'[+]': ['noerrors', 'ams']}
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
             },
             loader: {
-                load: ['[tex]/noerrors']
+                load: ['[tex]/noerrors', '[tex]/ams']
             }
         };
     </script>
@@ -37,7 +38,159 @@
                     <span></span>
                 </button>
             </div>
-            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class="active"><a href="./README.html">扩散模型教程</a></li></ul>
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-search-input" placeholder="搜索..." autocomplete="off">
+            </div>
+            <div id="tree-container">
+                <nav class="tree-nav" role="tree">
+                    <div class="tree-item " >
+                        <a href="index.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter1.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第1章：扩散模型导论</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter2.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第2章：神经网络架构：U-Net与ViT</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter3.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第3章：去噪扩散概率模型 (DDPM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter4.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第4章：基于分数的生成模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter5.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第5章：连续时间扩散模型 (PDE/SDE)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter6.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第6章：流匹配 (Flow Matching)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter7.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第7章：扩散Transformer (DiT)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter8.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第8章：采样算法与加速技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter9.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第9章：条件生成与引导技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter10.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第10章：潜在扩散模型 (LDM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter11.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第11章：视频扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter12.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第12章：文本扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter13.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第13章：扩散模型的应用</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter14.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第14章：前沿研究与未来方向</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-a.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录A：测度论与随机过程速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-b.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录B：倒向随机微分方程 (BSDE) 速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-c.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录C：信息几何与分数函数的力学解释</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="CLAUDE.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目说明</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="PROJECT_STATUS.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目状态</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item active" >
+                        <a href="README.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
         </nav>
         
         <main class="content">
@@ -117,7 +270,7 @@
 <p>从信息几何角度理解扩散模型，揭示分数函数作为"力"的物理意义，建立与能量优化的联系。</p>
             </article>
             
-            <nav class="page-nav"><a href="./PROJECT_STATUS.html" class="nav-link prev">← 扩散模型教程项目状态</a></nav>
+            <nav class="page-nav"><a href="PROJECT_STATUS.html" class="nav-link prev">← 扩散模型教程项目状态</a></nav>
         </main>
     </div>
 </body>

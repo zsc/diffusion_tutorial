@@ -59,6 +59,56 @@ body {
     font-size: 1.2rem;
 }
 
+/* Search input styles */
+.sidebar-search {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+#sidebar-search-input {
+    width: 100%;
+    padding: 8px 30px 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: border-color 0.2s;
+}
+
+#sidebar-search-input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+}
+
+.search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #999;
+    font-size: 18px;
+    display: none;
+    user-select: none;
+    padding: 4px;
+}
+
+.search-clear:hover {
+    color: var(--text-color);
+}
+
+.no-results {
+    padding: 12px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
 .sidebar-toggle {
     display: none;
     background: none;
@@ -104,6 +154,340 @@ body {
 .nav-list .active a {
     background-color: var(--secondary-color);
     color: white;
+}
+
+/* Pure CSS Tree Navigation */
+#tree-container {
+    height: calc(100% - 120px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px;
+}
+
+.tree-nav {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Tree items */
+.tree-item {
+    margin: 2px 0;
+}
+
+.tree-link {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-color);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tree-link:hover {
+    background-color: rgba(52, 152, 219, 0.08);
+    transform: translateX(2px);
+}
+
+.tree-item.active .tree-link {
+    background-color: var(--secondary-color);
+    color: white;
+    font-weight: 500;
+}
+
+/* Tree folders */
+.tree-folder {
+    margin: 4px 0;
+}
+
+.tree-folder-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.tree-folder-header:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.tree-folder-content {
+    margin-left: 24px;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease,
+                padding 0.2s ease;
+}
+
+.tree-folder.expanded .tree-folder-content {
+    max-height: 2000px;
+    opacity: 1;
+    padding: 4px 0;
+}
+
+/* Icons and arrows */
+.tree-arrow {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 12px;
+    color: #666;
+}
+
+.tree-folder.expanded .tree-arrow {
+    transform: rotate(90deg);
+}
+
+.tree-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.tree-folder.expanded .tree-folder-header .tree-icon {
+    font-size: 0;
+}
+
+.tree-folder.expanded .tree-folder-header .tree-icon::after {
+    content: "📂";
+    font-size: 16px;
+}
+
+.tree-folder:not(.expanded) .tree-folder-header .tree-icon {
+    font-size: 0;
+}
+
+.tree-folder:not(.expanded) .tree-folder-header .tree-icon::after {
+    content: "📁";
+    font-size: 16px;
+}
+
+.tree-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Search results highlight */
+.tree-item.search-match,
+.tree-folder.search-match .tree-folder-header {
+    background-color: #fff3cd;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .tree-link,
+    .tree-folder-header {
+        min-height: 44px;
+        padding: 12px;
+    }
+    
+    .tree-nav {
+        font-size: 16px;
+    }
+    
+    .tree-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 18px;
+    }
+}
+
+/* Modern Tree Navigation (for legacy non-jstree) */
+.nav-tree-container {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px;
+}
+
+.nav-tree {
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.nav-tree li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+/* File items */
+.nav-file {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    margin: 1px 0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.nav-file:hover {
+    background-color: rgba(52, 152, 219, 0.08);
+}
+
+.nav-file.active {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.nav-file a {
+    flex: 1;
+    color: inherit;
+    text-decoration: none;
+    padding: 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.nav-file.active a {
+    color: white;
+}
+
+/* Directory items */
+.nav-directory {
+    margin: 2px 0;
+}
+
+.nav-directory-toggle {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    margin: 1px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+
+.nav-directory-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Icons */
+.toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 2px;
+    transition: transform 0.2s ease;
+    font-size: 10px;
+    color: #666;
+}
+
+.nav-directory.expanded .toggle-icon {
+    transform: rotate(0deg);
+}
+
+.nav-directory:not(.expanded) .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.folder-icon, .file-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.nav-directory.expanded .folder-icon {
+    content: "📂";
+}
+
+.directory-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--primary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Subdirectory */
+.nav-subdirectory {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 12px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+.nav-directory.expanded .nav-subdirectory {
+    max-height: none;
+    opacity: 1;
+}
+
+/* Indentation for nested levels */
+.nav-tree li[data-level="1"] {
+    padding-left: 16px;
+}
+
+.nav-tree li[data-level="2"] {
+    padding-left: 32px;
+}
+
+.nav-tree li[data-level="3"] {
+    padding-left: 48px;
+}
+
+/* Tree lines (optional, for CHM-like appearance) */
+.nav-tree li::before {
+    content: "";
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, #ddd 20%, #ddd 80%, transparent);
+}
+
+.nav-tree li[data-level="0"]::before {
+    display: none;
+}
+
+/* Smooth scrollbar */
+.nav-tree-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.nav-tree-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nav-tree-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.nav-tree-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
 }
 
 /* Main content */
@@ -246,6 +630,9 @@ blockquote {
     .sidebar {
         transform: translateX(-100%);
         z-index: 1000;
+        width: 85vw;
+        max-width: 350px;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     }
     
     .sidebar.active {
@@ -254,6 +641,15 @@ blockquote {
     
     .sidebar-toggle {
         display: block;
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1001;
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
     
     .content {
@@ -269,6 +665,34 @@ blockquote {
     .nav-link {
         width: 100%;
         text-align: center;
+    }
+    
+    /* Larger touch targets for mobile */
+    .nav-file, .nav-directory-toggle {
+        padding: 8px 12px;
+        min-height: 44px;
+    }
+    
+    .toggle-icon, .folder-icon, .file-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 16px;
+    }
+    
+    .nav-tree {
+        font-size: 16px;
+    }
+    
+    /* Overlay when sidebar is open */
+    .sidebar.active::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: -1;
     }
     
     h1 { font-size: 1.8em; }

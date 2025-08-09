@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./">
     <title>第11章：视频扩散模型</title>
-    <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/highlight.css">
-    <script src="./assets/script.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/highlight.css">
+    <script src="assets/script.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         window.MathJax = {
@@ -14,14 +15,14 @@
                 inlineMath: [['$', '$']],
                 displayMath: [['$$', '$$']],
                 processEscapes: false,
-                packages: {'[+]': ['noerrors']}
+                packages: {'[+]': ['noerrors', 'ams']}
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
             },
             loader: {
-                load: ['[tex]/noerrors']
+                load: ['[tex]/noerrors', '[tex]/ams']
             }
         };
     </script>
@@ -37,7 +38,159 @@
                     <span></span>
                 </button>
             </div>
-            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class=""><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class="active"><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-search-input" placeholder="搜索..." autocomplete="off">
+            </div>
+            <div id="tree-container">
+                <nav class="tree-nav" role="tree">
+                    <div class="tree-item " >
+                        <a href="index.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter1.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第1章：扩散模型导论</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter2.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第2章：神经网络架构：U-Net与ViT</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter3.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第3章：去噪扩散概率模型 (DDPM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter4.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第4章：基于分数的生成模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter5.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第5章：连续时间扩散模型 (PDE/SDE)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter6.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第6章：流匹配 (Flow Matching)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter7.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第7章：扩散Transformer (DiT)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter8.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第8章：采样算法与加速技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter9.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第9章：条件生成与引导技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter10.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第10章：潜在扩散模型 (LDM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item active" >
+                        <a href="chapter11.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第11章：视频扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter12.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第12章：文本扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter13.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第13章：扩散模型的应用</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter14.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第14章：前沿研究与未来方向</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-a.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录A：测度论与随机过程速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-b.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录B：倒向随机微分方程 (BSDE) 速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-c.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录C：信息几何与分数函数的力学解释</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="CLAUDE.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目说明</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="PROJECT_STATUS.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目状态</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="README.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
         </nav>
         
         <main class="content">
@@ -252,7 +405,7 @@ $$\mathbf{p}' = \mathbf{A}\mathbf{p} + \mathbf{t}$$
 <li><strong>显式运动表示</strong></li>
 </ol>
 <p>直接编码运动信息，如光流场或轨迹：
-$$\mathbf{M} = {\mathbf{v}_{x,y,t} | \mathbf{v} = (u, v) \text{ 是位置 } (x,y) \text{ 在时刻 } t \text{ 的运动向量}}$$
+$$\mathbf{M} = \{\mathbf{v}_{x,y,t} | \mathbf{v} = (u, v) \text{ 是位置 } (x,y) \text{ 在时刻 } t \text{ 的运动向量}\}$$
 优点：</p>
 <ul>
 <li>可解释性强</li>
@@ -554,12 +707,12 @@ $$\mathbf{F} = f_{\text{encoder}}(\mathbf{V}_{\text{pixel}})$$
 </li>
 <li>
 <p><strong>语义级</strong>：场景、对象、动作的高层概念
-$$\mathbf{S} = {\text{objects}, \text{actions}, \text{scenes}}$$
+$$\mathbf{S} = \{\text{objects}, \text{actions}, \text{scenes}\}$$
 通过检测器和分类器获得</p>
 </li>
 <li>
 <p><strong>结构级</strong>：视频的叙事结构、事件序列
-$$\mathbf{E} = {e_1 \to e_2 \to ... \to e_n}$$
+$$\mathbf{E} = \{e_1 \to e_2 \to ... \to e_n\}$$
 表示视频中的事件流</p>
 </li>
 </ul>
@@ -749,11 +902,11 @@ $$h_t = f(x_t, h_{t-1})$$
 </ol>
 <p>对于ConvLSTM：
 $$\begin{align}
-   i_t &amp;= \sigma(W_{xi} * x_t + W_{hi} * h_{t-1} + b_i) \
-   f_t &amp;= \sigma(W_{xf} * x_t + W_{hf} * h_{t-1} + b_f) \
-   o_t &amp;= \sigma(W_{xo} * x_t + W_{ho} * h_{t-1} + b_o) \
-   g_t &amp;= \tanh(W_{xg} * x_t + W_{hg} * h_{t-1} + b_g) \
-   c_t &amp;= f_t \odot c_{t-1} + i_t \odot g_t \
+   i_t &amp;= \sigma(W_{xi} * x_t + W_{hi} * h_{t-1} + b_i) \\
+   f_t &amp;= \sigma(W_{xf} * x_t + W_{hf} * h_{t-1} + b_f) \\
+   o_t &amp;= \sigma(W_{xo} * x_t + W_{ho} * h_{t-1} + b_o) \\
+   g_t &amp;= \tanh(W_{xg} * x_t + W_{hg} * h_{t-1} + b_g) \\
+   c_t &amp;= f_t \odot c_{t-1} + i_t \odot g_t \\
    h_t &amp;= o_t \odot \tanh(c_t)
    \end{align}$$
 其中$*$表示卷积操作，$\odot$表示逐元素乘法</p>
@@ -859,7 +1012,7 @@ $$x(t) = \sum_{k} a_k \cos(2\pi f_k t) + b_k \sin(2\pi f_k t)$$</li>
 <li><strong>全局头</strong>：覆盖整个视频，维持长程一致性</li>
 </ul>
 <p>通过学习的门控机制自适应地组合不同尺度的信息：
-$$h = \sum_{s \in {local, medium, global}} g_s \cdot h_s$$
+$$h = \sum_{s \in \{local, medium, global\}} g_s \cdot h_s$$
 其中$g_s$是可学习的门控权重。</p>
 <p><strong>时序递归与跳跃连接</strong></p>
 <p>为了有效传播不同时间尺度的信息，需要设计合适的连接模式：</p>
@@ -878,16 +1031,16 @@ $$h_t = f(x_t, h_{t-1}, h_{t-2}, h_{t-4}, h_{t-8})$$
 <li>
 <p><strong>时序残差网络</strong>：
    在时间维度上应用残差连接，类似于ResNet在空间维度的设计：
-$$h_t = x_t + F(x_t, {h_{t-k}}_{k=1}^K)$$
+$$h_t = x_t + F(x_t, \{h_{t-k}\}_{k=1}^K)$$
 其中$F$是时序变换函数，$K$是时间窗口大小。</p>
 </li>
 <li>
 <p><strong>门控时序传播</strong>：
    使用门控机制控制信息在时间维度的流动：
 $$\begin{align}
-   r_t &amp;= \sigma(W_r [x_t, h_{t-1}]) \quad \text{(重置门)} \
-   z_t &amp;= \sigma(W_z [x_t, h_{t-1}]) \quad \text{(更新门)} \
-   \tilde{h}_t &amp;= \tanh(W_h [x_t, r_t \odot h_{t-1}]) \
+   r_t &amp;= \sigma(W_r [x_t, h_{t-1}]) \quad \text{(重置门)} \\
+   z_t &amp;= \sigma(W_z [x_t, h_{t-1}]) \quad \text{(更新门)} \\
+   \tilde{h}_t &amp;= \tanh(W_h [x_t, r_t \odot h_{t-1}]) \\
    h_t &amp;= z_t \odot h_{t-1} + (1-z_t) \odot \tilde{h}_t
    \end{align}$$
 门控机制允许模型自适应地决定保留多少历史信息。</p>
@@ -973,8 +1126,8 @@ $$PE(t, h, w) = PE_{temporal}(t) + PE_{spatial}(h, w)$$
 <p><strong>时空Transformer块</strong>：
    每个块包含多个子层，处理不同方面的信息：
 $$\begin{align}
-   h^{(1)} &amp;= h^{(0)} + \text{SpatialAttn}(\text{LN}(h^{(0)})) \
-   h^{(2)} &amp;= h^{(1)} + \text{TemporalAttn}(\text{LN}(h^{(1)})) \
+   h^{(1)} &amp;= h^{(0)} + \text{SpatialAttn}(\text{LN}(h^{(0)})) \\
+   h^{(2)} &amp;= h^{(1)} + \text{TemporalAttn}(\text{LN}(h^{(1)})) \\
    h^{(3)} &amp;= h^{(2)} + \text{FFN}(\text{LN}(h^{(2)}))
    \end{align}$$
 这种设计允许模型分别处理空间和时间关系，同时保持计算效率。</p>
@@ -1111,7 +1264,7 @@ DiT证明了图像生成的扩展定律。视频生成是否有类似规律？�
 <p><strong>深度可分离时空卷积</strong>：
    将标准3D卷积分解为深度卷积和逐点卷积：
 $$\begin{align}
-   \text{Standard 3D Conv}: &amp; \quad O(k_t \cdot k_h \cdot k_w \cdot C_{in} \cdot C_{out}) \
+   \text{Standard 3D Conv}: &amp; \quad O(k_t \cdot k_h \cdot k_w \cdot C_{in} \cdot C_{out}) \\
    \text{Depthwise + Pointwise}: &amp; \quad O(k_t \cdot k_h \cdot k_w \cdot C_{in} + C_{in} \cdot C_{out})
    \end{align}$$
 参数量减少比例：$\frac{1}{C_{out}} + \frac{1}{k_t \cdot k_h \cdot k_w}$</p>
@@ -1146,7 +1299,7 @@ $$M_{t,h,w} = |x_{t,h,w} - x_{t-1,h,w}| &gt; \theta$$</p>
 <li>
 <p><strong>稀疏处理</strong>：只在动态区域进行完整计算
 $$y_{t,h,w} = \begin{cases}
-     f_{full}(x_{t,h,w}) &amp; \text{if } M_{t,h,w} = 1 \
+     f_{full}(x_{t,h,w}) &amp; \text{if } M_{t,h,w} = 1 \\
      f_{light}(x_{t,h,w}) &amp; \text{otherwise}
      \end{cases}$$</p>
 </li>
@@ -1395,9 +1548,9 @@ $$\mathbf{v}_{init} = \text{FlowDecoder}(\mathbf{f}_{image}, \mathbf{z}_{motion}
 <p><strong>全局运动（相机运动）</strong>：
    相机运动影响整个场景：
 $$\mathbf{v}_{global} = \begin{cases}
-   \text{pan}: &amp; (u, v) = (\alpha, 0) \
-   \text{tilt}: &amp; (u, v) = (0, \beta) \
-   \text{zoom}: &amp; (u, v) = \gamma(x - c_x, y - c_y) \
+   \text{pan}: &amp; (u, v) = (\alpha, 0) \\
+   \text{tilt}: &amp; (u, v) = (0, \beta) \\
+   \text{zoom}: &amp; (u, v) = \gamma(x - c_x, y - c_y) \\
    \text{rotate}: &amp; (u, v) = \omega(-y + c_y, x - c_x)
    \end{cases}$$
 其中$(c_x, c_y)$是图像中心，$\alpha, \beta, \gamma, \omega$是运动参数。</p>
@@ -1458,7 +1611,7 @@ $$\mathbf{F}(t) = \mathbf{a}_0 + \sum_{k=1}^N [\mathbf{a}_k \cos(k\omega t) + \m
 <ol start="2">
 <li><strong>离散点序列表示</strong>：
    直接指定关键时刻的位置：
-$$\mathcal{T} = {(t_i, \mathbf{p}_i) | i = 1, ..., K}$$
+$$\mathcal{T} = \{(t_i, \mathbf{p}_i) | i = 1, ..., K\}$$
 其中$t_i$是时间戳，$\mathbf{p}_i = (x_i, y_i)$是位置。</li>
 </ol>
 <p>优势：</p>
@@ -1620,7 +1773,7 @@ $$\mathcal{L}_{temporal} = \sum_t |\mathcal{W}(\mathbf{y}_t, \mathbf{y}_{t+1}) -
 <li>
 <p><strong>长程风格一致性</strong>：
    使用全局风格编码确保整体一致：
-$$\mathbf{z}_{style}^{global} = \text{Aggregate}({\mathbf{z}_{style}^t}_{t=1}^T)$$
+$$\mathbf{z}_{style}^{global} = \text{Aggregate}(\{\mathbf{z}_{style}^t\}_{t=1}^T)$$
 聚合方式包括：</p>
 </li>
 </ol>
@@ -1728,7 +1881,7 @@ $$\mathcal{L}_{IB} = \beta \cdot I(\mathbf{z}_k; \mathbf{x}) - I(\mathbf{z}_k; \
 <li>
 <p><strong>滑块控制</strong>：
    连续属性的实时调整（速度、大小、亮度）
-$$\mathbf{x}'_t = G(\mathbf{z}_{content}, {\alpha_k \cdot \mathbf{z}_k}_{k=1}^K)$$
+$$\mathbf{x}'_t = G(\mathbf{z}_{content}, \{\alpha_k \cdot \mathbf{z}_k\}_{k=1}^K)$$
 其中$\alpha_k \in [0, 2]$是用户控制的缩放因子。</p>
 </li>
 <li>
@@ -1901,7 +2054,7 @@ $$\mathbf{x}'_t = \text{Project}_{physics}(\mathbf{x}_t)$$</p>
 <p>通过这些条件控制机制和物理约束，视频扩散模型可以生成高度可控和真实的动态内容。下一节将探讨如何高效地训练和部署这些模型。</p>
             </article>
             
-            <nav class="page-nav"><a href="./chapter10.html" class="nav-link prev">← 第10章：潜在扩散模型 (LDM)</a><a href="./chapter12.html" class="nav-link next">第12章：文本扩散模型 →</a></nav>
+            <nav class="page-nav"><a href="chapter10.html" class="nav-link prev">← 第10章：潜在扩散模型 (LDM)</a><a href="chapter12.html" class="nav-link next">第12章：文本扩散模型 →</a></nav>
         </main>
     </div>
 </body>

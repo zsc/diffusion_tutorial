@@ -144,11 +144,6 @@ LDM由三个主要组件构成：
 - 解码：潜在表示 $\mathbf{z} \to$ 图像 $\mathbf{x} = \mathcal{D}(\mathbf{z})$
 
 这个流程的每一步都经过精心设计。编码步骤不仅压缩数据，还将其转换到更适合建模的空间。扩散过程在这个规整的空间中进行，享受更好的收敛性和稳定性。最后的解码步骤将生成的潜在表示转换回视觉丰富的图像空间。
-        z = z / self.scale_factor
-        with torch.no_grad():
-            x = self.autoencoder.decode(z)
-        return x
-```
 
 <details>
 <summary>**练习 10.1：分析压缩效率**</summary>

@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="./">
     <title>第6章：流匹配 (Flow Matching)</title>
-    <link rel="stylesheet" href="./assets/style.css">
-    <link rel="stylesheet" href="./assets/highlight.css">
-    <script src="./assets/script.js" defer></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="assets/highlight.css">
+    <script src="assets/script.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
         window.MathJax = {
@@ -14,14 +15,14 @@
                 inlineMath: [['$', '$']],
                 displayMath: [['$$', '$$']],
                 processEscapes: false,
-                packages: {'[+]': ['noerrors']}
+                packages: {'[+]': ['noerrors', 'ams']}
             },
             options: {
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
             },
             loader: {
-                load: ['[tex]/noerrors']
+                load: ['[tex]/noerrors', '[tex]/ams']
             }
         };
     </script>
@@ -37,7 +38,159 @@
                     <span></span>
                 </button>
             </div>
-            <ul class="nav-list"><li class=""><a href="./index.html">扩散模型教程</a></li><li class=""><a href="./chapter1.html">第1章：扩散模型导论</a></li><li class=""><a href="./chapter2.html">第2章：神经网络架构：U-Net与ViT</a></li><li class=""><a href="./chapter3.html">第3章：去噪扩散概率模型 (DDPM)</a></li><li class=""><a href="./chapter4.html">第4章：基于分数的生成模型</a></li><li class=""><a href="./chapter5.html">第5章：连续时间扩散模型 (PDE/SDE)</a></li><li class="active"><a href="./chapter6.html">第6章：流匹配 (Flow Matching)</a></li><li class=""><a href="./chapter7.html">第7章：扩散Transformer (DiT)</a></li><li class=""><a href="./chapter8.html">第8章：采样算法与加速技术</a></li><li class=""><a href="./chapter9.html">第9章：条件生成与引导技术</a></li><li class=""><a href="./chapter10.html">第10章：潜在扩散模型 (LDM)</a></li><li class=""><a href="./chapter11.html">第11章：视频扩散模型</a></li><li class=""><a href="./chapter12.html">第12章：文本扩散模型</a></li><li class=""><a href="./chapter13.html">第13章：扩散模型的应用</a></li><li class=""><a href="./chapter14.html">第14章：前沿研究与未来方向</a></li><li class=""><a href="./appendix-a.html">附录A：测度论与随机过程速成</a></li><li class=""><a href="./appendix-b.html">附录B：倒向随机微分方程 (BSDE) 速成</a></li><li class=""><a href="./appendix-c.html">附录C：信息几何与分数函数的力学解释</a></li><li class=""><a href="./CLAUDE.html">扩散模型教程项目说明</a></li><li class=""><a href="./PROJECT_STATUS.html">扩散模型教程项目状态</a></li><li class=""><a href="./README.html">扩散模型教程</a></li></ul>
+            <div class="sidebar-search">
+                <input type="text" id="sidebar-search-input" placeholder="搜索..." autocomplete="off">
+            </div>
+            <div id="tree-container">
+                <nav class="tree-nav" role="tree">
+                    <div class="tree-item " >
+                        <a href="index.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter1.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第1章：扩散模型导论</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter2.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第2章：神经网络架构：U-Net与ViT</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter3.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第3章：去噪扩散概率模型 (DDPM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter4.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第4章：基于分数的生成模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter5.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第5章：连续时间扩散模型 (PDE/SDE)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item active" >
+                        <a href="chapter6.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第6章：流匹配 (Flow Matching)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter7.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第7章：扩散Transformer (DiT)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter8.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第8章：采样算法与加速技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter9.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第9章：条件生成与引导技术</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter10.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第10章：潜在扩散模型 (LDM)</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter11.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第11章：视频扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter12.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第12章：文本扩散模型</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter13.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第13章：扩散模型的应用</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="chapter14.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">第14章：前沿研究与未来方向</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-a.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录A：测度论与随机过程速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-b.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录B：倒向随机微分方程 (BSDE) 速成</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="appendix-c.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">附录C：信息几何与分数函数的力学解释</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="CLAUDE.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目说明</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="PROJECT_STATUS.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程项目状态</span>
+                        </a>
+                    </div>
+                
+                    <div class="tree-item " >
+                        <a href="README.html" class="tree-link">
+                            <span class="tree-icon">📄</span>
+                            <span class="tree-title">扩散模型教程</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
         </nav>
         
         <main class="content">
@@ -138,16 +291,17 @@ CNF中向量场的几何性质（如旋度、散度）如何影响生成质量�
 </li>
 <li>
 <p><strong>轨迹积分</strong>：沿着整个轨迹，我们需要累积散度项 $\int_0^1 \nabla \cdot v_t(\mathbf{x}_t) dt$ 。这要求在每个积分步骤都计算向量场的散度。</p>
-<p>这个积分必须与ODE求解同步进行，因为我们需要知道每个时刻的位置 $\mathbf{x}_t$ 才能计算该点的散度。这创造了一个耦合的计算过程：
- ```
- 对于每个ODE求解步骤：</p>
-<ol>
-<li>计算当前位置的向量场 v_t(x_t)</li>
-<li>计算向量场的散度 ∇·v_t(x_t)</li>
-<li>更新位置 x_t</li>
-<li>累积散度贡献到总积分
-    ```</li>
-</ol>
+<p>这个积分必须与ODE求解同步进行，因为我们需要知道每个时刻的位置 $\mathbf{x}_t$ 才能计算该点的散度。这创造了一个耦合的计算过程：</p>
+</li>
+</ul>
+<div class="codehilite"><pre><span></span><code>对于每个ODE求解步骤：
+
+  1. 计算当前位置的向量场 v_t(x_t)
+  2. 计算向量场的散度 ∇·v_t(x_t)
+  3. 更新位置 x_t
+  4. 累积散度贡献到总积分
+</code></pre></div>
+
 <ul>
 <li>
 <p><strong>神经网络调用</strong>：每个ODE求解步骤都需要调用神经网络来评估向量场 $v_t(\mathbf{x}_t)$ ，在训练过程中这意味着大量的前向和反向传播。</p>
@@ -160,11 +314,9 @@ CNF中向量场的几何性质（如旋度、散度）如何影响生成质量�
 </li>
 </ul>
 <p>想象一下，对于一张 $256 \times 256$ 的RGB图像（196,608维），每个训练样本可能需要数十次神经网络评估，这使得训练变得极其缓慢。在实践中，训练一个高质量的CNF模型可能需要数周时间，即使在强大的GPU集群上。</p>
-</li>
-</ul>
 <ol start="2">
-<li>
-<p><strong>训练的不稳定性</strong>：直接最大化似然需要精确的ODE求解，但这在高维空间中充满挑战：</p>
+<li><strong>训练的不稳定性</strong>：直接最大化似然需要精确的ODE求解，但这在高维空间中充满挑战：</li>
+</ol>
 <ul>
 <li>
 <p><strong>数值误差累积</strong>：ODE求解器的每一步都会引入小的数值误差，这些误差会沿着轨迹累积，特别是在高维空间中。</p>
@@ -174,7 +326,7 @@ CNF中向量场的几何性质（如旋度、散度）如何影响生成质量�
 <li>
 <p><strong>梯度爆炸/消失</strong>：反向传播通过整个ODE轨迹时，梯度可能会指数级地增长或衰减，导致训练不稳定。</p>
 <p>这个问题的根源在于链式法则。考虑简化的情况，梯度的传播大致遵循：
-$\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\partial \mathbf{x}_{t_i}}{\partial \mathbf{x}_{t_{i-1}}} \cdot \frac{\partial \mathcal{L}}{\partial \mathbf{x}_T}$</p>
+ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\partial \mathbf{x}_{t_i}}{\partial \mathbf{x}_{t_{i-1}}} \cdot \frac{\partial \mathcal{L}}{\partial \mathbf{x}_T}$</p>
 <p>如果每个雅可比矩阵 $\frac{\partial \mathbf{x}_{t_i}}{\partial \mathbf{x}_{t_{i-1}}}$ 的谱范数大于1，梯度会指数增长；如果小于1，梯度会指数衰减。在深度ODE中控制这些谱范数是一个未解决的难题。</p>
 </li>
 <li>
@@ -187,9 +339,9 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </ul>
 </li>
 </ul>
-</li>
-<li>
-<p><strong>散度计算的复杂度</strong>：散度 $\nabla \cdot v_t = \sum_{i=1}^d \frac{\partial v_{t,i}}{\partial x_i}$ 的计算是一个关键瓶颈：</p>
+<ol start="3">
+<li><strong>散度计算的复杂度</strong>：散度 $\nabla \cdot v_t = \sum_{i=1}^d \frac{\partial v_{t,i}}{\partial x_i}$ 的计算是一个关键瓶颈：</li>
+</ol>
 <ul>
 <li>
 <p><strong>精确计算</strong>：对于 $d$ 维数据，需要计算 $d$ 个偏导数。使用自动微分，这需要 $O(d)$ 次反向传播，每次计算一个维度的导数。</p>
@@ -202,7 +354,7 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </li>
 <li>
 <p><strong>Hutchinson迹估计</strong>：虽然可以使用随机估计方法将复杂度降到 $O(1)$ ，但代价是引入方差：
-    $$\nabla \cdot v_t \approx \mathbb{E}_{\epsilon \sim \mathcal{N}(0, I)}[\epsilon^T \nabla_x (v_t \cdot \epsilon)]$$</p>
+     $$\nabla \cdot v_t \approx \mathbb{E}_{\epsilon \sim \mathcal{N}(0, I)}[\epsilon^T \nabla_x (v_t \cdot \epsilon)]$$</p>
 <p>这种方法的原理是利用了迹的随机估计。具体来说：</p>
 <ul>
 <li>采样一个随机向量 $\epsilon \sim \mathcal{N}(0, I)$</li>
@@ -217,8 +369,6 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </li>
 </ul>
 <p>对于图像等高维数据，即使是 $O(1)$ 的估计也需要仔细调节以平衡方差和计算成本。</p>
-</li>
-</ol>
 <p><strong>实际影响</strong>：这些计算瓶颈的综合效应是灾难性的。一个在CIFAR-10这样的小数据集上训练的CNF模型，可能需要：</p>
 <ul>
 <li>数百个GPU小时的训练时间</li>
@@ -227,7 +377,7 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <li>仍然可能无法达到其他生成模型的性能</li>
 </ul>
 <p>这解释了为什么尽管CNF在理论上优雅，在实践中却很少被采用——直到流匹配的出现改变了这一局面。</p>
-<p>### 6.1.3 流匹配：回避似然计算的巧妙方案</p>
+<h3 id="613">6.1.3 流匹配：回避似然计算的巧妙方案</h3>
 <p>流匹配（Flow Matching）的核心洞察是一个范式转换：与其费力地通过似然优化来间接学习向量场，不如直接学习连接两个分布的向量场本身。这个想法既简单又深刻，它彻底改变了我们训练连续流模型的方式。</p>
 <p>要理解这个范式转换的重要性，让我们回顾一下传统CNF和流匹配的根本区别：</p>
 <p><strong>传统CNF的间接学习</strong>：</p>
@@ -263,28 +413,22 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <p><strong>流匹配的优势</strong></p>
 <ol>
 <li>
-<p><strong>计算效率</strong>：</p>
-<ul>
-<li>不需要在训练时求解ODE</li>
-<li>不需要计算散度或雅可比行列式</li>
-<li>每个训练步骤只需要一次神经网络前向传播</li>
-</ul>
+<p><strong>计算效率</strong>：
+   - 不需要在训练时求解ODE
+   - 不需要计算散度或雅可比行列式
+   - 每个训练步骤只需要一次神经网络前向传播</p>
 </li>
 <li>
-<p><strong>训练稳定性</strong>：</p>
-<ul>
-<li>避免了通过长ODE轨迹的梯度传播</li>
-<li>没有数值误差的累积</li>
-<li>梯度计算简单明了</li>
-</ul>
+<p><strong>训练稳定性</strong>：
+   - 避免了通过长ODE轨迹的梯度传播
+   - 没有数值误差的累积
+   - 梯度计算简单明了</p>
 </li>
 <li>
-<p><strong>实现简单</strong>：</p>
-<ul>
-<li>训练循环与标准的监督学习相同</li>
-<li>不需要复杂的ODE求解器或伴随方法</li>
-<li>易于调试和优化</li>
-</ul>
+<p><strong>实现简单</strong>：
+   - 训练循环与标准的监督学习相同
+   - 不需要复杂的ODE求解器或伴随方法
+   - 易于调试和优化</p>
 </li>
 </ol>
 <p>但这里有一个关键挑战：<strong>如何获得训练样本 $(t, \mathbf{x}_t, u_t(\mathbf{x}_t))$ ？</strong></p>
@@ -296,12 +440,12 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <p>更具体地说，考虑以下困难：</p>
 <ol>
 <li>
-<p><strong>中间分布的未知性</strong>：给定 $p_0$ 和 $p_1$ ，存在无穷多种可能的概率路径 ${p_t}_{t \in [0,1]}$ 连接它们。每种路径对应不同的向量场。我们应该选择哪一种？</p>
+<p><strong>中间分布的未知性</strong>：给定 $p_0$ 和 $p_1$ ，存在无穷多种可能的概率路径 $\{p_t\}_{t \in [0,1]}$ 连接它们。每种路径对应不同的向量场。我们应该选择哪一种？</p>
 </li>
 <li>
 <p><strong>向量场的隐式定义</strong>：即使我们选定了一种概率路径，对应的向量场 $u_t$ 通常也没有解析形式。它是通过连续性方程隐式定义的：
-      $\frac{\partial p_t}{\partial t} + \nabla \cdot (p_t u_t) = 0$
-      从这个方程解出 $u_t$ 是非平凡的。</p>
+   $\frac{\partial p_t}{\partial t} + \nabla \cdot (p_t u_t) = 0$
+   从这个方程解出 $u_t$ 是非平凡的。</p>
 </li>
 <li>
 <p><strong>采样的困难</strong>：即使我们知道了 $u_t$ ，从中间分布 $p_t$ 采样通常也需要求解从 $p_0$ 出发的ODE——这正是我们想要避免的！</p>
@@ -309,28 +453,26 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </ol>
 <p>这看起来是一个"鸡生蛋"的问题：要学习向量场，需要知道中间分布；要知道中间分布，需要知道向量场。传统的解决方案可能会陷入迭代优化的复杂过程中。</p>
 <p>条件流匹配正是为了打破这个循环而设计的。它的关键洞察是：与其试图直接处理复杂的边缘分布和向量场，不如构造简单的条件分布，然后利用边缘化的性质来恢复我们需要的目标。这种方法既优雅又实用，让流匹配从一个理论上有趣但实践上困难的想法，变成了一个强大的实用工具。</p>
-<p>### 6.1.4 条件流匹配框架</p>
+<h3 id="614">6.1.4 条件流匹配框架</h3>
 <p>条件流匹配（Conditional Flow Matching, CFM）通过构造条件概率路径巧妙地解决了采样问题。这个方法的优雅之处在于，它将一个复杂的全局问题分解为许多简单的局部问题。</p>
 <p>核心思想可以分为三个关键步骤：</p>
 <ol>
-<li>
-<p><strong>定义条件路径</strong>：与其试图直接构造从整个分布 $p_0$ 到 $p_1$ 的复杂路径，CFM为每一对点构造简单的条件路径。对每个数据点 $\mathbf{x}_1 \sim p_1$ 和对应的噪声点 $\mathbf{x}_0 \sim p_0$ ，定义一个简单的路径连接它们。最常用的是线性插值：</p>
+<li><strong>定义条件路径</strong>：与其试图直接构造从整个分布 $p_0$ 到 $p_1$ 的复杂路径，CFM为每一对点构造简单的条件路径。对每个数据点 $\mathbf{x}_1 \sim p_1$ 和对应的噪声点 $\mathbf{x}_0 \sim p_0$ ，定义一个简单的路径连接它们。最常用的是线性插值：</li>
+</ol>
 <p>$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$</p>
 <p>这就像是为每对起点和终点画一条直线。虽然单条直线很简单，但所有直线的集合可以形成复杂的流场。</p>
-</li>
-<li>
-<p><strong>条件向量场</strong>：对于线性路径，计算对应的向量场非常简单。如果粒子沿着直线从 $\mathbf{x}_0$ 移动到 $\mathbf{x}_1$ ，它的速度是恒定的：</p>
+<ol start="2">
+<li><strong>条件向量场</strong>：对于线性路径，计算对应的向量场非常简单。如果粒子沿着直线从 $\mathbf{x}_0$ 移动到 $\mathbf{x}_1$ ，它的速度是恒定的：</li>
+</ol>
 <p>$u_t(\mathbf{x}_t | \mathbf{x}_0, \mathbf{x}_1) = \frac{d\mathbf{x}_t}{dt} = \mathbf{x}_1 - \mathbf{x}_0$</p>
 <p>注意这个向量场不依赖于时间 $t$ ——粒子始终以相同的速度沿直线移动。这种简单性是线性插值的一大优势。</p>
-</li>
-<li>
-<p><strong>边缘化的魔法</strong>：CFM的关键洞察是一个深刻的数学事实：如果我们对所有可能的 $(\mathbf{x}_0, \mathbf{x}_1)$ 对进行平均（边缘化），得到的边缘向量场 $u_t(\mathbf{x}_t)$ 正好生成了从 $p_0$ 到 $p_1$ 的有效流。</p>
-<p>直观地说，虽然每条单独的路径只连接一对点，但当我们考虑所有可能的路径时，它们的集体效应创造了一个将整个分布 $p_0$ 变换到 $p_1$ 的向量场。</p>
-</li>
+<ol start="3">
+<li><strong>边缘化的魔法</strong>：CFM的关键洞察是一个深刻的数学事实：如果我们对所有可能的 $(\mathbf{x}_0, \mathbf{x}_1)$ 对进行平均（边缘化），得到的边缘向量场 $u_t(\mathbf{x}_t)$ 正好生成了从 $p_0$ 到 $p_1$ 的有效流。</li>
 </ol>
+<p>直观地说，虽然每条单独的路径只连接一对点，但当我们考虑所有可能的路径时，它们的集体效应创造了一个将整个分布 $p_0$ 变换到 $p_1$ 的向量场。</p>
 <p>这种方法的美妙之处在于，它将一个困难的问题（学习复杂的全局向量场）转化为一个简单的问题（匹配条件向量场）。更重要的是，这种转化使得训练变得极其高效。</p>
 <p>💡 <strong>实现技巧：高效采样</strong><br />
-   CFM的训练算法惊人地简单：</p>
+CFM的训练算法惊人地简单：</p>
 <ol>
 <li>采样时间 $t \sim \mathcal{U}[0,1]$ </li>
 <li>采样噪声 $\mathbf{x}_0 \sim p_0$ 和数据 $\mathbf{x}_1 \sim p_1$ </li>
@@ -339,10 +481,10 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </ol>
 <p>整个过程完全避免了ODE求解、似然计算和复杂的采样过程！每个训练步骤的计算成本与训练一个简单的回归网络相当。</p>
 <p>🔬 <strong>研究线索：非线性路径设计</strong><br />
-   虽然线性路径简单有效，但它们可能不是最优的。研究问题包括：如何设计更好的条件路径？例如，可以考虑测地线路径（在某种度量下的最短路径）、避开低密度区域的路径、或者学习数据依赖的路径。这是一个活跃的研究领域，涉及最优传输理论和流形学习。</p>
-<p>## 6.2 最优传输视角</p>
+虽然线性路径简单有效，但它们可能不是最优的。研究问题包括：如何设计更好的条件路径？例如，可以考虑测地线路径（在某种度量下的最短路径）、避开低密度区域的路径、或者学习数据依赖的路径。这是一个活跃的研究领域，涉及最优传输理论和流形学习。</p>
+<h2 id="62_1">6.2 最优传输视角</h2>
 <p>流匹配与最优传输（Optimal Transport, OT）理论有着深刻的联系。要理解这种联系，让我们先从一个直观的例子开始：想象你是一个物流公司的经理，需要将仓库中的货物运送到各个商店。OT理论研究的正是如何以"最低成本"完成这种分配任务——只不过在我们的情况中，"货物"是概率质量，"运输"是从一个分布到另一个分布的变换。</p>
-<p>### 6.2.1 Monge-Kantorovich问题与Wasserstein距离</p>
+<h3 id="621-monge-kantorovichwasserstein">6.2.1 Monge-Kantorovich问题与Wasserstein距离</h3>
 <p>最优传输理论有着悠久的历史，可以追溯到18世纪法国数学家Gaspard Monge的工作。Monge最初研究的问题非常实际：如何以最小的工作量将一堆沙土搬运到另一个地方来建造防御工事。这个看似简单的问题，实际上蕴含着深刻的数学结构。</p>
 <p><strong>Monge问题</strong>的现代表述是：寻找一个映射 $T: \mathbb{R}^d \to \mathbb{R}^d$ ，使得：</p>
 <ol>
@@ -366,7 +508,7 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <li>$W_p(p_0, p_1) = \left(\inf_\pi \int |\mathbf{x} - \mathbf{y}|^p d\pi(\mathbf{x}, \mathbf{y})\right)^{1/p}$</li>
 </ul>
 <p>特别地，$W_2$ （使用平方欧氏距离）在理论和应用中最为重要，因为它与许多几何和物理概念自然地联系在一起。</p>
-<p>### 6.2.2 动态最优传输与Benamou-Brenier公式</p>
+<h3 id="622-benamou-brenier">6.2.2 动态最优传输与Benamou-Brenier公式</h3>
 <p>静态的Monge-Kantorovich问题告诉我们最优的"配对方案"，但没有告诉我们质量是如何从源移动到目标的。Benamou和Brenier在2000年提出了一个革命性的想法：与其只关注起点和终点，不如研究整个运输过程的动力学。</p>
 <p>想象一下密度分布的演化就像流体的流动。在每个时刻 $t \in [0,1]$ ，我们有一个概率分布 $p_t$ ，它从 $p_0$ 开始，最终到达 $p_1$ 。这个演化由一个速度场 $v_t$ 驱动，满足<strong>连续性方程</strong>：</p>
 <p>$\frac{\partial p_t}{\partial t} + \nabla \cdot (p_t v_t) = 0$</p>
@@ -394,30 +536,26 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 </li>
 <li>
 <p><strong>速度场的特性</strong>：最优传输的速度场有一个重要性质——它是某个势函数的梯度（至少在适当的正则性条件下）：
-      $v_t(\mathbf{x}) = \nabla \phi_t(\mathbf{x})$</p>
-<p>这意味着最优传输的流动是"无旋的"，没有涡流或循环。</p>
+   $v_t(\mathbf{x}) = \nabla \phi_t(\mathbf{x})$</p>
 </li>
 </ol>
-<p>### 6.2.3 流匹配作为最优传输的实现</p>
+<p>这意味着最优传输的流动是"无旋的"，没有涡流或循环。</p>
+<h3 id="623">6.2.3 流匹配作为最优传输的实现</h3>
 <p>现在我们可以理解流匹配与最优传输之间的深刻联系了。流匹配可以被视为一种实用的方法来近似求解最优传输问题，而不需要直接处理其计算复杂性。</p>
 <p><strong>理论联系</strong>：
-   流匹配的目标函数——最小化模型向量场 $v_\theta$ 与真实向量场 $u_t$ 之间的L2距离——与Benamou-Brenier公式有着密切的关系。让我们仔细分析这种联系：</p>
+流匹配的目标函数——最小化模型向量场 $v_\theta$ 与真实向量场 $u_t$ 之间的L2距离——与Benamou-Brenier公式有着密切的关系。让我们仔细分析这种联系：</p>
 <ol>
 <li>
-<p><strong>当使用最优传输路径时</strong>：如果我们在条件流匹配中使用的概率路径 $p_t$ 正好是最优传输路径（即Wasserstein测地线），那么：</p>
-<ul>
-<li>对应的向量场 $u_t$ 就是最优传输的速度场</li>
-<li>学习到的 $v_\theta$ 将逼近最优传输映射</li>
-<li>生成的样本将沿着最优路径从噪声移动到数据</li>
-</ul>
+<p><strong>当使用最优传输路径时</strong>：如果我们在条件流匹配中使用的概率路径 $p_t$ 正好是最优传输路径（即Wasserstein测地线），那么：
+   - 对应的向量场 $u_t$ 就是最优传输的速度场
+   - 学习到的 $v_\theta$ 将逼近最优传输映射
+   - 生成的样本将沿着最优路径从噪声移动到数据</p>
 </li>
 <li>
-<p><strong>线性插值的情况</strong>：在实践中，我们通常使用简单的线性插值路径：</p>
-<ul>
-<li>条件路径：$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$</li>
-<li>这不是最优传输路径（除非在非常特殊的情况下）</li>
-<li>但它仍然定义了一个有效的传输方案</li>
-</ul>
+<p><strong>线性插值的情况</strong>：在实践中，我们通常使用简单的线性插值路径：
+   - 条件路径：$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$
+   - 这不是最优传输路径（除非在非常特殊的情况下）
+   - 但它仍然定义了一个有效的传输方案</p>
 </li>
 </ol>
 <p><strong>为什么线性插值也有效？</strong></p>
@@ -431,26 +569,20 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <p>研究者们提出了多种方法来结合最优传输的理论优势和流匹配的实践效率：</p>
 <ol>
 <li>
-<p><strong>OT-CFM（Optimal Transport Conditional Flow Matching）</strong>：</p>
-<ul>
-<li>使用最优传输理论来设计更好的条件路径</li>
-<li>例如，使用mini-batch最优传输来估计更好的配对</li>
-<li>在保持计算效率的同时提高生成质量</li>
-</ul>
+<p><strong>OT-CFM（Optimal Transport Conditional Flow Matching）</strong>：
+   - 使用最优传输理论来设计更好的条件路径
+   - 例如，使用mini-batch最优传输来估计更好的配对
+   - 在保持计算效率的同时提高生成质量</p>
 </li>
 <li>
-<p><strong>动态最优传输正则化</strong>：</p>
-<ul>
-<li>在流匹配损失中加入鼓励"直线"路径的正则项</li>
-<li>这隐式地鼓励学习接近最优传输的解</li>
-</ul>
+<p><strong>动态最优传输正则化</strong>：
+   - 在流匹配损失中加入鼓励"直线"路径的正则项
+   - 这隐式地鼓励学习接近最优传输的解</p>
 </li>
 <li>
-<p><strong>多尺度最优传输</strong>：</p>
-<ul>
-<li>在不同的特征尺度上应用最优传输原理</li>
-<li>特别适用于具有层次结构的数据（如图像）</li>
-</ul>
+<p><strong>多尺度最优传输</strong>：
+   - 在不同的特征尺度上应用最优传输原理
+   - 特别适用于具有层次结构的数据（如图像）</p>
 </li>
 </ol>
 <p><strong>实践意义</strong>：</p>
@@ -461,27 +593,27 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <li><strong>灵活性</strong>：可以在效率和最优性之间进行权衡</li>
 </ul>
 <p>🔬 <strong>研究线索：最优传输与生成质量</strong><br />
-   一个开放的研究问题是：在什么条件下，使用更接近最优传输的路径会显著提高生成质量？这涉及到数据流形的几何性质、噪声分布的选择、以及具体应用场景的需求。特别是在高维空间中，"最优"的含义本身就需要仔细定义。</p>
-<p>## 6.3 流匹配的数学基础</p>
+一个开放的研究问题是：在什么条件下，使用更接近最优传输的路径会显著提高生成质量？这涉及到数据流形的几何性质、噪声分布的选择、以及具体应用场景的需求。特别是在高维空间中，"最优"的含义本身就需要仔细定义。</p>
+<h2 id="63_1">6.3 流匹配的数学基础</h2>
 <p>流匹配的有效性依赖于一个优雅的数学性质：<strong>直接匹配条件向量场可以正确地学习到边缘向量场</strong>。</p>
-<p>### 6.3.1 概率路径与边缘保持性质</p>
+<h3 id="631">6.3.1 概率路径与边缘保持性质</h3>
 <p>让我们更正式地定义这个思想。</p>
 <ol>
 <li><strong>联合分布</strong>：我们首先定义一个源分布 $p_0$ 和目标分布 $p_1$ 的联合分布（或称“耦合”） $q(\mathbf{x}_0, \mathbf{x}_1)$ 。最简单的选择是独立耦合 $q(\mathbf{x}_0, \mathbf{x}_1) = p_0(\mathbf{x}_0) p_1(\mathbf{x}_1)$ 。</li>
 <li><strong>条件概率路径</strong>：给定一对样本 $(\mathbf{x}_0, \mathbf{x}_1) \sim q$ ，我们定义一个条件概率路径 $p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 。这是一个随时间 $t$ 演化的分布，满足 $p_0(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_0)$ 和 $p_1(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) = \delta(\mathbf{x} - \mathbf{x}_1)$ 。</li>
 <li><strong>边缘概率路径</strong>：通过对联合分布 $q$ 进行积分，我们可以得到边缘概率路径：
-       $p_t(\mathbf{x}) = \int p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) q(\mathbf{x}_0, \mathbf{x}_1) d\mathbf{x}_0 d\mathbf{x}_1$
-       这个边缘路径 $p_t$ 描述了从 $p_0$ 到 $p_1$ 的连续变换。</li>
+    $p_t(\mathbf{x}) = \int p_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1) q(\mathbf{x}_0, \mathbf{x}_1) d\mathbf{x}_0 d\mathbf{x}_1$
+    这个边缘路径 $p_t$ 描述了从 $p_0$ 到 $p_1$ 的连续变换。</li>
 </ol>
-<p>### 6.3.2 向量场的推导</p>
+<h3 id="632">6.3.2 向量场的推导</h3>
 <p>与概率路径对应，我们也有条件向量场 $u_t(\mathbf{x} | \mathbf{x}_0, \mathbf{x}_1)$ 和边缘向量场 $u_t(\mathbf{x})$ 。它们通过连续性方程联系在一起。一个关键的数学结论是，边缘向量场是条件向量场在后验分布 $q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)$ 下的期望：</p>
 <p>$u_t(\mathbf{x}_t) = \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1 | \mathbf{x}_t)}[u_t(\mathbf{x}_t | \mathbf{x}_0, \mathbf{x}_1)]$</p>
-<p>### 6.3.3 流匹配目标函数</p>
+<h3 id="633">6.3.3 流匹配目标函数</h3>
 <p>我们的目标是让模型 $v_\theta(t, \mathbf{x})$ 学习边缘向量场 $u_t(\mathbf{x})$ 。损失函数为：
-   $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t)|^2] dt$
-   直接优化这个损失函数是困难的，因为我们无法轻易地从 $p_t$ 或 $u_t$ 中采样。</p>
+$L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t)|^2] dt$
+直接优化这个损失函数是困难的，因为我们无法轻易地从 $p_t$ 或 $u_t$ 中采样。</p>
 <p>然而，通过巧妙的数学变换，可以证明这个损失函数等价于一个更容易处理的<strong>条件流匹配（CFM）</strong>损失：
-   $L_{CFM}(\theta) = \int_0^1 \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1)} \mathbb{E}_{p_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)} [|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2] dt$</p>
+$L_{CFM}(\theta) = \int_0^1 \mathbb{E}_{q(\mathbf{x}_0, \mathbf{x}_1)} \mathbb{E}_{p_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)} [|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2] dt$</p>
 <p>这个形式的妙处在于，我们可以通过以下方式简单地获得训练样本：</p>
 <ol>
 <li>采样 $t \sim \mathcal{U}[0,1]$ 。</li>
@@ -491,38 +623,38 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <li>用梯度下降优化 $|v_\theta(t, \mathbf{x}_t) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2$ 。</li>
 </ol>
 <p>对于线性插值路径 $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ ，后两步变得极其简单： $\mathbf{x}_t$ 是确定的，向量场就是 $\mathbf{x}_1 - \mathbf{x}_0$ 。这使得训练过程完全“模拟免费”（simulation-free）。</p>
-<p>## 6.4 与扩散模型的联系</p>
+<h2 id="64_1">6.4 与扩散模型的联系</h2>
 <p>流匹配框架与我们在前几章学习的扩散模型有着深刻的统一性。</p>
-<p>### 6.4.1 概率流ODE的统一视角</p>
+<h3 id="641-ode">6.4.1 概率流ODE的统一视角</h3>
 <p>回想一下，任何扩散SDE都对应一个概率流ODE：
-   $dx_t = [f(x_t, t) - \frac{1}{2} g(t)^2 \nabla_{x_t} \log p_t(x_t)] dt$
-   这个ODE描述了一个确定性的从噪声到数据的变换路径，它本身就是一个连续正则化流！它的向量场是 $v_t(x_t) = f(x_t, t) - \frac{1}{2} g(t)^2 s_\theta(x_t, t)$ 。</p>
+$dx_t = [f(x_t, t) - \frac{1}{2} g(t)^2 \nabla_{x_t} \log p_t(x_t)] dt$
+这个ODE描述了一个确定性的从噪声到数据的变换路径，它本身就是一个连续正则化流！它的向量场是 $v_t(x_t) = f(x_t, t) - \frac{1}{2} g(t)^2 s_\theta(x_t, t)$ 。</p>
 <ul>
 <li><strong>扩散模型</strong>通过学习分数函数 $s_\theta(x_t, t) \approx \nabla_{x_t} \log p_t(x_t)$ 来间接定义这个向量场。</li>
 <li><strong>流匹配</strong>则直接学习这个向量场 $v_\theta(t, \mathbf{x}_t)$ 。</li>
 </ul>
-<p>### 6.4.2 从分数匹配到流匹配</p>
+<h3 id="642">6.4.2 从分数匹配到流匹配</h3>
 <p>分数匹配的目标是：
-   $L_{SM}(\theta) = \int_0^T \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{s}_\theta(t, \mathbf{x}_t) - \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)|^2] dt$
-   流匹配的目标是：
-   $L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{v}_\theta(t, \mathbf{x}_t) - \mathbf{u}_t(\mathbf{x}_t)|^2] dt$
-   两者都在学习一个与时间相关的函数（分数或向量场），以定义一个从噪声到数据的ODE。流匹配可以看作是更广义的框架，而扩散模型的概率流ODE是其中的一个特例。</p>
-<p>### 6.4.3 计算效率的比较分析</p>
+$L_{SM}(\theta) = \int_0^T \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{s}_\theta(t, \mathbf{x}_t) - \nabla_{\mathbf{x}_t} \log p_t(\mathbf{x}_t)|^2] dt$
+流匹配的目标是：
+$L_{FM}(\theta) = \int_0^1 \mathbb{E}_{p_t(\mathbf{x}_t)}[|\mathbf{v}_\theta(t, \mathbf{x}_t) - \mathbf{u}_t(\mathbf{x}_t)|^2] dt$
+两者都在学习一个与时间相关的函数（分数或向量场），以定义一个从噪声到数据的ODE。流匹配可以看作是更广义的框架，而扩散模型的概率流ODE是其中的一个特例。</p>
+<h3 id="643">6.4.3 计算效率的比较分析</h3>
 <p>流匹配在训练效率上通常优于传统的扩散模型：</p>
 <ul>
 <li><strong>模拟免费</strong>：流匹配的训练不需要像扩散模型那样前向模拟SDE来产生带噪声的样本 $x_t$ 。它通过简单的插值直接构造训练对，避免了数值误差和计算开销。</li>
 <li><strong>路径灵活性</strong>：扩散模型被锁定在由SDE定义的特定概率路径上。流匹配可以选择任意（通常更简单）的路径，如线性插值，这简化了目标向量场的计算（例如，对于线性路径，目标是常数 $\mathbf{x}_1 - \mathbf{x}_0$ ）。</li>
 <li><strong>一步到位</strong>：扩散模型通常需要先学习分数，然后构建ODE。流匹配直接学习ODE的向量场，更加直接。</li>
 </ul>
-<p>## 6.5 实践中的流匹配</p>
-<p>### 6.5.1 路径选择：线性插值 vs 最优传输</p>
+<h2 id="65_1">6.5 实践中的流匹配</h2>
+<h3 id="651-vs">6.5.1 路径选择：线性插值 vs 最优传输</h3>
 <p>在实践中，如何选择条件概率路径 $p_t(\mathbf{x}|\mathbf{x}_0, \mathbf{x}_1)$ 是一个关键的设计决策。</p>
 <ul>
 <li><strong>线性插值</strong>：这是最简单和最常用的选择。路径是确定的直线： $\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1$ 。对应的条件向量场是常数 $\mathbf{u}_t = \mathbf{x}_1 - \mathbf{x}_0$ 。这种方法的优点是极其简单高效。</li>
 <li><strong>最优传输引导</strong>：虽然线性插值不是最优传输路径，但研究表明，使用更接近真实OT路径的插值方案可以提高生成质量。例如，"Optimal Transport-Guided Conditional Flow Matching" (OT-CFM) 提出了一种修正线性插值的方法，使其更好地匹配数据流形。</li>
 <li><strong>扩散路径</strong>：我们也可以使用扩散SDE本身定义的路径。这表明流匹配可以被用来重新推导和训练扩散模型，突显了其框架的统一性。</li>
 </ul>
-<p>### 6.5.2 采样算法与ODE求解器选择</p>
+<h3 id="652-ode">6.5.2 采样算法与ODE求解器选择</h3>
 <p>训练完成后，我们得到了一个向量场 $v_\theta(t, \mathbf{x})$ 。生成新样本的过程就是求解从 $t=0$ 到 $t=1$ 的ODE：</p>
 <ol>
 <li>从先验分布中采样一个噪声点 $\mathbf{x}_0 \sim p_0$ 。</li>
@@ -535,33 +667,37 @@ $\frac{\partial \mathcal{L}}{\partial \theta} \approx \prod_{i=1}^n \frac{\parti
 <li><strong>高阶求解器</strong>：如经典的四阶龙格-库塔法（RK45）。</li>
 <li><strong>自适应求解器</strong>：如Dopri5，可以根据解的局部复杂度自动调整步长，通常能以更少的NFE达到高精度。</li>
 </ul>
-<p>### 6.5.3 条件生成与引导技术</p>
+<h3 id="653">6.5.3 条件生成与引导技术</h3>
 <p>在流匹配中实现条件生成非常自然。如果我们要生成以条件 $c$ 为指导的样本，只需将 $c$ 作为额外输入提供给神经网络即可：
-   $v_\theta(t, \mathbf{x}, c)$
-   训练目标也相应地变为条件期望：
-   $\min_\theta \mathbb{E}_{p(c)} \mathbb{E}_{t, q(\mathbf{x}_0, \mathbf{x}_1|c)} [|v_\theta(t, \mathbf{x}_t, c) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2]$
-   这使得流匹配可以轻松地应用于文本到图像、类别条件生成等任务。</p>
-<details markdown="block">
-   <summary markdown="off">**练习 6.2：设计一个流匹配模型**</summary>
-
-   假设你的任务是学习一个从二维标准高斯分布 $p\_0$ 到一个“月牙”形状的二维分布 $p\_1$ 的生成模型。
-
-   1. **网络架构**：你会如何设计向量场网络 $v\_\theta(t, \mathbf{x})$ ？输入和输出应该是什么维度？时间 $t$ 应该如何编码并输入到网络中？（提示：参考Transformer中的位置编码思想）
-
-   2. **训练流程**：写出使用线性插值的CFM训练该模型的伪代码。
-
-   3. **采样比较**：
-      - 使用欧拉法编写采样过程的伪代码。
-      - 如果使用自适应步长的RK45求解器，你期望在采样速度和质量上看到什么变化？
-
-   4. **研究拓展**：
-      - “月牙”分布具有非平凡的拓扑结构。线性插值路径是否会遇到问题？（提示：考虑路径是否会穿过低密度区域）
-      - 你能否设计一种简单的非线性路径，可能更适合这个任务？例如，在插值中加入一个与 $t(1-t)$ 成正比的垂直于 $(\mathbf{x}\_1 - \mathbf{x}\_0)$ 的项，来模拟曲线路径。
-
-   </details>
+$v_\theta(t, \mathbf{x}, c)$
+训练目标也相应地变为条件期望：
+$\min_\theta \mathbb{E}_{p(c)} \mathbb{E}_{t, q(\mathbf{x}_0, \mathbf{x}_1|c)} [|v_\theta(t, \mathbf{x}_t, c) - u_t(\mathbf{x}_t|\mathbf{x}_0, \mathbf{x}_1)|^2]$
+这使得流匹配可以轻松地应用于文本到图像、类别条件生成等任务。</p>
+<details>
+<summary>**练习 6.2：设计一个流匹配模型**</summary>
+<p>假设你的任务是学习一个从二维标准高斯分布 $p_0$ 到一个“月牙”形状的二维分布 $p_1$ 的生成模型。</p>
+<ol>
+<li>
+<p><strong>网络架构</strong>：你会如何设计向量场网络 $v_\theta(t, \mathbf{x})$ ？输入和输出应该是什么维度？时间 $t$ 应该如何编码并输入到网络中？（提示：参考Transformer中的位置编码思想）</p>
+</li>
+<li>
+<p><strong>训练流程</strong>：写出使用线性插值的CFM训练该模型的伪代码。</p>
+</li>
+<li>
+<p><strong>采样比较</strong>：
+   - 使用欧拉法编写采样过程的伪代码。
+   - 如果使用自适应步长的RK45求解器，你期望在采样速度和质量上看到什么变化？</p>
+</li>
+<li>
+<p><strong>研究拓展</strong>：
+   - “月牙”分布具有非平凡的拓扑结构。线性插值路径是否会遇到问题？（提示：考虑路径是否会穿过低密度区域）
+   - 你能否设计一种简单的非线性路径，可能更适合这个任务？例如，在插值中加入一个与 $t(1-t)$ 成正比的垂直于 $(\mathbf{x}_1 - \mathbf{x}_0)$ 的项，来模拟曲线路径。</p>
+</li>
+</ol>
+</details>
             </article>
             
-            <nav class="page-nav"><a href="./chapter5.html" class="nav-link prev">← 第5章：连续时间扩散模型 (PDE/SDE)</a><a href="./chapter7.html" class="nav-link next">第7章：扩散Transformer (DiT) →</a></nav>
+            <nav class="page-nav"><a href="chapter5.html" class="nav-link prev">← 第5章：连续时间扩散模型 (PDE/SDE)</a><a href="chapter7.html" class="nav-link next">第7章：扩散Transformer (DiT) →</a></nav>
         </main>
     </div>
 </body>
